@@ -23,10 +23,20 @@ AI 驱动的**多世界观**开放世界文字游戏。选择修仙 / 玄幻 / �
 
 ## 运行
 
+依赖清单在 **`package.json`**（Node 项目里它相当于 Python 的 `requirements.txt`）；锁定文件是 **`package-lock.json`**。二者都已入库。
+
 ```bash
-# 依赖：Node.js；runtime/ 需具备完整 Electron 发行版
+# 1）安装依赖（当前仅 devDependency：electron，可选）
+npm install
+
+# 2）启动（同步 app → runtime/resources/app 后拉起游戏）
 npm start
 ```
+
+说明：
+- **游戏本体零 npm 运行时依赖**，浏览器侧是原生 ESM，不需要 bundler
+- `electron` 只是开发辅助；日常运行用本地 **`runtime/AgentWorlds.exe`**（见 `runtime/README.md`）
+- 若机器上没有 `runtime/`，需自备完整 Electron 发行版放到该目录，或改 `scripts/run-electron.js` 指向本机 Electron
 
 `npm start` 会把 `app/`、`main.js`、`assets/` 同步到 `runtime/resources/app/`，再启动 `runtime/AgentWorlds.exe`。
 
@@ -62,7 +72,8 @@ npm run sync
 ## 脚本
 
 ```bash
-npm start          # 同步 runtime 并启动
+npm install         # 按 package.json / package-lock.json 安装依赖
+npm start           # 同步 runtime 并启动
 npm run sync       # 仅同步 app → runtime/resources/app
 npm run smoke:engine
 npm run smoke:llm
