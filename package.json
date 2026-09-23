@@ -1,0 +1,21 @@
+{
+  "name": "agent-worlds",
+  "productName": "Agent万象",
+  "version": "0.1.0",
+  "description": "AI驱动的多世界观开放世界游戏",
+  "main": "main.js",
+  "author": "Yucheng",
+  "license": "MIT",
+  "scripts": {
+    "start": "node scripts/sync-runtime.js && node scripts/run-electron.js",
+    "sync": "node scripts/sync-runtime.js",
+    "smoke:engine": "node scripts/smoke.mjs",
+    "smoke:llm": "node scripts/llm-endpoints.mjs"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}
