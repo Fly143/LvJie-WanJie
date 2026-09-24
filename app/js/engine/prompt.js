@@ -110,15 +110,15 @@ export function buildSystemPrompt(S, opts = {}) {
   const cheatOn = styleKey === 'cheat'
   const styleCaveat = cheatOn
     ? `（开挂档：凡与玩家意愿冲突的规则一律让路。**仍然生效的是技术性规则**——①输出 JSON 必须合法；②【奖励必须落地】必须遵守。）`
-    : `（以上风格只调整尺度，绝不推翻下方【数值铁律】。）`
+    : `（以上风格只调整尺度，绝不推翻下方【数值规则】。）`
 
   const genderBlock = `【主角性别】
 - 若为"男"或"女"，称呼与代词必须与之一致；若为"未设定"，一律用中性说法（你/阁下）。`
 
   const pressureBlock = feat.levelPressure === false ? '' : `
-【等级威压】（必须遵守）
-- ${levelName}差距过大时，低位者必须表现出敬畏与尊重；结果始终与双方${ui.powerLabel}对比相符。
-- 比玩家低一阶以上：恭敬、不敢怠慢；更高阶者保持威严；同阶平辈论交。`
+【位阶差序】（必须遵守）
+- ${levelName}差距过大时，下位者须表现出敬畏与尊重；结果始终与双方${ui.powerLabel}对比相符。
+- 比玩家低一阶以上：恭敬、不敢怠慢；更高阶者保持权威；同阶平辈论交。`
 
   const worldviewBlock = pack.buildRules
     ? pack.buildRules({ S, loc, pack, cheatOn })
@@ -156,7 +156,7 @@ ${genderBlock}
 ${pressureBlock}
 
 【地图与人物扩充】（必须遵守）
-- 平均每1~2次游历事件，至少用new_locations添加1个新地点，并完整声明people、shop、beasts、interactables。
+- 平均每1~2次外出行动，至少用new_locations添加1个新地点，并完整声明people、shop、beasts、interactables。
 - 新地点与新人物的${levelName}必须与所在世界匹配。
 
 【叙事风格】（必须遵守）
@@ -164,11 +164,11 @@ ${pressureBlock}
 - 玩家的高光时刻浓墨重彩；琐碎细节一笔带过。
 - 尽量顺着玩家的合理意愿。
 
-【数值铁律】${cheatOn ? '（⚠️ 开挂档：仅作背景参考，与玩家意愿冲突时以玩家意愿为准）' : '（必须严格遵守）'}
+【数值规则】${cheatOn ? '（⚠️ 开挂档：仅作背景参考，与玩家意愿冲突时以玩家意愿为准）' : '（必须严格遵守）'}
 - ${levelName}从低到高：${tierList}；小级：${subs}。
 - 一切设定理性合理，不出现无世界观依靠的机制。
 - 数值必须符合${ui.powerLabel}逻辑：结果要与双方${ui.powerLabel}差距相符。
-- 机缘与危险要与玩家当前等级匹配，不得越级白给核心资源。
+- 机遇与危险要与玩家当前等级匹配，不得越级白给核心资源。
 ${worldviewBlock}
 
 【物品一致性】

@@ -40,7 +40,7 @@ export function sanitizeManualData(S, raw) {
 export function manualDesc(S, mm) {
   if (!mm || !Array.isArray(mm.level_costs)) return ''
   const pack = packOf(S)
-  const unit = pack.lexicon.progress || '修为'
+  const unit = pack.lexicon.progress || '进度'
   const pw = (pack.lexicon.power) || '战力'
   const tech = pack.lexicon.technique || '技艺'
   const layers = mm.level_costs

@@ -4,7 +4,7 @@
 export const DEFAULT_FEATURES = {
   lifespan: true,      // 是否有寿限（都市=false）
   meditate: false,     // 是否有本地「闭关/打工」按钮（后续可开）
-  levelPressure: true, // 是否强调等级威压
+  levelPressure: true, // 是否强调位阶差序（高阶压制/低阶敬畏）
   marriage: true,      // 亲密关系是否提供战力加成语义
   talkRemote: true     // 同伴可远程联系（武侠神识传音/都市电话）
 }
