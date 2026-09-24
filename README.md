@@ -8,7 +8,7 @@ AI 驱动的**多世界观**开放世界文字游戏。选择修仙 / 玄幻 / �
 - 自定义模型接入：Base URL + API Key + 模型，协议支持 **chat** / **response**
 - 可「刷新模型列表」从 `GET {Base URL}/models` 拉取选用
 - 事件循环：行动 / 选项 / 自由输入 → JSON `changes` 自动落库（货币、进度、物品、地图、同伴）
-- 本地存档（localStorage），API Key 加密保存在本机，可切换世界观重开
+- 按世界观独立存档槽，切换世界即读档；API Key 加密保存在本机
 
 ## 目录
 
@@ -83,8 +83,8 @@ npm run smoke:stage
 
 ## 注意
 
-- 游戏进度存 localStorage，清站点/应用数据会丢档
-- API Key 单独加密保存，重置存档会保留；切换世界观会清空进度但保留 Key
+- 游戏进度按世界观分槽存 localStorage，清站点/应用数据会丢档
+- API Key 单独加密保存；删某一世界档会保留 Key 与其它世界存档
 - 剧情由 AI 生成，可能包含虚构或错误内容
 - `runtime/`、`node_modules/`、日志与冒烟产物请勿提交到 git
 

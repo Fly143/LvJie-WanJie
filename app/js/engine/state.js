@@ -1,5 +1,9 @@
-// 存档 / 账号级 meta / API Key（宿主 safeStorage 优先，localStorage 仅作无宿主回退）
-import { SAVE_KEY, KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP } from './constants.js'
+// 存档 / 账号级 meta / API Key
+// 存档按世界观分槽（SLOT_PREFIX + worldview），切换世界=换槽读档
+import {
+  SAVE_KEY, ACTIVE_WORLD_KEY, SLOT_PREFIX,
+  KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP
+} from './constants.js'
 import { getPack } from '../worldviews/index.js'
 import { normalizeApiKey } from './llm.js'
 
@@ -7,14 +11,28 @@ function secretsHost() {
   return (globalThis.awHost && globalThis.awHost.secrets) || null
 }
 
+function slotKey(worldview) {
+  return SLOT_PREFIX + String(worldview || 'xiuxian')
+}
+
+export function getActiveWorld() {
+  try { return localStorage.getItem(ACTIVE_WORLD_KEY) || null } catch (e) { return null }
+}
+
+export function setActiveWorld(worldview) {
+  try { localStorage.setItem(ACTIVE_WORLD_KEY, String(worldview || '')) } catch (e) { /* ignore */ }
+}
+
 export function saveGame(S) {
   if (!S) return false
-  // 明文 Key 不入 SAVE
+  const world = S.worldview || 'xiuxian'
+  // 明文 Key 不入档
   const dump = Object.assign({}, S)
   delete dump.playerKeys
   delete dump.selectedKey
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(dump))
+    localStorage.setItem(slotKey(world), JSON.stringify(Object.assign({}, dump, { _savedAt: Date.now() })))
+    setActiveWorld(world)
   } catch (e) {
     console.warn('存档失败', e)
     return false
@@ -85,14 +103,105 @@ export function saveMeta(o) {
   } catch (e) { /* ignore */ }
 }
 
-export function loadSave() {
+export function loadSave(worldview) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    const world = worldview || getActiveWorld() || peekLegacyWorld()
+    if (!world && !worldview) {
+      // 兼容：无 active 时读旧单槽/任一槽
+      const legacy = loadSlotRaw(SAVE_KEY)
+      if (legacy) return adoptLegacy(legacy)
+      const any = listSlots()[0]
+      return any ? loadSave(any.id) : null
+    }
+    const s = loadSlotRaw(slotKey(world))
+    if (s) {
+      setActiveWorld(world)
+      return migrateSave(s)
+    }
+    // 目标槽没有 → 试旧单槽（仅当 worldview 匹配）
+    const legacy = loadSlotRaw(SAVE_KEY)
+    if (legacy && (!legacy.worldview || legacy.worldview === world)) {
+      return adoptLegacy(legacy)
+    }
+    return null
+  } catch (e) { return null }
+}
+
+function loadSlotRaw(key) {
+  try {
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     const s = JSON.parse(raw)
     if (!s || typeof s !== 'object' || !s.map) return null
-    return migrateSave(s)
+    return s
   } catch (e) { return null }
+}
+
+function peekLegacyWorld() {
+  const legacy = loadSlotRaw(SAVE_KEY)
+  return (legacy && legacy.worldview) || null
+}
+
+function adoptLegacy(legacy) {
+  const world = legacy.worldview || 'xiuxian'
+  try {
+    localStorage.setItem(slotKey(world), JSON.stringify(legacy))
+    localStorage.removeItem(SAVE_KEY)
+    setActiveWorld(world)
+  } catch (e) { /* ignore */ }
+  return migrateSave(legacy)
+}
+
+/** 各世界观是否有档，供选择界面展示 */
+export function listSlots() {
+  const out = []
+  const seen = new Set()
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k || !k.startsWith(SLOT_PREFIX)) continue
+      const id = k.slice(SLOT_PREFIX.length)
+      const raw = loadSlotRaw(k)
+      if (!raw) continue
+      seen.add(id)
+      out.push(slotSummary(id, raw))
+    }
+  } catch (e) { /* ignore */ }
+  const legacy = loadSlotRaw(SAVE_KEY)
+  if (legacy) {
+    const id = legacy.worldview || 'xiuxian'
+    if (!seen.has(id)) out.push(slotSummary(id, legacy))
+  }
+  out.sort((a, b) => String(a.id).localeCompare(String(b.id)))
+  return out
+}
+
+function slotSummary(id, s) {
+  return {
+    id,
+    name: s.name || '',
+    worldview: s.worldview || id,
+    tierIndex: s.tierIndex || 0,
+    sub: s.sub || 0,
+    ageDays: s.ageDays || 0,
+    levelText: null, // UI 用 pack 词表渲染
+    updatedAt: s._savedAt || 0
+  }
+}
+
+export function deleteSave(worldview) {
+  const world = worldview || getActiveWorld()
+  if (!world) return
+  try { localStorage.removeItem(slotKey(world)) } catch (e) { /* ignore */ }
+  try {
+    const legacy = loadSlotRaw(SAVE_KEY)
+    if (legacy && (legacy.worldview || 'xiuxian') === world) {
+      localStorage.removeItem(SAVE_KEY)
+    }
+  } catch (e) { /* ignore */ }
+  if (getActiveWorld() === world) {
+    try { localStorage.removeItem(ACTIVE_WORLD_KEY) } catch (e) { /* ignore */ }
+  }
 }
 
 /** 载入时补齐/净化字段，保证多世界观旧档可用 */
@@ -168,6 +277,7 @@ function migrateSave(s) {
   }
   s._locSeq = Math.max(Number(s._locSeq) || 0, maxSeq)
   s.version = SAVE_VERSION
+  s._savedAt = Number(s._savedAt) || Date.now()
   return s
 }
 
@@ -177,8 +287,13 @@ function normalizeKeysList(keys) {
     .filter(Boolean)
 }
 
-export function hasSave() {
-  return !!localStorage.getItem(SAVE_KEY)
+export function hasSave(worldview) {
+  if (worldview) {
+    if (loadSlotRaw(slotKey(worldview))) return true
+    const legacy = loadSlotRaw(SAVE_KEY)
+    return !!(legacy && (legacy.worldview || 'xiuxian') === worldview)
+  }
+  return !!loadSlotRaw(SAVE_KEY) || listSlots().length > 0
 }
 
 /**
@@ -275,13 +390,19 @@ export function normalizePlayerKeys(S) {
 
 export function wipeAll() {
   try {
-    localStorage.removeItem(SAVE_KEY)
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i)
+      if (k && (k.startsWith(SLOT_PREFIX) || k === SAVE_KEY || k === ACTIVE_WORLD_KEY)) {
+        localStorage.removeItem(k)
+      }
+    }
     localStorage.removeItem(KEYS_KEY)
     localStorage.removeItem(META_KEY)
   } catch (e) { /* ignore */ }
   clearPlayerKeysStore()
 }
 
-export function resetSaveKeepMeta() {
-  try { localStorage.removeItem(SAVE_KEY) } catch (e) { /* ignore */ }
+/** 只删指定世界观槽；API Key / meta 保留 */
+export function resetSaveKeepMeta(worldview) {
+  deleteSave(worldview || getActiveWorld() || 'xiuxian')
 }

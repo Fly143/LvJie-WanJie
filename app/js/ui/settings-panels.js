@@ -214,8 +214,8 @@ export function openHelp(app) {
     <p>1. 在顶栏 <b>🔑 API</b> 配置自定义接口：Base URL + Key + 模型，协议选 <b>chat</b> 或 <b>response</b>。</p>
     <p>2. 在 <b>当前场景</b> 选择行动或输入自由行动，由 AI 实时生成剧情与数据变化。</p>
     <p>3. 攒够 <b>${esc(pack ? pack.lexicon.progress : '进度')}</b> 后点 <b>${esc(ui.advanceBtn)}</b> 提升${esc(pack ? pack.lexicon.level : '等级')}。</p>
-    <p>4. <b>🌐 世界观</b> 可换世界重开；设置里可调整 AI 风格、性别、对话轮数与背景音乐。</p>
-    <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 加密保存在本机，重置存档会保留。</p>
+    <p>4. <b>🌐 世界观</b> 切换世界；各世界存档独立，切换即读档。</p>
+    <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 加密保存在本机，删档会保留。</p>
     <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机，API Key 加密保存。</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
   `)

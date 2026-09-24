@@ -574,7 +574,7 @@ export function renderSettings(app, api) {
   document.getElementById('set-reset').onclick = () => {
     openModal(`
       <h2>重置存档？</h2>
-      <div class="warn">将删除当前世界观的全部进度，回到欢迎页。API Key 会保留。</div>
+      <div class="warn">将删除《${esc(pack.name)}》这一世界的进度并回到选择页。其它世界存档与 API Key 保留。</div>
       <div class="btn-row">
         <button class="btn" data-close type="button">取消</button>
         <button class="btn btn-danger" id="do-reset" type="button">确认重置</button>
@@ -582,7 +582,7 @@ export function renderSettings(app, api) {
     `)
     document.getElementById('do-reset').onclick = () => {
       import('../engine/state.js').then(m => {
-        m.resetSaveKeepMeta()
+        m.resetSaveKeepMeta(S.worldview)
         location.reload()
       })
     }

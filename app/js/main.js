@@ -1,6 +1,6 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave } from './engine/state.js'
 import { esc, ageLabelShort, fmtNum } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -181,6 +181,22 @@ function setShell(mode) {
   }
 }
 
+function slotMeta(packId) {
+  const hit = listSlots().find(s => s.id === packId)
+  if (!hit) return null
+  const pack = getPack(packId)
+  try {
+    // 用 progression 的展示需要 S；这里做轻量摘要
+    const names = (pack && pack.subNames) || ['初', '中', '高']
+    const tiers = (pack && pack.tiers) || []
+    const t = tiers[hit.tierIndex] || { name: '' }
+    const sn = names[Math.min(hit.sub, names.length - 1)] || ''
+    return { ...hit, levelText: (t.name || '') + sn }
+  } catch (e) {
+    return hit
+  }
+}
+
 function renderWelcome() {
   const root = document.getElementById('welcome')
   root.hidden = false
@@ -190,46 +206,98 @@ function renderWelcome() {
   root.innerHTML = `
     <div class="wbox">
       <div class="wtitle">Agent万象</div>
-      <div class="wsub">AI 驱动的多世界观开放世界 — 选择你要进入的世界</div>
+      <div class="wsub">AI 驱动的多世界观开放世界 — 每个世界独立存档，随时切换</div>
       <div id="pack-grid">
-        ${packs.map(p => `
+        ${packs.map(p => {
+          const slot = slotMeta(p.id)
+          return `
           <div class="pack-card ${p.id === sel ? 'on' : ''}" data-id="${p.id}" style="--pk:${p.theme.accent};background:${p.theme.cardBg || p.theme.panel}">
             <div class="picon">${p.icon}</div>
             <div class="pname">${esc(p.name)}</div>
             <div class="ptag">${esc(p.tagline)}</div>
             <div class="pchip">${esc(p.lexicon.level)} · ${esc(p.lexicon.progress)}</div>
             <div class="pmeta">${(p.worlds || []).join(' / ')} · ${(p.tiers || []).length} 阶</div>
+            <div class="psave">${slot
+              ? `💾 ${esc(slot.name)} · ${esc(slot.levelText || '')}`
+              : '新开旅程'}</div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
       <div class="wactions">
         <div class="name-row">
-          <input id="w-name" type="text" maxlength="12" placeholder="角色名（可留空）" value="">
+          <input id="w-name" type="text" maxlength="12" placeholder="新档角色名（继续旧档可留空）" value="">
         </div>
-        <button class="btn btn-gold" id="w-start" type="button">${esc(getPack(sel).lexicon.startBtn || '进入所选世界')}</button>
-        <div class="hint">存档与所选世界观绑定。点顶栏「🌐 世界观」可换世界重开。</div>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn btn-gold" id="w-start" type="button">进入世界</button>
+          <button class="btn" id="w-new" type="button" hidden>新开一局</button>
+        </div>
+        <div class="hint">各世界观存档互不影响。顶栏「🌐 世界观」随时切换；设置里可删除当前世界存档。</div>
       </div>
     </div>
   `
+  const startBtn = document.getElementById('w-start')
+  const newBtn = document.getElementById('w-new')
+  const nameEl = document.getElementById('w-name')
+
+  function syncActions() {
+    const p = getPack(app.selectedPack)
+    const slot = slotMeta(app.selectedPack)
+    if (slot) {
+      startBtn.textContent = `继续 · ${slot.name}（${slot.levelText || ''}）`
+      newBtn.hidden = false
+      newBtn.textContent = '新开一局'
+      nameEl.placeholder = '新档角色名（继续旧档可留空）'
+    } else {
+      startBtn.textContent = (p && p.lexicon && p.lexicon.startBtn) || '进入所选世界'
+      newBtn.hidden = true
+      nameEl.placeholder = '角色名（可留空）'
+    }
+  }
+
   root.querySelectorAll('.pack-card').forEach(card => {
     card.onclick = () => {
       app.selectedPack = card.dataset.id
       root.querySelectorAll('.pack-card').forEach(c => c.classList.toggle('on', c.dataset.id === app.selectedPack))
       applyTheme(getPack(app.selectedPack))
+      syncActions()
     }
   })
-  document.getElementById('w-start').onclick = () => {
-    const name = (document.getElementById('w-name').value || '').trim()
-    startNewGame(name, app.selectedPack)
+
+  startBtn.onclick = () => {
+    const id = app.selectedPack
+    if (hasSave(id)) {
+      const S = loadSave(id)
+      if (S) {
+        setActiveWorld(id)
+        showGame(S)
+        toast(`已载入《${getPack(id).name}》存档`)
+        return
+      }
+    }
+    const name = (nameEl.value || '').trim()
+    startNewGame(name, id)
   }
-  const startBtn = document.getElementById('w-start')
-  root.querySelectorAll('.pack-card').forEach(card => {
-    const orig = card.onclick
-    card.addEventListener('click', () => {
-      const p = getPack(app.selectedPack)
-      if (p && startBtn) startBtn.textContent = p.lexicon.startBtn || '进入所选世界'
-    })
-  })
+
+  newBtn.onclick = () => {
+    const id = app.selectedPack
+    const slot = slotMeta(id)
+    openModal(`
+      <h2>新开一局？</h2>
+      <p>将覆盖《${esc(getPack(id).name)}》的现有存档${slot ? `（${esc(slot.name)} · ${esc(slot.levelText || '')}）` : ''}。其它世界存档与 API Key 不受影响。</p>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn" data-close type="button">取消</button>
+        <button class="btn btn-danger" id="w-do-new" type="button">覆盖并新开</button>
+      </div>
+    `)
+    document.getElementById('w-do-new').onclick = () => {
+      closeModal()
+      deleteSave(id)
+      const name = (nameEl.value || '').trim()
+      startNewGame(name, id)
+    }
+  }
+
+  syncActions()
   applyTheme(getPack(sel))
 }
 
@@ -268,19 +336,12 @@ function bindHeader() {
   document.getElementById('btn-key').onclick = () => openKeyModal(app, { save, refreshAll })
   document.getElementById('btn-help').onclick = () => openHelp(app)
   document.getElementById('btn-worlds').onclick = () => {
-    openModal(`
-      <h2>切换世界观</h2>
-      <p>将清空当前进度并以新世界观重新开局。API Key 会保留。</p>
-      <div class="btn-row" style="justify-content:center">
-        <button class="btn" data-close>取消</button>
-        <button class="btn btn-danger" id="go-wipe-world">确认重开</button>
-      </div>
-    `)
-    document.getElementById('go-wipe-world').onclick = () => {
-      resetSaveKeepMeta()
-      closeModal()
-      location.reload()
-    }
+    if (app.S) save()
+    if (app.EV) { endEvent(app.EV); app.EV = null }
+    app.S = null
+    app.selectedPack = getActiveWorld() || (app.selectedPack) || defaultPackId()
+    setShell('welcome')
+    renderWelcome()
   }
   document.querySelectorAll('.navbtn').forEach(b => {
     b.onclick = () => setTab(b.dataset.tab)
@@ -314,6 +375,7 @@ function boot() {
     showGame(existing)
     firstGuide(existing)
   } else {
+    app.selectedPack = getActiveWorld() || defaultPackId()
     setShell('welcome')
     renderWelcome()
   }

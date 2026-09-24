@@ -215,6 +215,7 @@ body{
 .pack-card .pname{font-family:var(--font-display);font-size:22px;color:var(--pk);margin-top:8px;letter-spacing:3px}
 .pack-card .ptag{color:var(--dim);font-size:12.5px;margin-top:8px;line-height:1.55}
 .pack-card .pmeta{color:var(--faint);font-size:11px;margin-top:12px}
+.pack-card .psave{color:var(--dim);font-size:11px;margin-top:8px}
 .pack-card .pchip{
   display:inline-block;margin-top:10px;padding:2px 10px;border-radius:999px;font-size:11px;
   border:1px solid color-mix(in srgb, var(--pk) 55%, transparent);color:var(--pk)

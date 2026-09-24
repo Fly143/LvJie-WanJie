@@ -1,5 +1,7 @@
 // 引擎常量（与具体世界观无关）
-export const SAVE_KEY = 'agentworlds_save_v1'
+export const SAVE_KEY = 'agentworlds_save_v1' // 旧单槽；载入时迁入分槽
+export const ACTIVE_WORLD_KEY = 'agentworlds_active_world_v2'
+export const SLOT_PREFIX = 'agentworlds_slot_v2_'
 export const KEYS_KEY = 'agentworlds_apikeys_v1'
 export const META_KEY = 'agentworlds_meta_v1'
 
