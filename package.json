@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node scripts/sync-runtime.js && node scripts/run-electron.js",
     "sync": "node scripts/sync-runtime.js",
+    "rebuild:runtime": "node scripts/rebuild-runtime.js",
     "smoke:engine": "node scripts/smoke.mjs",
     "smoke:llm": "node scripts/llm-endpoints.mjs",
     "smoke:stage": "node scripts/stage-smoke.js"
