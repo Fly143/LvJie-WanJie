@@ -38,8 +38,11 @@ function draftFromForm() {
   const useWeb = document.getElementById('cw-web')
     ? document.getElementById('cw-web').checked
     : true
+  const useWiki = document.getElementById('cw-wiki')
+    ? document.getElementById('cw-wiki').checked
+    : false
   const urls = urlsRaw.split(/[\s,，]+/).map(s => s.trim()).filter(Boolean)
-  return { title, author, setting, levels, style, bookText: bookText.trim(), useWeb, urls }
+  return { title, author, setting, levels, style, bookText: bookText.trim(), useWeb, useWiki, urls }
 }
 
 export function openWorldAuthor(app, { onSaved } = {}) {
@@ -60,7 +63,10 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">题材风格</label>
     <input id="cw-style" type="text" value="奇幻冒险" style="width:100%;margin-top:6px">
     <label style="display:block;margin-top:10px;font-size:12px;color:var(--dim)">
-      <input id="cw-web" type="checkbox" checked> 先联网查百科/维基补充设定（可补未抽到章节的硬设定）
+      <input id="cw-web" type="checkbox" checked> 联网补充设定（优先萌娘百科/百度百科；可补未抽到章节的硬设定）
+    </label>
+    <label style="display:block;margin-top:4px;font-size:12px;color:var(--dim)">
+      <input id="cw-wiki" type="checkbox"> 连不上百科时再试维基百科（大陆网络通常不可达）
     </label>
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:8px">设定页 URL（可选，空格/逗号分隔多个）</label>
     <input id="cw-urls" type="text" placeholder="https://…wiki / 设定帖链接" style="width:100%;margin-top:6px">
@@ -157,6 +163,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         const g = await gatherWebLore({
           title,
           urls: f.urls,
+          useWiki: f.useWiki,
           onProgress: (p) => { status.textContent = p.message || '' }
         })
         webNotes = g.ok ? g.notes : []
