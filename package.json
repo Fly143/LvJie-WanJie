@@ -10,10 +10,11 @@
     "start": "node scripts/sync-runtime.js && node scripts/run-electron.js",
     "sync": "node scripts/sync-runtime.js",
     "smoke:engine": "node scripts/smoke.mjs",
-    "smoke:llm": "node scripts/llm-endpoints.mjs"
+    "smoke:llm": "node scripts/llm-endpoints.mjs",
+    "smoke:stage": "node scripts/stage-smoke.js"
   },
   "devDependencies": {
-    "electron": "^33.4.11"
+    "electron": "33.4.11"
   },
   "allowScripts": {
     "electron@33.4.11": true

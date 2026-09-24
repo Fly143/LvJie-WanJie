@@ -4,11 +4,13 @@ import { callLLM, extractGameJSON } from './llm-bridge.js'
 import { applyChanges } from './changes.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
+const MAX_HISTORY_MSGS = 20
+const MAX_USER_LEN = 2000
+
 /**
  * EV 结构：
  * { kind, target, history:[{role,content}], count, options, ended, loading, error, resultText, changesBrief }
  */
-
 export function startEvent(kind, user, target) {
   return {
     kind,
@@ -21,7 +23,8 @@ export function startEvent(kind, user, target) {
     error: '',
     resultText: '',
     changesBrief: null,
-    _ctl: null
+    _ctl: null,
+    _turn: 0
   }
 }
 
@@ -29,8 +32,13 @@ export function startEvent(kind, user, target) {
  * 发送一轮。S 为存档，hooks 用于渲染回调。
  */
 export async function runEventTurn(S, EV, userContent, hooks = {}) {
+  if (!EV || EV.ended) return
+  if (EV.loading && EV._ctl) return // 并发闸：上一轮未完成
+
+  const userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
   EV.loading = true
   EV.error = ''
+  const turn = (EV._turn = (EV._turn || 0) + 1)
   if (hooks.onState) hooks.onState(EV)
 
   const keyObj = resolveKey(S)
@@ -46,25 +54,28 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     cheatUnlocked: !!hooks.cheatUnlocked
   })
 
-  EV.history.push({ role: 'user', content: userContent })
+  EV.history.push({ role: 'user', content: userText })
 
   const ctl = new AbortController()
   EV._ctl = ctl
   const res = await callLLM({
     keyObj,
     system,
-    user: userContent,
-    history: EV.history.slice(0, -1),
+    user: userText,
+    history: trimHistory(EV.history.slice(0, -1)),
     signal: ctl.signal
   })
 
+  if (EV._turn !== turn) return // 过期响应丢弃
   if (EV._ctl === ctl) EV._ctl = null
   EV.loading = false
 
   if (!res.ok) {
     EV.error = res.error || '调用失败'
     // 回滚最后一条 user，允许重试
-    EV.history.pop()
+    if (EV.history.length && EV.history[EV.history.length - 1].role === 'user') {
+      EV.history.pop()
+    }
     if (hooks.onState) hooks.onState(EV)
     return
   }
@@ -73,13 +84,17 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   const json = extractGameJSON(text)
   const narrative = stripJSONBlock(text)
 
-  EV.history.push({ role: 'assistant', content: text })
+  // history 只存叙事，避免 JSON 撑爆 token
+  EV.history.push({ role: 'assistant', content: narrative || text.slice(0, 500) })
+  if (EV.history.length > MAX_HISTORY_MSGS) {
+    EV.history = EV.history.slice(-MAX_HISTORY_MSGS)
+  }
   EV.count += 1
 
   let changesBrief = null
   if (json) {
     if (Array.isArray(json.options) && json.options.length && !json.end) {
-      EV.options = json.options.slice(0, 4).map(String)
+      EV.options = json.options.slice(0, 4).map(o => String(o).slice(0, 40))
     } else {
       EV.options = null
       EV.ended = !!json.end || !json.options
@@ -112,8 +127,15 @@ export function endEvent(EV) {
   if (!EV) return
   if (EV._ctl) {
     try { EV._ctl.abort() } catch (e) { /* ignore */ }
+    EV._ctl = null
   }
+  EV._turn = (EV._turn || 0) + 1
   return null
+}
+
+function trimHistory(history) {
+  const arr = Array.isArray(history) ? history : []
+  return arr.slice(-MAX_HISTORY_MSGS)
 }
 
 function stripJSONBlock(text) {

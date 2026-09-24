@@ -1,6 +1,6 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys } from './engine/state.js'
 import { esc, ageLabelShort, fmtNum } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -317,6 +317,15 @@ function boot() {
     setShell('welcome')
     renderWelcome()
   }
+  // 从宿主加密仓补齐 API Key（异步，不阻塞 UI）
+  hydratePlayerKeysFromHost().then(kd => {
+    if (!app.S) return
+    if (kd && Array.isArray(kd.keys) && kd.keys.length) {
+      app.S.playerKeys = kd.keys
+      app.S.selectedKey = typeof kd.selected === 'number' ? kd.selected : 0
+      normalizePlayerKeys(app.S)
+    }
+  }).catch(() => { /* optional */ })
 }
 
 boot()

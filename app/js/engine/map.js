@@ -152,7 +152,9 @@ export function applyModifyLocations(S, arr) {
     if (raw.change) {
       loc.notes = loc.notes || []
       loc.notes.push(String(raw.change))
+      if (loc.notes.length > 30) loc.notes = loc.notes.slice(-30)
       loc.desc = (loc.desc ? loc.desc + ' ' : '') + String(raw.change)
+      if (loc.desc.length > 2000) loc.desc = loc.desc.slice(-2000)
     }
     if (Array.isArray(raw.people)) {
       for (const p of raw.people) {
@@ -175,10 +177,16 @@ export function applyModifyLocations(S, arr) {
   }
 }
 
-export function applyRemoveLocations(S, names) {
-  if (!Array.isArray(names)) return
+export function applyRemoveLocations(S, names, pack) {
+  if (!Array.isArray(names) || !S.map) return
+  const startLoc = pack && pack.startLoc
   for (const n of names) {
-    S.map = S.map.filter(l => l.name !== n)
+    const loc = S.map.find(l => l.name === n)
+    if (!loc) continue
+    if (loc.id === S.currentLoc) continue
+    if (startLoc && loc.id === startLoc) continue
+    if (S.map.length <= 1) continue
+    S.map = S.map.filter(l => l.id !== loc.id)
   }
   if (!S.map.some(l => l.id === S.currentLoc) && S.map[0]) S.currentLoc = S.map[0].id
 }

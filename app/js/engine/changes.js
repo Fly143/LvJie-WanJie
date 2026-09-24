@@ -1,7 +1,7 @@
 // 应用 AI 返回的 changes JSON
 import { addItem, removeItem, normalizeType } from './inventory.js'
 import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByName } from './map.js'
-import { fmtNum } from './util.js'
+import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 
 /**
@@ -35,8 +35,16 @@ export function applyChanges(S, ch, hooks = {}) {
       if (ch[k] != null) {
         const v = Math.round(Number(ch[k]) || 0)
         if (v) {
-          S.money[slot] = (S.money[slot] || 0) + v
-          minor.push(`${moneyName(slot)} ${v > 0 ? '+' : ''}${fmtNum(v)}`)
+          const next = (S.money[slot] || 0) + v
+          // 货币不为负；扣超持有则扣到 0
+          if (next < 0) {
+            const actual = -(S.money[slot] || 0)
+            S.money[slot] = 0
+            if (actual) minor.push(`${moneyName(slot)} ${fmtNum(actual)}`)
+          } else {
+            S.money[slot] = next
+            minor.push(`${moneyName(slot)} ${v > 0 ? '+' : ''}${fmtNum(v)}`)
+          }
         }
         break
       }
@@ -63,7 +71,7 @@ export function applyChanges(S, ch, hooks = {}) {
   if (Array.isArray(ch.remove_items)) {
     for (const raw of ch.remove_items) {
       if (!raw || !raw.name) continue
-      if (removeItem(S, raw.name, raw.count || 1)) {
+      if (removeItem(S, raw, raw.count || 1)) {
         minor.push(`失去 ${raw.name}${raw.count > 1 ? '×' + raw.count : ''}`)
       }
     }
@@ -72,25 +80,29 @@ export function applyChanges(S, ch, hooks = {}) {
   if (Array.isArray(ch.major_events)) {
     for (const e of ch.major_events) {
       if (!e) continue
-      S.bigEvents.push({ age: fmtAge(S), text: String(e) })
+      S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(e) })
       major.push(String(e))
     }
+    if (S.bigEvents.length > 200) S.bigEvents = S.bigEvents.slice(-200)
   }
   if (Array.isArray(ch.small_events)) {
     for (const e of ch.small_events) {
       if (!e) continue
-      S.smallEvents.push({ age: fmtAge(S), text: String(e) })
+      S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(e) })
       minor.push(String(e))
     }
+    if (S.smallEvents.length > 200) S.smallEvents = S.smallEvents.slice(-200)
   }
   // 兼容 major_event / small_event 单数
   if (ch.major_event) {
-    S.bigEvents.push({ age: fmtAge(S), text: String(ch.major_event) })
+    S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(ch.major_event) })
     major.push(String(ch.major_event))
+    if (S.bigEvents.length > 200) S.bigEvents = S.bigEvents.slice(-200)
   }
   if (ch.small_event) {
-    S.smallEvents.push({ age: fmtAge(S), text: String(ch.small_event) })
+    S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(ch.small_event) })
     minor.push(String(ch.small_event))
+    if (S.smallEvents.length > 200) S.smallEvents = S.smallEvents.slice(-200)
   }
 
   if (ch.skills && typeof ch.skills === 'object') {
@@ -140,6 +152,9 @@ export function applyChanges(S, ch, hooks = {}) {
         f.favor = (f.favor || 0) + d
         if (d) minor.push(`${f.name} 好感 ${d > 0 ? '+' : ''}${d}`)
       }
+      if (Array.isArray(f.history) && f.history.length > 50) {
+        f.history = f.history.slice(-50)
+      }
     }
   }
 
@@ -151,7 +166,7 @@ export function applyChanges(S, ch, hooks = {}) {
 
   applyNewLocations(S, ch.new_locations)
   applyModifyLocations(S, ch.modify_locations)
-  applyRemoveLocations(S, ch.remove_locations)
+  applyRemoveLocations(S, ch.remove_locations, pack)
   if (ch.move_to) moveByName(S, String(ch.move_to))
 
   if (ch.faction_rep != null) {
@@ -166,13 +181,6 @@ export function applyChanges(S, ch, hooks = {}) {
   }
 
   return { major, minor }
-}
-
-function fmtAge(S) {
-  const y = Math.floor(S.ageDays / 360)
-  const m = Math.floor((S.ageDays % 360) / 30)
-  const d = S.ageDays % 30
-  return `${y}岁${m}月${d}天`
 }
 
 function skillKeyFor(S, pack, k) {

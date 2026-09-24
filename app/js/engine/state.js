@@ -1,19 +1,45 @@
-// 存档 / 账号级 meta / API Key 独立存储
-import { SAVE_KEY, KEYS_KEY, META_KEY, SAVE_VERSION } from './constants.js'
+// 存档 / 账号级 meta / API Key（宿主 safeStorage 优先，localStorage 仅作无宿主回退）
+import { SAVE_KEY, KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP } from './constants.js'
 import { getPack } from '../worldviews/index.js'
+import { normalizeApiKey } from './llm.js'
+
+function secretsHost() {
+  return (globalThis.awHost && globalThis.awHost.secrets) || null
+}
 
 export function saveGame(S) {
-  if (!S) return
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)) } catch (e) { console.warn('存档失败', e) }
+  if (!S) return false
+  // 明文 Key 不入 SAVE
+  const dump = Object.assign({}, S)
+  delete dump.playerKeys
+  delete dump.selectedKey
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(dump))
+  } catch (e) {
+    console.warn('存档失败', e)
+    return false
+  }
   try {
     localStorage.setItem(KEYS_KEY, JSON.stringify({
       keys: S.playerKeys || [],
       selected: S.selectedKey
     }))
+    persistPlayerKeysAsync(S)
   } catch (e) { /* ignore */ }
   saveMeta({
     playerKeyReward: !!S.playerKeyReward
   })
+  return true
+}
+
+function persistPlayerKeysAsync(S) {
+  const payload = { keys: S.playerKeys || [], selected: S.selectedKey }
+  const host = secretsHost()
+  if (host && host.save) {
+    Promise.resolve(host.save(payload)).catch(e => console.warn('密钥保存失败', e))
+    return
+  }
+  try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
 }
 
 export function loadPlayerKeys() {
@@ -22,6 +48,28 @@ export function loadPlayerKeys() {
     if (d && Array.isArray(d.keys)) return d
     return null
   } catch (e) { return null }
+}
+
+/** 从宿主加密仓载入（异步）；并写回 localStorage 供同步读取 */
+export async function hydratePlayerKeysFromHost() {
+  const host = secretsHost()
+  if (!host || !host.load) return loadPlayerKeys()
+  try {
+    const d = await host.load()
+    if (d && Array.isArray(d.keys)) {
+      try { localStorage.setItem(KEYS_KEY, JSON.stringify(d)) } catch (e) { /* ignore */ }
+      return d
+    }
+  } catch (e) { /* ignore */ }
+  return loadPlayerKeys()
+}
+
+export async function clearPlayerKeysStore() {
+  const host = secretsHost()
+  if (host && host.clear) {
+    try { await host.clear() } catch (e) { /* ignore */ }
+  }
+  try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
 }
 
 export function loadMeta() {
@@ -71,7 +119,7 @@ function migrateSave(s) {
   if (s.factionRep == null) s.factionRep = 0
   if (s.giftChoice === undefined) s.giftChoice = null
   // 旧 type → 中性 type
-  const LEGACY = { pill: 'consumable', artifact: 'equip', manual: 'technique', material: 'material', other: 'special' }
+  const LEGACY = LEGACY_TYPE_MAP
   s.inventory.forEach(it => {
     if (it && LEGACY[it.type]) it.type = LEGACY[it.type]
     if (it && it.count == null) it.count = 1
@@ -83,16 +131,54 @@ function migrateSave(s) {
       })
     })
   }
-  if (Array.isArray(s.playerKeys)) {
-    // 载入时也跑一遍 key 归一
+  // 旧档内嵌 Key → 迁入独立密钥仓，并从存档剥离
+  if (Array.isArray(s.playerKeys) && s.playerKeys.length) {
+    const kd = loadPlayerKeys()
+    const merged = normalizeKeysList(s.playerKeys)
+    if (merged.length) {
+      const payload = {
+        keys: merged,
+        selected: (typeof s.selectedKey === 'number' ? s.selectedKey : 0)
+      }
+      try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
+      persistPlayerKeysAsync({ playerKeys: payload.keys, selectedKey: payload.selected })
+    } else if (kd) {
+      // keep existing
+    }
   }
-  if (s.selectedKey == null) s.selectedKey = 0
+  delete s.playerKeys
+  delete s.selectedKey
+  // 恢复 keys 到运行时（从 KEYS_KEY）
+  const restored = loadPlayerKeys()
+  if (restored && Array.isArray(restored.keys)) {
+    s.playerKeys = restored.keys
+    s.selectedKey = typeof restored.selected === 'number' ? restored.selected : 0
+    normalizePlayerKeys(s)
+  } else {
+    s.playerKeys = []
+    s.selectedKey = 0
+  }
+  // 修 _locSeq 与既有 ai_loc_N 冲突
+  let maxSeq = 0
+  if (Array.isArray(s.map)) {
+    for (const l of s.map) {
+      const m = /^ai_loc_(\d+)$/.exec(String(l && l.id || ''))
+      if (m) maxSeq = Math.max(maxSeq, Number(m[1]) || 0)
+    }
+  }
+  s._locSeq = Math.max(Number(s._locSeq) || 0, maxSeq)
   s.version = SAVE_VERSION
   return s
 }
 
+function normalizeKeysList(keys) {
+  return (Array.isArray(keys) ? keys : [])
+    .map(k => normalizeApiKey(k) || null)
+    .filter(Boolean)
+}
+
 export function hasSave() {
-  return !!loadSave()
+  return !!localStorage.getItem(SAVE_KEY)
 }
 
 /**
@@ -134,12 +220,12 @@ export function newGame(name, packId) {
     lastEventText: '',
     talent: null,
     medY: 0, medM: 0, medD: 10,
-    talent: null,
     bgmTrack: 'handpan',
     aiStyle: 'normal',
     playerGender: '',
     dialogLimit: true,
-    giftChoice: null
+    giftChoice: null,
+    _locSeq: 0
   }, init.state || {})
 
   if (Array.isArray(init.startInventory)) {
@@ -193,6 +279,7 @@ export function wipeAll() {
     localStorage.removeItem(KEYS_KEY)
     localStorage.removeItem(META_KEY)
   } catch (e) { /* ignore */ }
+  clearPlayerKeysStore()
 }
 
 export function resetSaveKeepMeta() {

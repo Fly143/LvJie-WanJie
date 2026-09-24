@@ -1,6 +1,10 @@
 // 自定义 LLM 接入：不绑定厂商，仅需 Base URL + API Key + 模型 + 协议
 // apiStyle: 'chat'     → POST {base}/chat/completions   (OpenAI Chat Completions)
 //           'response' → POST {base}/responses          (OpenAI Responses API)
+// 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
+
+const DEFAULT_TIMEOUT_MS = 120000
+const MAX_TOKENS = 2000
 
 /** 归一化玩家 Key 对象 */
 export function normalizeApiKey(k) {
@@ -23,19 +27,18 @@ export function maskKey(key) {
 /** 把 Base URL 拼成最终 endpoint */
 export function endpointOf(k) {
   const base = String(k.baseUrl || '').replace(/\/+$/, '')
+  if (!/^https?:\/\//i.test(base)) return ''
   if (k.apiStyle === 'response') {
     if (/\/responses$/i.test(base)) return base
     return base + '/responses'
   }
   if (/\/chat\/completions$/i.test(base)) return base
   if (/\/v\d+$/i.test(base)) return base + '/chat/completions'
-  // 允许用户直接填完整路径
   if (/\/completions$/i.test(base)) return base
   return base + '/chat/completions'
 }
 
 function messagesToResponseInput(messages) {
-  // Responses API：input 可为字符串或 [{role, content}]
   return messages.map(m => ({
     role: m.role,
     content: m.content
@@ -62,11 +65,49 @@ function extractResponseText(data) {
     }
     return parts.join('\n').trim()
   }
-  // 兼容少数把正文放在 message 里的情况
   if (data.choices && data.choices[0] && data.choices[0].message) {
     return data.choices[0].message.content || ''
   }
   return ''
+}
+
+/** 统一 HTTP：主进程代理优先 */
+async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
+  const ms = timeoutMs || DEFAULT_TIMEOUT_MS
+  const host = globalThis.awHost && globalThis.awHost.http
+  if (host && host.request) {
+    // 主进程代理；本地 signal 仅用于 UI 取消时忽略过期结果
+    const r = await host.request({ url, method, headers, body, timeoutMs: ms })
+    if (signal && signal.aborted) {
+      const err = new Error('已取消')
+      err.name = 'AbortError'
+      throw err
+    }
+    if (!r || !r.ok) {
+      const err = new Error((r && r.error) || '网络错误')
+      if (r && r.aborted) err.name = 'AbortError'
+      throw err
+    }
+    return { status: r.status, text: r.text }
+  }
+
+  const timeoutCtl = new AbortController()
+  const timer = setTimeout(() => timeoutCtl.abort(), ms)
+  let combined = timeoutCtl.signal
+  if (signal) {
+    if (typeof AbortSignal.any === 'function') {
+      combined = AbortSignal.any([signal, timeoutCtl.signal])
+    } else {
+      signal.addEventListener('abort', () => timeoutCtl.abort(), { once: true })
+    }
+  }
+  try {
+    const res = await fetch(url, { method, headers, body, signal: combined })
+    const text = await res.text()
+    return { status: res.status, text }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /**
@@ -87,34 +128,39 @@ export async function callLLM({ keyObj, system, user, history = [], signal }) {
   messages.push({ role: 'user', content: user })
 
   const url = endpointOf(k)
+  if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
+
   let body
   if (k.apiStyle === 'response') {
     body = {
       model: k.model,
       input: messagesToResponseInput(messages),
-      temperature: 0.9
+      temperature: 0.9,
+      max_output_tokens: MAX_TOKENS
     }
   } else {
     body = {
       model: k.model,
       messages,
       temperature: 0.9,
-      max_tokens: 2000
+      max_tokens: MAX_TOKENS
     }
   }
 
   try {
-    const res = await fetch(url, {
+    const res = await httpSend({
+      url,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + k.key
       },
       body: JSON.stringify(body),
+      timeoutMs: DEFAULT_TIMEOUT_MS,
       signal
     })
-    const raw = await res.text()
-    if (!res.ok) {
+    const raw = res.text || ''
+    if (res.status < 200 || res.status >= 300) {
       let msg = raw.slice(0, 400)
       try {
         const j = JSON.parse(raw)
@@ -146,6 +192,7 @@ export async function listModels({ baseUrl, key }) {
   const base = String(baseUrl || '').trim().replace(/\/+$/, '')
   const token = String(key || '').trim()
   if (!base) return { ok: false, error: '请先填写 Base URL' }
+  if (!/^https?:\/\//i.test(base)) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
   if (!token) return { ok: false, error: '请先填写 API Key' }
 
   let url = base
@@ -156,15 +203,17 @@ export async function listModels({ baseUrl, key }) {
   else url = url + '/models'
 
   try {
-    const res = await fetch(url, {
+    const res = await httpSend({
+      url,
       method: 'GET',
       headers: {
         'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json'
-      }
+      },
+      timeoutMs: 30000
     })
-    const raw = await res.text()
-    if (!res.ok) {
+    const raw = res.text || ''
+    if (res.status < 200 || res.status >= 300) {
       let msg = raw.slice(0, 300)
       try {
         const j = JSON.parse(raw)
@@ -193,7 +242,7 @@ export async function listModels({ baseUrl, key }) {
   }
 }
 
-/** 从模型输出中抽出 JSON（优先 ```json 块） */
+/** 从模型输出中抽出 JSON（优先 ```json 块；降级用括号配对扫描） */
 export function extractGameJSON(text) {
   if (!text) return null
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
@@ -201,15 +250,67 @@ export function extractGameJSON(text) {
     const j = safeParse(fence[1].trim())
     if (j) return j
   }
-  const brace = text.match(/\{[\s\S]*\}/)
-  if (brace) {
-    const j = safeParse(brace[0])
+  const scanned = scanFirstJSON(text)
+  if (scanned) {
+    const j = safeParse(scanned)
     if (j) return j
+  }
+  return null
+}
+
+/** 在文本中找第一段花括号配对的 JSON 对象（跳过字符串） */
+export function scanFirstJSON(text) {
+  const s = String(text || '')
+  let start = -1
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '{') { start = i; break }
+  }
+  if (start < 0) return null
+  let depth = 0
+  let inStr = false
+  let escCh = false
+  for (let i = start; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (escCh) escCh = false
+      else if (c === '\\') escCh = true
+      else if (c === '"') inStr = false
+      continue
+    }
+    if (c === '"') { inStr = true; continue }
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) return s.slice(start, i + 1)
+    }
   }
   return null
 }
 
 function safeParse(s) {
   try { return JSON.parse(s) } catch (e) { /* try trailing commas */ }
-  try { return JSON.parse(s.replace(/,\s*([}\]])/g, '$1')) } catch (e) { return null }
+  try {
+    // 仅剥离结构层尾逗号：, 后跟 } 或 ] 且不在字符串内
+    let out = ''
+    let inStr = false
+    let escCh = false
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i]
+      if (inStr) {
+        out += c
+        if (escCh) escCh = false
+        else if (c === '\\') escCh = true
+        else if (c === '"') inStr = false
+        continue
+      }
+      if (c === '"') { inStr = true; out += c; continue }
+      if (c === ',' ) {
+        let j = i + 1
+        while (j < s.length && /\s/.test(s[j])) j++
+        if (s[j] === '}' || s[j] === ']') continue
+      }
+      out += c
+    }
+    return JSON.parse(out)
+  } catch (e) { return null }
 }
