@@ -1,17 +1,29 @@
-// 自定义世界：导入 JSON / 从作品生成草稿
+// 自定义世界：导入 JSON / 从作品或整本小说生成草稿
 import { openModal, closeModal, toast } from './modals.js'
 import { esc } from '../engine/util.js'
 import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/worldpack.js'
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts } from '../engine/custom-packs.js'
-import { reloadPacks, listPacks, isBuiltinPack, getPack } from '../worldviews/index.js'
+import { reloadPacks, getPack, isBuiltinPack } from '../worldviews/index.js'
 import { callLLM, extractGameJSON } from '../engine/llm.js'
+import { sampleBookChunks, extractBookFacts, bibleToUserBrief } from '../engine/book-ingest.js'
 
 function activeKey(app) {
   const S = app && app.S
   const keys = (S && Array.isArray(S.playerKeys)) ? S.playerKeys : []
-  if (!keys.length) return null
-  const idx = (typeof S.selectedKey === 'number' && keys[S.selectedKey]) ? S.selectedKey : 0
-  return keys[idx] || keys[0] || null
+  if (keys.length) {
+    const idx = (typeof S.selectedKey === 'number' && keys[S.selectedKey]) ? S.selectedKey : 0
+    return keys[idx] || keys[0] || null
+  }
+  return firstKeyFallback()
+}
+
+function firstKeyFallback() {
+  try {
+    const raw = localStorage.getItem('agentworlds_apikeys_v1')
+    const d = raw ? JSON.parse(raw) : null
+    if (d && Array.isArray(d.keys) && d.keys.length) return d.keys[d.selected || 0] || d.keys[0]
+  } catch (e) { /* ignore */ }
+  return null
 }
 
 function draftFromForm() {
@@ -20,7 +32,8 @@ function draftFromForm() {
   const setting = (document.getElementById('cw-setting').value || '').trim()
   const levels = (document.getElementById('cw-levels').value || '').trim()
   const style = (document.getElementById('cw-style').value || '奇幻冒险').trim()
-  return { title, author, setting, levels, style }
+  const bookText = (document.getElementById('cw-book') ? document.getElementById('cw-book').value : '') || ''
+  return { title, author, setting, levels, style, bookText: bookText.trim() }
 }
 
 export function openWorldAuthor(app, { onSaved } = {}) {
@@ -29,22 +42,28 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     <h2>自定义世界</h2>
     <p style="font-size:12px;color:var(--dim)">每个自定义世界会出现在欢迎页，拥有独立存档槽。内置六包不受影响。</p>
 
-    <h3>① 从作品生成</h3>
+    <h3>① 从作品 / 整本小说生成</h3>
     <label style="color:var(--dim);font-size:12px">书名 / 作品名</label>
     <input id="cw-title" type="text" placeholder="例如 诡秘之主" style="width:100%;margin-top:6px">
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">作者（可选）</label>
     <input id="cw-author" type="text" placeholder="例如 爱潜水的乌贼" style="width:100%;margin-top:6px">
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">设定摘要（越具体越好）</label>
-    <textarea id="cw-setting" rows="4" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px" placeholder="力量体系、地理、主要势力、主角开局处境…"></textarea>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">设定摘要（没原文时必填；有原文可留空）</label>
+    <textarea id="cw-setting" rows="3" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px" placeholder="力量体系、地理、主要势力、主角开局处境…"></textarea>
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">等级体系（可选，逗号分隔从低到高）</label>
     <input id="cw-levels" type="text" placeholder="序列九…序列零 / 学徒…半神" style="width:100%;margin-top:6px">
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">题材风格</label>
     <input id="cw-style" type="text" value="奇幻冒险" style="width:100%;margin-top:6px">
+
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">小说原文（.txt 整本 / 多章粘贴）</label>
+    <input id="cw-file" type="file" accept=".txt,.md,text/plain" style="margin-top:6px;font-size:12px">
+    <div id="cw-file-info" style="font-size:12px;color:var(--faint);margin-top:4px">支持 TXT/MD。超长文本会自动抽样开头/中段/结尾章节做考据，不是全文直塞模型。</div>
+    <textarea id="cw-book" rows="4" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder="也可直接粘贴原文…"></textarea>
+
     <div class="btn-row" style="margin-top:10px">
-      <button class="btn btn-gold" id="cw-gen" type="button">用 AI 生成草稿</button>
+      <button class="btn btn-gold" id="cw-gen" type="button">AI 提取并生成草稿</button>
       <button class="btn" id="cw-gen-stop" type="button" hidden>取消</button>
     </div>
-    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">需要先配置 API Key。生成后可编辑 JSON 再保存。</div>
+    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">需要先配置 API Key。有原文时自动多段考据 → 合并设定 → 生成世界包。</div>
 
     <h3 style="margin-top:18px">② 粘贴 / 编辑 JSON</h3>
     <textarea id="cw-json" rows="8" style="width:100%;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder='{"id":"my-world","name":"我的世界",…}'></textarea>
@@ -76,12 +95,33 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   const status = document.getElementById('cw-status')
   const msg = document.getElementById('cw-msg')
   const jsonEl = document.getElementById('cw-json')
+  const bookEl = document.getElementById('cw-book')
+  const fileInfo = document.getElementById('cw-file-info')
   let genCtl = null
+
+  document.getElementById('cw-file').onchange = (e) => {
+    const f = e.target.files && e.target.files[0]
+    if (!f) return
+    if (f.size > 8 * 1024 * 1024) {
+      fileInfo.textContent = '文件过大（>8MB），请截取正文部分。'
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      bookEl.value = text.length > 400000 ? text.slice(0, 400000) : text
+      const ch = sampleBookChunks(bookEl.value)
+      fileInfo.textContent = `已载入 ${f.name}（${text.length} 字）· 约 ${ch.chapters} 章/块 · 将抽样 ${ch.samples.length} 片考据`
+    }
+    reader.onerror = () => { fileInfo.textContent = '读取文件失败' }
+    reader.readAsText(f, 'utf-8')
+  }
 
   document.getElementById('cw-gen').onclick = async () => {
     const f = draftFromForm()
-    if (!f.title) { toast('请填写书名/作品名'); return }
-    const keyObj = activeKey(app) || firstKeyFallback(app)
+    if (!f.title && !f.bookText) { toast('请填写书名，或粘贴/上传小说原文'); return }
+    const title = f.title || '未命名作品'
+    const keyObj = activeKey(app)
     if (!keyObj) {
       status.textContent = '未配置 API Key，请先在顶栏 🔑 API 中配置。'
       return
@@ -90,47 +130,73 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     const stop = document.getElementById('cw-gen-stop')
     btn.disabled = true
     stop.hidden = false
-    status.textContent = '正在生成世界包草稿…'
     genCtl = new AbortController()
     stop.onclick = () => { try { genCtl.abort() } catch (e) {} }
 
-    const user = `作品：${f.title}${f.author ? '（' + f.author + '）' : ''}
+    try {
+      let brief = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
 题材风格：${f.style}
 设定摘要：${f.setting || '（请根据作品常识补全）'}
-等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
+等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}`
+      let user
 
-请输出完整世界包 JSON。`
-    const res = await callLLM({
-      keyObj,
-      system: PACK_DRAFT_PROMPT,
-      user,
-      signal: genCtl.signal
-    })
-    btn.disabled = false
-    stop.hidden = true
-    genCtl = null
-    if (!res.ok) {
-      status.textContent = '生成失败：' + (res.error || '')
-      return
-    }
-    const json = extractGameJSON(res.text)
-    if (!json) {
-      status.textContent = '未解析到 JSON，请重试或手动粘贴。'
-      jsonEl.value = res.text.slice(0, 8000)
-      return
-    }
-    // 稳定 id：避免与内置冲突
-    if (!json.id || String(json.id).toLowerCase() === f.title.toLowerCase()) {
-      json.id = 'book-' + hashId(f.title)
-    }
-    if (BUILTIN_HIT(json.id)) json.id = json.id + '-x'
-    jsonEl.value = JSON.stringify(json, null, 2)
-    const v = validatePackDraft(json)
-    if (v.ok) {
-      status.textContent = `草稿已生成：${v.pack.name}（${v.pack.tiers.length} 阶 · ${v.pack._decl.map.length} 地）。可编辑后保存。`
-      msg.textContent = ''
-    } else {
-      status.textContent = '草稿需修正：' + v.errors.join('；')
+      if (f.bookText.length >= 800) {
+        const ch = sampleBookChunks(f.bookText)
+        status.textContent = `原文 ${ch.totalChars} 字 · 抽样 ${ch.samples.length} 片开始考据…`
+        const ex = await extractBookFacts({
+          keyObj,
+          title,
+          author: f.author,
+          samples: ch.samples,
+          signal: genCtl.signal,
+          onProgress: (p) => { status.textContent = p.message }
+        })
+        if (!ex.ok) {
+          status.textContent = '提取失败：' + (ex.error || '')
+          return
+        }
+        user = bibleToUserBrief(title, f.author, ex.bible)
+        if (f.levels) user += `\n用户补充等级提示：${f.levels}`
+        if (f.setting) user += `\n用户补充设定：${f.setting}`
+        status.textContent = '设定已合并，正在生成世界包…'
+      } else {
+        user = brief + '\n\n请输出完整世界包 JSON。'
+        status.textContent = '正在生成世界包草稿…'
+      }
+
+      const res = await callLLM({
+        keyObj,
+        system: PACK_DRAFT_PROMPT,
+        user,
+        signal: genCtl.signal
+      })
+      if (!res.ok) {
+        status.textContent = '生成失败：' + (res.error || '')
+        return
+      }
+      const json = extractGameJSON(res.text)
+      if (!json) {
+        status.textContent = '未解析到 JSON，已把输出放进编辑框，请手动整理。'
+        jsonEl.value = res.text.slice(0, 12000)
+        return
+      }
+      if (!json.id || getPack(json.id)) {
+        json.id = 'book-' + hashId(title)
+        if (getPack(json.id)) json.id = json.id + '-' + String(Date.now()).slice(-4)
+      }
+      if (BUILTIN_HIT(json.id)) json.id = json.id + '-x'
+      jsonEl.value = JSON.stringify(json, null, 2)
+      const v = validatePackDraft(json)
+      if (v.ok) {
+        status.textContent = `草稿已生成：${v.pack.name}（${v.pack.tiers.length} 阶 · 地点 ${v.pack._decl.map.length}）。可编辑后保存。`
+        msg.textContent = ''
+      } else {
+        status.textContent = '草稿需修正：' + v.errors.join('；')
+      }
+    } finally {
+      btn.disabled = false
+      stop.hidden = true
+      genCtl = null
     }
   }
 
@@ -184,15 +250,6 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       if (onSaved) onSaved(null)
     }
   })
-}
-
-function firstKeyFallback(app) {
-  try {
-    const raw = localStorage.getItem('agentworlds_apikeys_v1')
-    const d = raw ? JSON.parse(raw) : null
-    if (d && Array.isArray(d.keys) && d.keys.length) return d.keys[d.selected || 0] || d.keys[0]
-  } catch (e) { /* ignore */ }
-  return null
 }
 
 function BUILTIN_HIT(id) {

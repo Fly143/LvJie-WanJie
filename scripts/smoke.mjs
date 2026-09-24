@@ -83,6 +83,10 @@ if (!j || j.end !== true) throw new Error('extractGameJSON failed')
 // 自定义声明式世界包
 const { validatePackDraft, packToDraft } = await import(base + '/engine/worldpack.js')
 const { saveCustomPackDraft, loadCustomPacks, deleteCustomPack } = await import(base + '/engine/custom-packs.js')
+const { sampleBookChunks } = await import(base + '/engine/book-ingest.js')
+const bookText = Array.from({ length: 30 }, (_, i) => '第' + (i + 1) + '章 测试\\n正文内容。'.repeat(30)).join('\\n')
+const sm = sampleBookChunks(bookText)
+if (!sm.samples.length || sm.samples.length > 10) throw new Error('book sample failed')
 const draft = {
   id: 'smoke-custom', name: '冒烟大陆', icon: '📘', tagline: 't', gameTitle: '冒烟之书',
   worlds: ['中土'], subNames: ['初', '中', '后'],

@@ -66,8 +66,9 @@ npm run sync
 欢迎页 **🛠 自定义世界**：
 
 1. **从作品生成**：填书名 + 设定摘要（可选等级表），用已配置的 API 生成世界包草稿  
-2. **粘贴 JSON**：按 `worldpack.js` 的字段校验后保存  
-3. 自定义世界出现在欢迎页，拥有独立存档槽；可导出 JSON 分享
+2. **整本小说**：上传/粘贴 TXT，自动抽样开头/中段/结尾章节考据 → 合并设定 → 生成草稿（不是全文直塞模型）  
+3. **粘贴 JSON**：按 `worldpack.js` 的字段校验后保存  
+4. 自定义世界出现在欢迎页，拥有独立存档槽；可导出 JSON 分享
 
 ## 世界观一览
 
@@ -88,6 +89,7 @@ npm start             # 同步 runtime 并启动
 npm run sync          # 仅同步 app → runtime/resources/app
 npm run rebuild:runtime
 npm run smoke:engine
+npm run smoke:book
 npm run smoke:llm
 npm run smoke:stage
 ```
