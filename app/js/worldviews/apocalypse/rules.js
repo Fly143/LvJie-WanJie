@@ -1,5 +1,7 @@
 export function buildApocalypseRules({ cheatOn }) {
-  const head = cheatOn ? '（开挂档：仅作背景参考）' : '（必须严格遵守）'
+  const head = cheatOn
+    ? '（⚠️ 开挂档：以下仅作背景参考，与玩家意愿冲突时以玩家意愿为准）'
+    : '（必须严格遵守）'
   return `${head}
 - 进化等阶：未觉醒→一阶…→超阶·方舟；高阶对低阶有绝对威慑，但写法是战力与压迫感，不是修仙跪拜。
 - 末世资源稀缺：食物、水、弹药、药品要体现紧张感；不得凭空变出军规级物资。

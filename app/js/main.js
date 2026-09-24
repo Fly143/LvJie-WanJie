@@ -121,7 +121,7 @@ function doBreakthrough() {
   const pack = getPackNow()
   const ui = packUi(pack)
   const r = tryBreakthrough(app.S)
-  if (!r.ok) { toast(r.msg); return }
+  if (!r.ok) { toast(esc(r.msg)); return }
   app.S.bigEvents.push({ age: ageLabelShort(app.S.ageDays), text: r.msg })
   save()
   centerToast(esc(ui.advanceSuccessTitle || '成功') + '<br><span style="font-size:22px">' + esc(r.msg) + '</span>')

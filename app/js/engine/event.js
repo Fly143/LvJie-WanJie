@@ -44,7 +44,7 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   const keyObj = resolveKey(S)
   if (!keyObj) {
     EV.loading = false
-    EV.error = '请先在设置中配置 API Key（🔑 切换API Key）'
+    EV.error = '请先在设置中配置 API Key（🔑 切换 API Key）'
     if (hooks.onState) hooks.onState(EV)
     return
   }

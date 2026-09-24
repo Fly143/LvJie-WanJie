@@ -1,5 +1,7 @@
 export function buildWesternRules({ cheatOn }) {
-  const head = cheatOn ? '（开挂档：仅作背景参考）' : '（必须严格遵守）'
+  const head = cheatOn
+    ? '（⚠️ 开挂档：以下仅作背景参考，与玩家意愿冲突时以玩家意愿为准）'
+    : '（必须严格遵守）'
   return `${head}
 - 位阶：学徒→正式→资深→精英→大师→大法师/圣骑士→传奇→史诗→半神→神→主神。
 - 魔法体系自洽：魔力、神术、骑士光辉不要混成修仙灵气；物品用银币/金币/魔晶与药剂卷轴。

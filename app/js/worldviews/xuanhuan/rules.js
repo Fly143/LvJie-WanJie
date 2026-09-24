@@ -1,5 +1,7 @@
 export function buildXuanhuanRules({ cheatOn }) {
-  const head = cheatOn ? '（开挂档：仅作背景参考）' : '（必须严格遵守）'
+  const head = cheatOn
+    ? '（⚠️ 开挂档：以下仅作背景参考，与玩家意愿冲突时以玩家意愿为准）'
+    : '（必须严格遵守）'
   return `${head}
 - 斗阶从低到高：斗之气→斗者→斗师→大斗师→斗灵→斗王→斗皇→斗宗→斗尊→斗圣→斗帝。
 - 人界势力顶峰约斗皇~斗宗；天罗界以斗尊为主；帝域才有斗圣/斗帝。

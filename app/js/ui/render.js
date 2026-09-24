@@ -287,10 +287,10 @@ export function renderMap(app, api) {
   main.querySelectorAll('[data-go]').forEach(b => {
     b.onclick = () => {
       const r = travel(S, b.dataset.go)
-      if (!r.ok) { api.toast(r.msg); return }
+      if (!r.ok) { api.toast(esc(r.msg)); return }
       if (app.EV) { endEvent(app.EV); app.EV = null }
       api.save()
-      api.centerToast(r.msg)
+      api.centerToast(esc(r.msg))
       api.refreshAll()
       api.setTab('scene')
     }
@@ -421,7 +421,7 @@ export function renderBag(app, api) {
       let handled = false
       if (it.use_effect) {
         const r = useDirectItem(S, it)
-        if (r.ok) { api.toast(r.msg); handled = true }
+        if (r.ok) { api.toast(esc(r.msg)); handled = true }
       }
       if (!handled && normalizeType(it.type) === 'consumable' && it.realm_index != null) {
         const eff = consumableEffect(S, it)
@@ -469,7 +469,7 @@ export function renderBag(app, api) {
       }
       S.techniques = S.techniques || []
       S.techniques.push(rec)
-      forgetOldTechniques(S, t => api.toast(t))
+      forgetOldTechniques(S, t => api.toast(esc(t)))
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
       api.toast(`研习《${esc(rec.name)}》成功`)
@@ -544,7 +544,7 @@ export function renderSettings(app, api) {
         <button class="btn btn-danger" id="set-reset" type="button">重置本世界观存档</button>
       </div>
       <div style="font-size:12px;color:var(--faint);margin-top:8px">
-        当前世界：${esc(pack.name)} · 版本存档 v${S.version}<br>
+        当前世界：${esc(pack.name)} · 存档版本 v${S.version}<br>
         API Key 独立保存，重置存档会保留。
       </div>
     </div>
@@ -574,7 +574,7 @@ export function renderSettings(app, api) {
   document.getElementById('set-reset').onclick = () => {
     openModal(`
       <h2>重置存档？</h2>
-      <div class="warn">将删除当前世界观的全部进度，回到欢迎页。API Key 与 AI 点保留。</div>
+      <div class="warn">将删除当前世界观的全部进度，回到欢迎页。API Key 会保留。</div>
       <div class="btn-row">
         <button class="btn" data-close type="button">取消</button>
         <button class="btn btn-danger" id="do-reset" type="button">确认重置</button>

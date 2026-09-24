@@ -8,7 +8,7 @@ export function buildXiuxianRules({ cheatOn }) {
 - 元婴期可去其他大陆，化神后期可飞升灵界，真仙初期可飞升仙界（皆可返回）。
 - 物品境界必须与所在世界严格匹配：人界不超过元婴，灵界不超过大乘，仙界才可出现真仙及以上物品。
 - 道祖无突破丹：突破丹只有对应境界自身，且不得高于当前世界物品上限。
-- 修为突破由玩家在界面自行完成，你只增减cultivation/progress，不要直接改变境界。
+- 修为突破由玩家在界面自行完成，你只增减进度（cultivation/progress），不要直接改变境界。
 - 不要生成疗伤、回法力类丹药；丹药只写加修为。
 - 结识红颜/英杰时：friends 必须给 realm（或 rank）、gender、power、intro、mem。`
 }
