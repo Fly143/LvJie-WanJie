@@ -12,6 +12,7 @@ import { applyThemeTokens } from './engine/theme.js'
 import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings } from './ui/render.js'
 import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
+import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm } from './ui/bgm.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 
@@ -230,6 +231,7 @@ function renderWelcome() {
         <div class="btn-row" style="justify-content:center">
           <button class="btn btn-gold" id="w-start" type="button">进入世界</button>
           <button class="btn" id="w-new" type="button" hidden>新开一局</button>
+          <button class="btn" id="w-author" type="button">🛠 自定义世界</button>
         </div>
         <div class="hint">各世界观存档互不影响。顶栏「🌐 世界观」随时切换；设置里可删除当前世界存档。</div>
       </div>
@@ -295,6 +297,15 @@ function renderWelcome() {
       const name = (nameEl.value || '').trim()
       startNewGame(name, id)
     }
+  }
+
+  document.getElementById('w-author').onclick = () => {
+    openWorldAuthor(app, {
+      onSaved: () => {
+        setShell('welcome')
+        renderWelcome()
+      }
+    })
   }
 
   syncActions()

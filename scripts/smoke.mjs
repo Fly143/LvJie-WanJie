@@ -80,4 +80,32 @@ for (const p of packs) {
 const j = extractGameJSON('hi\n```json\n{"end":true,"changes":{}}\n```')
 if (!j || j.end !== true) throw new Error('extractGameJSON failed')
 
+// 自定义声明式世界包
+const { validatePackDraft, packToDraft } = await import(base + '/engine/worldpack.js')
+const { saveCustomPackDraft, loadCustomPacks, deleteCustomPack } = await import(base + '/engine/custom-packs.js')
+const draft = {
+  id: 'smoke-custom', name: '冒烟大陆', icon: '📘', tagline: 't', gameTitle: '冒烟之书',
+  worlds: ['中土'], subNames: ['初', '中', '后'],
+  lexicon: { level: '位阶', progress: '阅历', money: { main: '金币', mid: '银', high: '秘银' }, companion: '同伴', skill: '技艺', power: '战力', technique: '传承', startBtn: '启程', nav: {} },
+  tiers: [{ name: '一', lifespan: 80 }, { name: '二', lifespan: 100 }, { name: '三', lifespan: 200 }, { name: '四', lifespan: 400 }, { name: '五', lifespan: 800 }],
+  startLoc: 'a1',
+  map: [
+    { id: 'a1', name: '村', world: '中土', continent: '谷', type: '村落', desc: 'd', people: [], shop: [], beasts: [], interactables: [] },
+    { id: 'a2', name: '城', world: '中土', continent: '原', type: '都城', desc: 'd', people: [], shop: [], beasts: [], interactables: [] }
+  ],
+  rules: ['题材为奇幻史诗', '升级动词是晋阶']
+}
+const dv = validatePackDraft(draft)
+if (!dv.ok) throw new Error('custom pack invalid: ' + dv.errors.join(','))
+globalThis.__AW_PACKS__[dv.pack.id] = dv.pack
+const CS2 = newGame('自定义者', dv.pack.id)
+if (CS2.worldview !== 'smoke-custom') throw new Error('custom newGame failed')
+if (!CS2.map.some(l => l.id === 'a1')) throw new Error('custom map failed')
+const csys = buildSystemPrompt(CS2, { limitOn: true })
+if (!csys.includes('冒烟大陆') && !csys.includes('位阶')) throw new Error('custom prompt missing')
+const saved = saveCustomPackDraft(draft)
+if (!saved.ok) throw new Error('custom save failed')
+if (!loadCustomPacks().some(p => p.id === 'smoke-custom')) throw new Error('custom list failed')
+deleteCustomPack('smoke-custom')
+
 console.log('SMOKE_PASS')

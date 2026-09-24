@@ -123,6 +123,9 @@ export function buildSystemPrompt(S, opts = {}) {
   const worldviewBlock = pack.buildRules
     ? pack.buildRules({ S, loc, pack, cheatOn })
     : '（本世界观未提供规则）'
+  const customHint = pack._decl
+    ? `\n- 本世界为自定义世界包《${pack.name}》：题材以世界包规则与场景描述为准。\n`
+    : ''
 
   const tierList = pack.tiers.map((t, i) => `${i}.${t.name}`).join('、')
   const subs = (pack.subNames || []).join('、')
@@ -169,6 +172,7 @@ ${pressureBlock}
 - 一切设定理性合理，不出现无世界观依靠的机制。
 - 数值必须符合${ui.powerLabel}逻辑：结果要与双方${ui.powerLabel}差距相符。
 - 机缘与危险和玩家当前等级匹配，核心资源只出现在对应位阶的场景里。
+${customHint}
 ${worldviewBlock}
 
 【物品一致性】

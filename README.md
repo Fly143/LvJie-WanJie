@@ -5,6 +5,7 @@ AI 驱动的**多世界观**开放世界文字游戏。选择修仙 / 玄幻 / �
 ## 功能
 
 - 六套完整世界观包：等级表、货币、场景行动、升级动词、主题皮肤、AI 铁律
+- **自定义世界包**：JSON 导入，或按书名/设定用 AI 生成草稿（欢迎页「🛠 自定义世界」）
 - 自定义模型接入：Base URL + API Key + 模型，协议支持 **chat** / **response**
 - 可「刷新模型列表」从 `GET {Base URL}/models` 拉取选用
 - 事件循环：行动 / 选项 / 自由输入 → JSON `changes` 自动落库（货币、进度、物品、地图、同伴）
@@ -16,7 +17,9 @@ AI 驱动的**多世界观**开放世界文字游戏。选择修仙 / 玄幻 / �
 |------|------|
 | `app/` | 游戏本体（HTML/CSS/ESM JS） |
 | `app/js/engine/` | 引擎：存档、进度、背包、地图、提示词、LLM |
-| `app/js/worldviews/` | 世界观包（词表 / 数值 / 地图 / 规则） |
+| `app/js/engine/worldpack.js` | 声明式世界包 schema（校验 / 草稿提示词） |
+| `app/js/engine/custom-packs.js` | 自定义世界包存取 |
+| `app/js/worldviews/` | 内置世界观包（词表 / 数值 / 地图 / 规则） |
 | `main.js` / `preload.js` | Electron 主进程 / 渲染桥 |
 | `runtime/` | 官方 Electron 发行版 + 同步后的游戏本体（**不入库**） |
 | `scripts/` | 启动、同步/重建 runtime、冒烟脚本 |
@@ -57,6 +60,14 @@ npm run sync
 3. 需要时点 **刷新模型列表**（`GET {Base URL}/models`）
 
 不附带任何内置 Key。Key 优先经系统安全存储（safeStorage）加密落盘，不会写入存档 JSON。
+
+## 自定义世界
+
+欢迎页 **🛠 自定义世界**：
+
+1. **从作品生成**：填书名 + 设定摘要（可选等级表），用已配置的 API 生成世界包草稿  
+2. **粘贴 JSON**：按 `worldpack.js` 的字段校验后保存  
+3. 自定义世界出现在欢迎页，拥有独立存档槽；可导出 JSON 分享
 
 ## 世界观一览
 
