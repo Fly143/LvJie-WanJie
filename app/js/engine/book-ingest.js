@@ -23,7 +23,7 @@ export const EXTRACT_CHUNK_PROMPT = `你是小说设定考据员。阅读下面�
 - power_system 尽量按文中出现的从弱到强排列
 - 不要输出 JSON 以外内容`
 
-export const MERGE_PROMPT = `你是开放世界游戏世界观架构师。根据下面多段小说摘录的考据 JSON，合并成一份「设定圣经」，供生成游戏世界包。
+export const MERGE_PROMPT = `你是开放世界游戏世界观架构师。根据下面多段小说摘录的考据 JSON（以及可选的联网补充材料），合并成一份「设定圣经」，供生成游戏世界包。
 
 输出一个 \`\`\`json 代码块：
 {
@@ -41,7 +41,7 @@ export const MERGE_PROMPT = `你是开放世界游戏世界观架构师。根据
   "start_scenarios": ["2~4 个开局处境候选"]
 }
 
-要求：以原文考据为准；等级命名前后统一；style_rules 只写正向描述。`
+要求：以原文考据为准，联网材料可补全等级/货币/地名等硬设定；等级命名前后统一；style_rules 只写正向描述。`
 
 /** 粗切章节并抽样：头 / 中 / 尾覆盖成长线 */
 export function sampleBookChunks(text) {
@@ -123,10 +123,12 @@ function safeJSON(text) {
 }
 
 /**
- * 整本提取。onProgress({ step, total, message })
+ * 整本书提取。onProgress({ step, total, message })
+ * @param {object} opt
+ * @param {Array} opt.webNotes - 联网补充材料 [{kind,source,text}]
  * @returns {Promise<{ok, bible?, error?, partial?}>}
  */
-export async function extractBookFacts({ keyObj, title, author, samples, signal, onProgress }) {
+export async function extractBookFacts({ keyObj, title, author, samples, signal, onProgress, webNotes }) {
   const report = onProgress || (() => {})
   const facts = []
   for (let i = 0; i < samples.length; i++) {
@@ -139,25 +141,40 @@ export async function extractBookFacts({ keyObj, title, author, samples, signal,
     })
     if (!res.ok) {
       if (res.aborted) return { ok: false, error: '已取消', aborted: true }
-      // 单片失败可跳过
       continue
     }
     const j = safeJSON(res.text)
     if (j) facts.push(j)
   }
-  if (!facts.length) return { ok: false, error: '未能从原文提取出设定（可减少文本量或检查 API）' }
+  if (!facts.length && !(webNotes && webNotes.length)) {
+    return { ok: false, error: '未能从原文提取出设定（可减少文本量或检查 API）' }
+  }
 
   report({ step: samples.length + 1, total: samples.length + 1, message: '合并设定圣经…' })
+  let webBlock = ''
+  if (webNotes && webNotes.length) {
+    // 动态 import 会环依赖，这里内联简单拼接
+    webBlock = webNotes.map((n, i) => {
+      const head = n.kind === 'wiki' ? '维基/百科' : '设定页'
+      return `【补充${i + 1}·${head}】${n.source || ''}\n${String(n.text || '').slice(0, 8000)}`
+    }).join('\n\n')
+  }
   const merge = await callLLM({
     keyObj,
     system: MERGE_PROMPT,
-    user: `作品：${title}${author ? '（' + author + '）' : ''}\n多段考据 JSON：\n` + JSON.stringify(facts),
+    user: `作品：${title}${author ? '（' + author + '）' : ''}\n多段考据 JSON：\n` + JSON.stringify(facts) +
+      (webBlock ? `\n\n联网补充材料（优先与原文一致，可补全未抽到的设定）：\n${webBlock}` : ''),
     signal
   })
   if (!merge.ok) return { ok: false, error: merge.error || '合并失败', aborted: merge.aborted }
   const bible = safeJSON(merge.text)
   if (!bible || !bible.setting_bible) return { ok: false, error: '合并结果不完整' }
   return { ok: true, bible, facts }
+}
+
+/** 仅有联网材料时也可直接合并 */
+export async function mergeWebOnly({ keyObj, title, author, webNotes, signal, onProgress }) {
+  return extractBookFacts({ keyObj, title, author, samples: [], signal, onProgress, webNotes })
 }
 
 /** 设定圣经 → 喂给世界包草稿 prompt 的用户消息 */

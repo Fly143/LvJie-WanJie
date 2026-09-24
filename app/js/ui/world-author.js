@@ -5,7 +5,8 @@ import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/wor
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts } from '../engine/custom-packs.js'
 import { reloadPacks, getPack, isBuiltinPack } from '../worldviews/index.js'
 import { callLLM, extractGameJSON } from '../engine/llm.js'
-import { sampleBookChunks, extractBookFacts, bibleToUserBrief } from '../engine/book-ingest.js'
+import { sampleBookChunks, extractBookFacts, bibleToUserBrief, mergeWebOnly } from '../engine/book-ingest.js'
+import { gatherWebLore, webNotesToBlock } from '../engine/book-web.js'
 
 function activeKey(app) {
   const S = app && app.S
@@ -33,7 +34,12 @@ function draftFromForm() {
   const levels = (document.getElementById('cw-levels').value || '').trim()
   const style = (document.getElementById('cw-style').value || '奇幻冒险').trim()
   const bookText = (document.getElementById('cw-book') ? document.getElementById('cw-book').value : '') || ''
-  return { title, author, setting, levels, style, bookText: bookText.trim() }
+  const urlsRaw = (document.getElementById('cw-urls') ? document.getElementById('cw-urls').value : '') || ''
+  const useWeb = document.getElementById('cw-web')
+    ? document.getElementById('cw-web').checked
+    : true
+  const urls = urlsRaw.split(/[\s,，]+/).map(s => s.trim()).filter(Boolean)
+  return { title, author, setting, levels, style, bookText: bookText.trim(), useWeb, urls }
 }
 
 export function openWorldAuthor(app, { onSaved } = {}) {
@@ -53,6 +59,14 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     <input id="cw-levels" type="text" placeholder="序列九…序列零 / 学徒…半神" style="width:100%;margin-top:6px">
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">题材风格</label>
     <input id="cw-style" type="text" value="奇幻冒险" style="width:100%;margin-top:6px">
+    <label style="display:block;margin-top:10px;font-size:12px;color:var(--dim)">
+      <input id="cw-web" type="checkbox" checked> 先联网查百科/维基补充设定（可补未抽到章节的硬设定）
+    </label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:8px">设定页 URL（可选，空格/逗号分隔多个）</label>
+    <input id="cw-urls" type="text" placeholder="https://…wiki / 设定帖链接" style="width:100%;margin-top:6px">
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn" id="cw-web-only" type="button">仅联网补设定并出草稿</button>
+    </div>
 
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">小说原文（.txt 整本 / 多章粘贴）</label>
     <input id="cw-file" type="file" accept=".txt,.md,text/plain" style="margin-top:6px;font-size:12px">
@@ -63,7 +77,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       <button class="btn btn-gold" id="cw-gen" type="button">AI 提取并生成草稿</button>
       <button class="btn" id="cw-gen-stop" type="button" hidden>取消</button>
     </div>
-    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">需要先配置 API Key。有原文时自动多段考据 → 合并设定 → 生成世界包。</div>
+    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">需要先配置 API Key。流程：联网补充（可选）→ 原文抽样考据 → 合并设定 → 生成世界包。</div>
 
     <h3 style="margin-top:18px">② 粘贴 / 编辑 JSON</h3>
     <textarea id="cw-json" rows="8" style="width:100%;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder='{"id":"my-world","name":"我的世界",…}'></textarea>
@@ -117,9 +131,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     reader.readAsText(f, 'utf-8')
   }
 
-  document.getElementById('cw-gen').onclick = async () => {
+  document.getElementById('cw-gen').onclick = () => runGenerate({ webOnly: false })
+  document.getElementById('cw-web-only').onclick = () => runGenerate({ webOnly: true })
+
+  async function runGenerate({ webOnly }) {
     const f = draftFromForm()
-    if (!f.title && !f.bookText) { toast('请填写书名，或粘贴/上传小说原文'); return }
+    if (!f.title && !f.bookText && !f.urls.length) { toast('请填写书名、原文或设定 URL'); return }
     const title = f.title || '未命名作品'
     const keyObj = activeKey(app)
     if (!keyObj) {
@@ -129,38 +146,71 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     const btn = document.getElementById('cw-gen')
     const stop = document.getElementById('cw-gen-stop')
     btn.disabled = true
+    document.getElementById('cw-web-only').disabled = true
     stop.hidden = false
     genCtl = new AbortController()
     stop.onclick = () => { try { genCtl.abort() } catch (e) {} }
 
     try {
-      let brief = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
-题材风格：${f.style}
-设定摘要：${f.setting || '（请根据作品常识补全）'}
-等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}`
-      let user
-
-      if (f.bookText.length >= 800) {
-        const ch = sampleBookChunks(f.bookText)
-        status.textContent = `原文 ${ch.totalChars} 字 · 抽样 ${ch.samples.length} 片开始考据…`
-        const ex = await extractBookFacts({
-          keyObj,
+      let webNotes = []
+      if (f.useWeb || webOnly || f.urls.length) {
+        const g = await gatherWebLore({
           title,
-          author: f.author,
-          samples: ch.samples,
-          signal: genCtl.signal,
-          onProgress: (p) => { status.textContent = p.message }
+          urls: f.urls,
+          onProgress: (p) => { status.textContent = p.message || '' }
         })
+        webNotes = g.ok ? g.notes : []
+        if (!webNotes.length) status.textContent = '联网无结果，继续本地材料…'
+      }
+
+      const hasBook = f.bookText.length >= 800
+      if (!hasBook && !webNotes.length && !f.setting) {
+        status.textContent = '请提供原文、设定 URL，或填写设定摘要。'
+        return
+      }
+
+      let user
+      if (hasBook || webNotes.length) {
+        const ch = hasBook ? sampleBookChunks(f.bookText) : { samples: [], chapters: 0, totalChars: 0 }
+        status.textContent = hasBook
+          ? `原文 ${ch.totalChars} 字 · 抽样 ${ch.samples.length} 片考据…`
+          : '仅用联网/补充材料合并设定…'
+        const ex = hasBook
+          ? await extractBookFacts({
+              keyObj,
+              title,
+              author: f.author,
+              samples: ch.samples,
+              signal: genCtl.signal,
+              webNotes,
+              onProgress: (p) => { status.textContent = p.message }
+            })
+          : await mergeWebOnly({
+              keyObj,
+              title,
+              author: f.author,
+              webNotes,
+              signal: genCtl.signal,
+              onProgress: (p) => { status.textContent = p.message }
+            })
         if (!ex.ok) {
           status.textContent = '提取失败：' + (ex.error || '')
           return
         }
         user = bibleToUserBrief(title, f.author, ex.bible)
+        if (webNotes.length) {
+          user += `\n\n联网补充（已用于合并，生成时仍以设定圣经为准）：\n${webNotesToBlock(webNotes).slice(0, 4000)}`
+        }
         if (f.levels) user += `\n用户补充等级提示：${f.levels}`
         if (f.setting) user += `\n用户补充设定：${f.setting}`
         status.textContent = '设定已合并，正在生成世界包…'
       } else {
-        user = brief + '\n\n请输出完整世界包 JSON。'
+        user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
+题材风格：${f.style}
+设定摘要：${f.setting || '（请根据作品常识补全）'}
+等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
+
+请输出完整世界包 JSON。`
         status.textContent = '正在生成世界包草稿…'
       }
 
@@ -195,6 +245,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       }
     } finally {
       btn.disabled = false
+      document.getElementById('cw-web-only').disabled = false
       stop.hidden = true
       genCtl = null
     }
