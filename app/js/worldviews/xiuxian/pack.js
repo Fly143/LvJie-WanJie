@@ -15,9 +15,9 @@ export const xiuxianPack = {
     panel: 'rgba(18,28,54,.82)', panel2: 'rgba(28,44,80,.55)',
     line: 'rgba(140,160,220,.16)', line2: 'rgba(140,160,220,.3)',
     text: '#d9e1f4', dim: '#8b98b8', faint: '#5c6a8a',
-    fontDisplay: '"STKaiti","KaiTi","Noto Serif SC",serif',
-    fontBody: '"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
-    fontEvent: '"STKaiti","KaiTi","Noto Serif SC",serif',
+    fontDisplay: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontBody: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontEvent: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
     radius: '12px',
     cardBg: 'linear-gradient(165deg, rgba(30,40,80,.75), rgba(16,24,48,.85))'
   },

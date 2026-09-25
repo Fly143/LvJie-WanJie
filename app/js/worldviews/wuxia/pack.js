@@ -16,9 +16,9 @@ export const wuxiaPack = {
     line: 'rgba(200,180,120,.14)', line2: 'rgba(200,180,120,.28)',
     text: '#e6dcc4', dim: '#a89878', faint: '#7a6c50',
     jade: '#8fbc8f', blue: '#8fa8c8', red: '#c87a6a', purple: '#b8a0c8',
-    fontDisplay: '"STKaiti","KaiTi","Noto Serif SC",serif',
-    fontBody: '"STKaiti","KaiTi","Noto Sans SC",serif',
-    fontEvent: '"STKaiti","KaiTi","Noto Serif SC",serif',
+    fontDisplay: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontBody: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontEvent: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
     radius: '4px',
     deco: 'radial-gradient(ellipse at 80% 0%, rgba(201,170,106,.06), transparent 50%)',
     cardBg: 'rgba(48,42,30,.78)'

@@ -16,9 +16,9 @@ export const westernPack = {
     line: 'rgba(180,140,255,.14)', line2: 'rgba(180,140,255,.3)',
     text: '#efe4d8', dim: '#b0a0c8', faint: '#7a6888',
     jade: '#8fd6a0', blue: '#9ab8ff', red: '#e08090', purple: '#b48cff',
-    fontDisplay: '"Palatino Linotype","Book Antiqua","STKaiti",serif',
-    fontBody: '"Palatino Linotype","Book Antiqua","STKaiti",serif',
-    fontEvent: '"Palatino Linotype","Book Antiqua","STKaiti",serif',
+    fontDisplay: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontBody: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
+    fontEvent: '"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif',
     radius: '2px 12px 2px 12px',
     deco: 'radial-gradient(ellipse at 50% 0%, rgba(180,140,255,.08), transparent 55%)',
     cardBg: 'linear-gradient(160deg, rgba(50,36,72,.8), rgba(28,20,42,.85))'
