@@ -19,7 +19,7 @@ export function addItem(S, it, n) {
     x.name === it.name && x.type === type && x.grade === it.grade && x.realm_index === it.realm_index
   )
   if (ex) ex.count += count
-  else S.inventory.push(Object.assign({ name: '未知物品', desc: '', count: 1, type: 'special' }, it, { type, count }))
+  else S.inventory.push(Object.assign({ name: '未知物品', desc: '', count: 1, type: 'special', equipped: false }, it, { type, count }))
 }
 
 export function itemMatches(a, b) {

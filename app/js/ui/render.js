@@ -7,6 +7,7 @@ import { totalPowerF, powerBreakdown, consumableEffect } from '../engine/power.j
 import { curLoc, travel, gateReason, travelDays } from '../engine/map.js'
 import { skillLabel } from '../engine/skills.js'
 import { addItem, normalizeType, typeName, itemChip, useDirectItem } from '../engine/inventory.js'
+import { toggleEquip, equipSummary, ensureEquipFlags } from '../engine/equip.js'
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
@@ -464,6 +465,7 @@ export function renderBag(app, api) {
             <div class="bbtns">
               ${it.usable === 'direct' ? `<button class="btn btn-sm btn-gold" data-use="${i}" type="button">使用</button>` : ''}
               ${it.usable === 'ai' ? `<button class="btn btn-sm" data-useai="${i}" type="button">AI 互动</button>` : ''}
+              ${normalizeType(it.type) === 'equip' ? `<button class="btn btn-sm ${it.equipped ? 'btn-gold' : ''}" data-equip="${i}" type="button">${it.equipped ? '卸下' : '装备'}</button>` : ''}
               ${normalizeType(it.type) === 'technique' ? `<button class="btn btn-sm" data-learn="${i}" type="button">研习</button>` : ''}
               <button class="btn btn-sm" data-sell="${i}" type="button">出售</button>
             </div>
@@ -472,6 +474,18 @@ export function renderBag(app, api) {
       }).join('') || '<div class="empty">背包空空如也</div>'}
     </div>
   `
+  main.querySelectorAll('[data-equip]').forEach(b => {
+    b.onclick = () => {
+      const i = Number(b.dataset.equip)
+      const it = S.inventory[i]
+      if (!it) return
+      ensureEquipFlags(S)
+      const res = toggleEquip(S, it)
+      if (res.msg) api.toast(res.msg)
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-use]').forEach(b => {
     b.onclick = () => {
       const i = Number(b.dataset.use)

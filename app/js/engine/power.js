@@ -52,7 +52,7 @@ export function spousePowerF(S) {
 export function totalPowerF(S) {
   let p = basePower(S, S.tierIndex, S.sub) + totalTechniquePower(S) + spousePowerF(S)
   const arts = S.inventory
-    .filter(x => x.type === 'equip' && x.grade && x.realm_index != null)
+    .filter(x => x.type === 'equip' && x.equipped && x.grade && x.realm_index != null)
     .map(a => ({ a, p: artPowerF(S, a) }))
     .sort((x, y) => y.p - x.p)
   let mult = 1
@@ -70,7 +70,7 @@ export function powerBreakdown(S) {
   const base = basePower(S, S.tierIndex, S.sub)
   let art = 0
   const arts = S.inventory
-    .filter(x => x.type === 'equip' && x.grade && x.realm_index != null)
+    .filter(x => x.type === 'equip' && x.equipped && x.grade && x.realm_index != null)
     .map(a => ({ a, p: artPowerF(S, a) }))
     .sort((x, y) => y.p - x.p)
   let mult = 1

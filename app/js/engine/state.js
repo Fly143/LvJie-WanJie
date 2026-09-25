@@ -276,6 +276,7 @@ function migrateSave(s) {
   s.inventory.forEach(it => {
     if (it && LEGACY[it.type]) it.type = LEGACY[it.type]
     if (it && it.count == null) it.count = 1
+    if (it && it.equipped == null) it.equipped = false
   })
   if (Array.isArray(s.map)) {
     s.map.forEach(l => {
