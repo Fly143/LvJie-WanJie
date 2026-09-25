@@ -49,13 +49,11 @@ export function setTab(t) {
   document.querySelectorAll('.navbtn').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === t)
   })
-  // 主玩法页默认 031；用户在设置里改过的 bgmTrack 优先
+  // 主玩法页默认 031；同一曲由 playBgm 内部去重，不打断
   try {
     if (app.S && BGM_DEFAULT_TABS.includes(t)) {
       const fallback = (t === 'map' && BGM_MAP_TRACK) || BGM_DEFAULT_TRACK
       playBgm(app.S.bgmTrack || fallback)
-    } else if (app.S && app.S.bgmTrack) {
-      playBgm(app.S.bgmTrack)
     }
   } catch (e) { /* music optional */ }
   renderMain()

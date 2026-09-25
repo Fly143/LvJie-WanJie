@@ -53,6 +53,13 @@ function revokeUserUrl() {
 export function playBgm(id) {
   initBgm()
   const t = trackOf(id)
+  // 同一曲已在播：切 Tab/选项不打断
+  if (t.id && t.id === currentId) {
+    if (t.custom && t.kind === 'midi' && midiPlayer.playing) return
+    if (t.custom && t.kind !== 'midi' && userUrl && audioEl && !audioEl.paused) return
+    if (!t.custom && t.file && isMidiFile(t.file) && midiPlayer.playing) return
+    if (!t.custom && t.file && !isMidiFile(t.file) && audioEl && !audioEl.paused && audioEl.src) return
+  }
   currentId = t.id
 
   if (t.custom && t.blob) {
