@@ -51,7 +51,9 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
   const system = buildSystemPrompt(S, {
     limitOn: hooks.limitOn !== false,
-    cheatUnlocked: !!hooks.cheatUnlocked
+    cheatUnlocked: !!hooks.cheatUnlocked,
+    focusText: userText,
+    focusNames: EV.target ? [String(EV.target)] : []
   })
 
   EV.history.push({ role: 'user', content: userText })

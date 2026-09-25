@@ -6,6 +6,7 @@ import { packUi, packFeatures } from './pack-ui.js'
 import { fmtNum, ageLabel } from './util.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 import { skillLabel } from './skills.js'
+import { npcFocusFromTexts } from './npc-memory.js'
 
 const TALENT_BLOCK = {
   cheat: `【AI风格：开挂】（玩家在设置中选择，必须遵守；本档要求最高，压过下面所有"驳回不合理行动"的规定）
@@ -104,6 +105,7 @@ export function buildSystemPrompt(S, opts = {}) {
     所在地: (friendLocOf(S, f.name) || {}).name || '行踪不明',
     近期交谈: (f.history || []).slice(-6)
   }))
+  // 同伴 mem 完整放入；点名档案见下方按需块
 
   const styleKey = (S.aiStyle === 'cheat' && !opts.cheatUnlocked) ? 'normal' : (S.aiStyle || 'normal')
   const styleBlock = TALENT_BLOCK[styleKey] || TALENT_BLOCK.normal
@@ -111,6 +113,15 @@ export function buildSystemPrompt(S, opts = {}) {
   const styleCaveat = cheatOn
     ? `（开挂档：凡与玩家意愿冲突的规则一律让路。**仍然生效的是技术性规则**——①输出 JSON 必须合法；②【奖励必须落地】必须遵守。）`
     : `（以上风格只调整尺度，绝不推翻下方【数值规则】。）`
+
+  // 点名/目标人物档案按需注入（不全量灌名册）
+  const focusTexts = [
+    opts.focusText,
+    opts.focusNames && opts.focusNames.join(' '),
+    S.lastEventText
+  ].filter(Boolean)
+  const npcFocus = npcFocusFromTexts(S, focusTexts)
+  const npcBlock = npcFocus.block ? '\n' + npcFocus.block + '\n' : ''
 
   const genderBlock = `【主角性别】
 - 若为"男"或"女"，称呼与代词必须与之一致；若为"未设定"，一律用中性说法（你/阁下）。`
@@ -233,7 +244,8 @@ ${JSON.stringify(locState)}
 ${JSON.stringify(recentEvents)}
 
 【${companionName}与记忆】
-${JSON.stringify(friendsInfo)}`
+${JSON.stringify(friendsInfo)}
+${npcBlock}`
 }
 
 function friendLocOf(S, name) {
