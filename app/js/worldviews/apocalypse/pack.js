@@ -27,11 +27,11 @@ export const apocalypsePack = {
   startText: '红雾降临第七天，你从废墟里爬出来，手里只剩半瓶水。',
   features: { lifespan: false, levelPressure: true, marriage: false },
   ui: {
-    advanceBtn: '☢️ 跃迁',
-    advanceVerb: '跃迁',
-    advanceTo: '跃迁至',
+    advanceBtn: '☢️ 进化',
+    advanceVerb: '进化',
+    advanceTo: '进化至',
     advancePeak: '已至进化尽头',
-    advanceSuccessTitle: '跃迁成功',
+    advanceSuccessTitle: '进化成功',
     lifeWarn: '状态危急',
     talkBtn: '交谈',
     fightBtn: '狩猎'
