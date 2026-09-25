@@ -8,6 +8,7 @@ const fs = require('fs')
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
+  console.error('[AgentWorlds] 已有实例在运行，本进程退出（单实例锁）')
   app.quit()
 } else {
   app.on('second-instance', () => {
