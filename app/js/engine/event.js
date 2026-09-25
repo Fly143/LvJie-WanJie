@@ -176,11 +176,18 @@ function normalizeText(t) {
 }
 
 function stripJSONBlock(text) {
-  return String(text || '')
+  let s = String(text || '')
     .replace(/```json\s*[\s\S]*?```/gi, '')
     .replace(/```\s*[\s\S]*?```/g, '')
-    .replace(/(^|\n)\s*(我写[:：]|让我写|思考[:：]|分析[:：]|等等[，,]|不给东西|规则说|不要随便|这把思考)[^\n]*/g, '$1')
-    .trim()
+  // 去掉英文/中文规划旁白（仍漏出时兜底）
+  s = s
+    .replace(/^[ \t]*(Let me|Keep it|I'll|I will|Maybe|Careful|Choices?[:：]|Text\s*~|Wait|OK,|Sure,)[^\n]*\n?/gim, '')
+    .replace(/(^|\n)[ \t]*(我写[:：]|让我写|思考[:：]|分析[:：]|推演|等等[，,]|不给东西|规则说|不要随便|这把思考|给玩家|先给线索|options?:)[^\n]*/gi, '$1')
+    .replace(/^\s*(任务线索|叙事|选项)\s*[:：][^\n]*\n?/gm, '')
+  // 若开头仍是英文段落，删到第一段像小说的中文
+  const m = s.match(/[一-鿿][^]{20,}/)
+  if (m && m.index > 80) s = s.slice(m.index)
+  return s.trim()
 }
 
 function resolveKey(S) {
