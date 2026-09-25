@@ -150,13 +150,13 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
     }
   }
 
-  // 流式：仅 chat 协议 + 宿主支持 + 需要增量回调时
-  const canStream = isChat && typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream
+  // 流式：chat / response 均支持；宿主 stream + 增量回调
+  const canStream = typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream
   if (canStream) {
     body.stream = true
     let streamed = null
     try {
-      streamed = await callLLMStream({ k, url, body, signal, onDelta })
+      streamed = await callLLMStream({ k, url, body, signal, onDelta, apiStyle: isChat ? 'chat' : 'response' })
     } catch (e) {
       streamed = null
     }
@@ -220,8 +220,8 @@ function normalizeContentText(v) {
   return String(v)
 }
 
-/** OpenAI chat SSE；失败返回 null 以便回退非流式 */
-async function callLLMStream({ k, url, body, signal, onDelta }) {
+/** SSE 流式：chat 读 choices.delta.content；response 读 response.output_text.delta */
+async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const host = globalThis.awHost.http
   const started = await host.stream({
     url,
@@ -252,6 +252,12 @@ async function callLLMStream({ k, url, body, signal, onDelta }) {
     else signal.addEventListener('abort', onAbort, { once: true })
   }
 
+  const pushDelta = (delta) => {
+    if (!delta) return
+    text += delta
+    try { onDelta(delta, text) } catch (e) { /* ignore */ }
+  }
+
   const offChunk = host.onChunk((d) => {
     if (!d || d.id !== id) return
     buf += d.text || ''
@@ -264,11 +270,8 @@ async function callLLMStream({ k, url, body, signal, onDelta }) {
       if (!payload || payload === '[DONE]') continue
       try {
         const j = JSON.parse(payload)
-        const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
-        if (delta) {
-          text += delta
-          try { onDelta(delta, text) } catch (e) { /* ignore */ }
-        }
+        const delta = extractStreamDelta(j, apiStyle)
+        if (delta) pushDelta(delta)
       } catch (e) { /* partial json */ }
     }
   })
@@ -291,6 +294,31 @@ async function callLLMStream({ k, url, body, signal, onDelta }) {
   if (err) return { ok: false, error: err }
   if (status < 200 || status >= 300) return { ok: false, error: 'HTTP ' + status }
   return { ok: true, text }
+}
+
+/** 从 SSE JSON 里抠增量文本 */
+export function extractStreamDelta(j, apiStyle) {
+  if (!j || typeof j !== 'object') return ''
+  if (apiStyle === 'response') {
+    // Responses API: {type:'response.output_text.delta', delta:'...'}
+    const t = String(j.type || '')
+    if (typeof j.delta === 'string' && /(^|\.)delta$|output_text\.delta|text\.delta/i.test(t)) return j.delta
+    // 兼容少量网关直接给 output_text
+    if (typeof j.output_text === 'string') return j.output_text
+    if (j.choices && j.choices[0] && j.choices[0].delta && typeof j.choices[0].delta.content === 'string') {
+      return j.choices[0].delta.content
+    }
+    return ''
+  }
+  // chat completions
+  if (j.choices && j.choices[0] && j.choices[0].delta) {
+    const c = j.choices[0].delta.content
+    if (typeof c === 'string') return c
+    if (Array.isArray(c)) {
+      return c.map(p => (p && typeof p.text === 'string') ? p.text : '').join('')
+    }
+  }
+  return ''
 }
 
 function waitStreamEnd(host, id, maxMs = 185000) {
