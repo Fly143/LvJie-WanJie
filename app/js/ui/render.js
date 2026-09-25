@@ -388,6 +388,16 @@ export function renderFriends(app, api) {
   const S = app.S
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
+  const cur = curLoc(S) || {}
+  const feat = packFeatures(pack)
+  const friendAt = (f) => {
+    const hit = (S.map || []).some(l => (l.people || []).some(p => p && p.name === f.name))
+    if (hit) {
+      const l = (S.map || []).find(x => (x.people || []).some(p => p && p.name === f.name))
+      return { name: (l && l.name) || '', here: !!(l && l.id === S.currentLoc) }
+    }
+    return { name: '行踪不明', here: false }
+  }
   main.innerHTML = `
     <div class="panel">
       <h3>${esc(pack.lexicon.nav.friends)}</h3>
@@ -395,21 +405,24 @@ export function renderFriends(app, api) {
         <button class="btn" id="fr-new" type="button">✨ 结识新${esc(pack.lexicon.companion)}</button>
       </div>
       <div class="grid" style="margin-top:12px">
-        ${(S.friends || []).map((f, i) => `
+        ${(S.friends || []).map((f, i) => {
+          const at = friendAt(f)
+          return `
           <div class="card">
             <div class="cname">${esc(f.name)} ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
             <div class="crealm">${esc(f.realm || '')} · 好感 ${fmtNum(f.favor || 0)}</div>
+            <div class="cdim">📍 ${esc(at.name)}${at.here ? ' · 当前场景' : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
             ${relBlock(f)}
             <div class="cbtn">
-              <button class="btn btn-sm" data-chat="${i}" type="button">交谈</button>
+              <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
               ${f.married ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
             </div>
           </div>
-        `).join('') || '<div class="empty">尚无同伴，去场景中结识吧</div>'}
+        `}).join('') || '<div class="empty">尚无同伴，去场景中结识吧</div>'}
       </div>
-      <div class="ai-note">每天最多与同一位${esc(pack.lexicon.companion)}交谈 ${MAX_TALK_PER_DAY} 次</div>
+      <div class="ai-note">每天最多与同一位${esc(pack.lexicon.companion)}交谈 ${MAX_TALK_PER_DAY} 次${feat.talkRemote ? '；不在同一场景可「传讯」' : '；需在同一场景才能当面交谈'}</div>
     </div>
   `
   const nb = document.getElementById('fr-new')
@@ -417,7 +430,24 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-chat]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.chat)]
-      api.startFlow('交谈', `我与「${f.name}」交谈。背景：${f.intro || ''}。记忆：${f.mem || '无'}`)
+      const at = friendAt(f)
+      if (!at.here) {
+        if (!feat.talkRemote) {
+          api.toast(`对方不在当前场景「${cur.name || ''}」，请先到 ${at.name}`)
+          return
+        }
+        api.startFlow(
+          '传讯',
+          `我通过${pack.features && pack.features.talkRemote === false ? '书信' : '现有联络方式'}联系「${f.name}」（对方在${at.name}）。背景：${f.intro || ''}。记忆：${f.mem || '无'}。注意这是远距离联络，当面才能做需要碰面的事。`,
+          f.name
+        )
+        return
+      }
+      api.startFlow(
+        '交谈',
+        `我在${cur.name || '此处'}与「${f.name}」当面交谈。背景：${f.intro || ''}。记忆：${f.mem || '无'}`,
+        f.name
+      )
     }
   })
 }
