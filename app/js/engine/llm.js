@@ -408,12 +408,12 @@ export function extractGameJSON(text) {
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence) {
     const j = safeParse(fence[1].trim())
-    if (j) return j
+    if (j) return sanitizeGameJSON(j)
   }
   const scanned = scanFirstJSON(s)
   if (scanned) {
     const j = safeParse(scanned)
-    if (j) return j
+    if (j) return sanitizeGameJSON(j)
   }
   return null
 }
@@ -473,4 +473,13 @@ function safeParse(s) {
     }
     return JSON.parse(out)
   } catch (e) { return null }
+}
+
+function sanitizeGameJSON(j) {
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return j
+  const out = Object.assign({}, j)
+  delete out.thought
+  delete out.thinking
+  delete out.reasoning
+  return out
 }

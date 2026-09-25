@@ -177,8 +177,9 @@ function normalizeText(t) {
 
 function stripJSONBlock(text) {
   let s = String(text || '')
-    .replace(/```json\s*[\s\S]*?```/gi, '')
-    .replace(/```\s*[\s\S]*?```/g, '')
+    .replace(/```think[\s\S]*?```/gi, '')
+    .replace(/```json[\s\S]*?```/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
 
   const rawLines = s.split(/\r?\n/)
   const kept = []
@@ -188,21 +189,16 @@ function stripJSONBlock(text) {
       if (kept.length) kept.push('')
       continue
     }
-    // 英文推演 / 旁白行
-    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay)\b/i.test(t)) continue
-    if (/\bdesc\s*[:：]/i.test(t) && /hand-drawn|sketch|item|reward|give/i.test(t)) continue
-    if (/^["“「].*["”」]?\s*—\s*desc/i.test(t)) continue
-    const cjk = (t.match(/[一-鿿]/g) || []).length
+    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,)\b/i.test(t)) continue
+    if (/\bdesc\s*[:：]/i.test(t)) continue
+    if (/^["“「].*["”」]?\s*—\s*(desc|note)/i.test(t)) continue
+    const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length
     const latin = (t.match(/[A-Za-z]/g) || []).length
-    // 中文叙事为主；纯英文/英文占多的行丢掉
     if (latin > 8 && latin >= cjk) continue
-    if (cjk < 4 && latin > 0) continue
+    if (cjk < 4 && latin > 4) continue
     kept.push(line)
   }
-  s = kept.join('\n').trim()
-  // 再裁掉开头残留的短标签/半截英文
-  s = s.replace(/^[\s"'“「]*[A-Za-z][^\n]{0,120}\n(?=[一-鿿])/m, '')
-  return s.trim()
+  return kept.join('\n').trim()
 }
 
 function resolveKey(S) {
