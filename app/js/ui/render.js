@@ -22,7 +22,6 @@ import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.j
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal } from './modals.js'
 import { openHelp } from './settings-panels.js'
-import { playBgm } from './bgm.js'
 
 export function renderScene(app, api) {
   const S = app.S
