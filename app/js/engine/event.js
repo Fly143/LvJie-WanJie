@@ -179,14 +179,29 @@ function stripJSONBlock(text) {
   let s = String(text || '')
     .replace(/```json\s*[\s\S]*?```/gi, '')
     .replace(/```\s*[\s\S]*?```/g, '')
-  // 去掉英文/中文规划旁白（仍漏出时兜底）
-  s = s
-    .replace(/^[ \t]*(Let me|Keep it|I'll|I will|Maybe|Careful|Choices?[:：]|Text\s*~|Wait|OK,|Sure,)[^\n]*\n?/gim, '')
-    .replace(/(^|\n)[ \t]*(我写[:：]|让我写|思考[:：]|分析[:：]|推演|等等[，,]|不给东西|规则说|不要随便|这把思考|给玩家|先给线索|options?:)[^\n]*/gi, '$1')
-    .replace(/^\s*(任务线索|叙事|选项)\s*[:：][^\n]*\n?/gm, '')
-  // 若开头仍是英文段落，删到第一段像小说的中文
-  const m = s.match(/[一-鿿][^]{20,}/)
-  if (m && m.index > 80) s = s.slice(m.index)
+
+  const rawLines = s.split(/\r?\n/)
+  const kept = []
+  for (const line of rawLines) {
+    const t = line.trim()
+    if (!t) {
+      if (kept.length) kept.push('')
+      continue
+    }
+    // 英文推演 / 旁白行
+    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay)\b/i.test(t)) continue
+    if (/\bdesc\s*[:：]/i.test(t) && /hand-drawn|sketch|item|reward|give/i.test(t)) continue
+    if (/^["“「].*["”」]?\s*—\s*desc/i.test(t)) continue
+    const cjk = (t.match(/[一-鿿]/g) || []).length
+    const latin = (t.match(/[A-Za-z]/g) || []).length
+    // 中文叙事为主；纯英文/英文占多的行丢掉
+    if (latin > 8 && latin >= cjk) continue
+    if (cjk < 4 && latin > 0) continue
+    kept.push(line)
+  }
+  s = kept.join('\n').trim()
+  // 再裁掉开头残留的短标签/半截英文
+  s = s.replace(/^[\s"'“「]*[A-Za-z][^\n]{0,120}\n(?=[一-鿿])/m, '')
   return s.trim()
 }
 
