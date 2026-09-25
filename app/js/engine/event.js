@@ -189,9 +189,13 @@ function stripJSONBlock(text) {
       if (kept.length) kept.push('')
       continue
     }
-    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,)\b/i.test(t)) continue
+    // 英文旁白
+    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,|Based on)\b/i.test(t)) continue
     if (/\bdesc\s*[:：]/i.test(t)) continue
-    if (/^["“「].*["”」]?\s*—\s*(desc|note)/i.test(t)) continue
+    if (/^["\u201c\u300c].*["\u201d\u300d]?\s*[—-]\s*(desc|note)/i.test(t)) continue
+    // 中文旁白/推演
+    if (/^(我应|我述|我写|写吧|写完|根据|注意|不过|可以给|不需要|应该这样|玩家是|玩家要|玩家还|任务线索|选项[:：]|叙事|正文写|老汤姆的对话|对话应该|规则说|不要随便|这把思考|给玩家|先给|让我)/.test(t)) continue
+    if (/^(嗯|额|这个|其实|算了)[，,、]/.test(t) && t.length < 80) continue
     const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length
     const latin = (t.match(/[A-Za-z]/g) || []).length
     if (latin > 8 && latin >= cjk) continue

@@ -220,7 +220,7 @@ ${limitOn
 - 若需要推演，写进 think 代码块（\`\`\`think\`\`\`）或 json 的 "thought" 字段——游戏不展示，只帮你写好正文。
 - 正文禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 英文叙事。
 - 选项写在正文末尾「1.xx 2.xx」。
-- 赠与必须进 changes；json 没有的，正文不能给。
+- 赠与必须进 changes；json 没有的，正文不能给。\n- changes 里也只能写「本轮确实发生」的事：上一轮给过的物品不要重复 add。
 - 结构：可选 think 块 → 中文正文+选项 → json 块。
 
 【输出格式】（严格遵守）
