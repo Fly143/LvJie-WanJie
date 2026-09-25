@@ -358,6 +358,16 @@ export function renderProfile(app, api) {
       <div class="skill-row"><span class="k">装备</span><span class="v">${fmtNum(bd.art)}</span></div>
       <div class="skill-row"><span class="k">${esc(pack.lexicon.technique)}</span><span class="v">${fmtNum(bd.manual)}</span></div>
       <div class="skill-row"><span class="k">关系</span><span class="v">${fmtNum(bd.spouse)}</span></div>
+      <h4>已装备</h4>
+      ${(() => {
+        const eq = equipSummary(S)
+        return eq.length
+          ? eq.map(e => {
+              const tname = (e.realm_index != null && pack.tiers[e.realm_index]) ? pack.tiers[e.realm_index].name : ''
+              return `<div class="skill-row"><span class="k">${esc(e.name)}</span><span class="v">${esc(e.grade || '')}${tname ? ' · ' + esc(tname) : ''}</span></div>`
+            }).join('')
+          : '<div class="empty">尚未装备（行囊中点「装备」）</div>'
+      })()}
       <h4>${esc(pack.lexicon.skill)}</h4>
       ${(pack.skills || []).map(sk => `
         <div class="skill-row"><span class="k">${esc(sk.name)}</span><span class="v">${esc(skillLabel(S, sk, S.skills[sk.id] || 0))}</span></div>
