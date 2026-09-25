@@ -59,6 +59,7 @@ export const apocalypsePack = {
     welcomeTitle: 'Agent末世',
     welcomeSub: 'AI驱动的开放世界末世之旅',
     nav: {
+      quests: '委托',
       scene: '当前位置', map: '废土地图', profile: '幸存者档案',
       friends: '同伴', bag: '物资', settings: '设置'
     }

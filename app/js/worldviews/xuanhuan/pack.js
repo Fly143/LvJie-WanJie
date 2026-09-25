@@ -59,6 +59,7 @@ export const xuanhuanPack = {
     welcomeTitle: 'Agent玄幻',
     welcomeSub: 'AI驱动的开放世界玄幻之旅',
     nav: {
+      quests: '任务',
       scene: '当前场景', map: '世界地图', profile: '人物信息',
       friends: '同伴', bag: '行囊', settings: '设置'
     }

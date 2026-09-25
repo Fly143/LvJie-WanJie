@@ -8,8 +8,9 @@ const ART_SUM_DECAY = 0.6
 export function artPowerF(S, it) {
   const pack = packOf(S)
   const gradeMul = (pack.artPower && pack.artPower[it.grade]) || 0.1
-  const raw = gradeMul * tierBase(S, it.realm_index || 0)
-  // 装备至少提供可见加成，避免四舍五入成 0
+  const ri = it.realm_index == null ? S.tierIndex : it.realm_index
+  const raw = gradeMul * tierBase(S, ri)
+  // 已装备至少 +1，无品级也给保底
   return Math.max(1, Math.round(raw * 10) / 10)
 }
 
@@ -54,7 +55,7 @@ export function spousePowerF(S) {
 export function totalPowerF(S) {
   let p = basePower(S, S.tierIndex, S.sub) + totalTechniquePower(S) + spousePowerF(S)
   const arts = S.inventory
-    .filter(x => x.type === 'equip' && x.equipped && x.grade && x.realm_index != null)
+    .filter(x => x.type === 'equip' && x.equipped)
     .map(a => ({ a, p: artPowerF(S, a) }))
     .sort((x, y) => y.p - x.p)
   let mult = 1
@@ -72,7 +73,7 @@ export function powerBreakdown(S) {
   const base = basePower(S, S.tierIndex, S.sub)
   let art = 0
   const arts = S.inventory
-    .filter(x => x.type === 'equip' && x.equipped && x.grade && x.realm_index != null)
+    .filter(x => x.type === 'equip' && x.equipped)
     .map(a => ({ a, p: artPowerF(S, a) }))
     .sort((x, y) => y.p - x.p)
   let mult = 1

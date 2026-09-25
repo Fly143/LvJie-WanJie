@@ -145,6 +145,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     const model = modelEl.value.trim()
     const keyInput = valEl.value.trim()
     const name = nameEl.value.trim() || model || '自定义'
+    const selNow = typeof S.selectedKey === 'number' ? S.selectedKey : selected
     if (!baseUrl || !model) {
       toast('请填写 Base URL 与模型')
       return
@@ -161,7 +162,6 @@ export function openKeyModal(app, { save, refreshAll }) {
     }
     const rec = { name, baseUrl, key, model, apiStyle }
     S.playerKeys = S.playerKeys || []
-    const selNow = typeof S.selectedKey === 'number' ? S.selectedKey : selected
     if (typeof selNow === 'number' && S.playerKeys[selNow] && !keyInput) {
       // 覆盖当前条目（沿用原 Key）
       S.playerKeys[selNow] = rec

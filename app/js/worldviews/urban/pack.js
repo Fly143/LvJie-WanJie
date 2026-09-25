@@ -61,6 +61,7 @@ export const urbanPack = {
     welcomeTitle: 'Agent职场',
     welcomeSub: 'AI驱动的开放世界职场商战',
     nav: {
+      quests: '任务',
       scene: '当前位置', map: '城市地图', profile: '个人档案',
       friends: '人脉', bag: '资产包', settings: '设置'
     }

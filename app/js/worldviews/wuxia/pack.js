@@ -59,6 +59,7 @@ export const wuxiaPack = {
     welcomeTitle: 'Agent武侠',
     welcomeSub: 'AI驱动的开放世界武侠之旅',
     nav: {
+      quests: '托付',
       scene: '当前场景', map: '江湖地图', profile: '人物信息',
       friends: '故人', bag: '行囊', settings: '设置'
     }

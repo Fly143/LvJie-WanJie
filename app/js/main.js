@@ -331,7 +331,6 @@ function startNewGame(name, packId) {
     applyTheme(getPack(packId))
     refreshAll()
     firstGuide(app.S)
-    firstGuide(app.S)
   } catch (e) {
     console.error(e)
     toast('进入世界失败：' + esc(e && e.message || e))

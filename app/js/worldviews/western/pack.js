@@ -59,6 +59,7 @@ export const westernPack = {
     welcomeTitle: 'Agent西幻',
     welcomeSub: 'AI驱动的开放世界西幻之旅',
     nav: {
+      quests: '委托',
       scene: '当前位置', map: '大陆地图', profile: '角色档案',
       friends: '同伴', bag: '行囊', settings: '设置'
     }

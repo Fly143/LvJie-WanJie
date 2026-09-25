@@ -57,6 +57,7 @@ export const xiuxianPack = {
     welcomeTitle: 'Agent修仙',
     welcomeSub: 'AI驱动的开放世界修仙之旅',
     nav: {
+      quests: '委托',
       scene: '当前场景',
       map: '世界地图',
       profile: '人物信息',
