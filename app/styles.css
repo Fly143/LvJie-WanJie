@@ -42,8 +42,8 @@ body{
 }
 .hbadge b{color:var(--accent)}
 
-#app{flex:1;min-height:0;display:flex;gap:14px;padding:14px;width:100%;max-width:1480px;margin:0 auto;overflow:hidden;position:relative}
-#side{width:260px;flex:0 0 260px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+#app{flex:1;min-height:0;display:flex;gap:clamp(8px,1.2vw,18px);padding:clamp(8px,1.2vw,18px);width:100%;max-width:100%;margin:0;overflow:hidden;position:relative}
+#side{width:clamp(220px,18vw,300px);flex:0 0 auto;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
 #main{flex:1;min-width:0;overflow-y:auto}
 
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;
@@ -91,7 +91,7 @@ body{
 .loc-meta{color:var(--dim);font-size:13px}
 .loc-desc{margin-top:8px;color:var(--text);opacity:.85;font-size:14px}
 .loc-note{color:var(--purple);font-size:12px;margin-top:4px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px;margin-top:8px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:11px}
 .card .cname{font-weight:bold;color:var(--text);font-size:14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .card .crealm{color:var(--jade);font-size:12px}
