@@ -134,9 +134,18 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       S.lastEventText = narrative
     }
   } else {
-    EV.options = null
-    EV.ended = true
-    EV.error = '（未解析到数据块，事件结束）'
+    // 无 json 时尽量从正文选项续写，不直接掐断
+    const opts = parseOptionsFromText(narrative)
+    if (opts.length) {
+      EV.options = opts
+      EV.ended = false
+      EV.error = '（本轮未附数据块，剧情继续；可能少了奖励写入）'
+      S.lastEventText = narrative
+    } else {
+      EV.options = null
+      EV.ended = true
+      EV.error = '（未解析到数据块，事件结束）'
+    }
   }
 
   EV.resultText = narrative
@@ -203,6 +212,19 @@ function stripJSONBlock(text) {
     kept.push(line)
   }
   return kept.join('\n').trim()
+}
+
+function parseOptionsFromText(text) {
+  const s = String(text || '')
+  const out = []
+  const re = /(?:^|\n)\s*([1-4])\s*[.．、)\]]\s*([^\n]{1,30})/g
+  let m
+  while ((m = re.exec(s))) {
+    const t = m[2].trim()
+    if (t && !out.includes(t)) out.push(t)
+    if (out.length >= 4) break
+  }
+  return out
 }
 
 function resolveKey(S) {
