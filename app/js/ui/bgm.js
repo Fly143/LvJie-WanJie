@@ -1,11 +1,13 @@
 // 背景音乐：内置 mp3/mid + 用户自定义（IndexedDB）
+// 同时最多一个音源；id 为 '' 表示「无音乐」
 import { BGM_TRACKS, BGM_DEFAULT } from '../engine/constants.js'
 import { MidiPlayer, isMidiFile } from '../engine/midi.js'
 import { listCustomBgm, customTracksFrom, blobUrl, removeCustomBgm, putCustomBgm, fileToTrack } from '../engine/custom-bgm.js'
 
 let audioEl = null
 const midiPlayer = new MidiPlayer()
-let currentId = ''
+let currentId = null
+let playSeq = 0
 let userTracks = []
 let userUrl = null
 
@@ -16,19 +18,17 @@ export function initBgm() {
     audioEl.preload = 'auto'
     audioEl.volume = 0.35
   }
-  // 首次手势时恢复 Web Audio / 音频元素，必要时补播
   if (!initBgm._gesture) {
     initBgm._gesture = true
     const kick = () => {
       try {
-        if (currentId) {
-          const t = trackOf(currentId)
-          const midi = t.kind === 'midi' || (t.file && isMidiFile(t.file))
-          if (midi && !midiPlayer.playing) playBgm(currentId)
-          else if (!midi && audioEl && audioEl.paused && audioEl.src) audioEl.play().catch(() => {})
-        } else {
-          playBgm(currentId || 'm027')
-        }
+        // 仅在明确有曲且当前无声时补播
+        if (currentId === '' || currentId == null) return
+        const t = trackOf(currentId)
+        if (!t || !t.file && !(t.custom && t.blob)) return
+        const midi = t.kind === 'midi' || (t.file && isMidiFile(t.file))
+        if (midi && !midiPlayer.playing) playBgm(currentId)
+        else if (!midi && audioEl && audioEl.paused && audioEl.src) audioEl.play().catch(() => {})
       } catch (e) { /* ignore */ }
     }
     for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
@@ -37,7 +37,6 @@ export function initBgm() {
   }
 }
 
-/** 载入自定义曲目（boot 时调用） */
 export async function hydrateCustomBgm() {
   try {
     const rows = await listCustomBgm()
@@ -55,11 +54,13 @@ export function allBgmTracks() {
 
 function trackOf(id) {
   const list = allBgmTracks()
+  if (id === '' || id == null) {
+    return list.find(t => t.id === '') || { id: '', name: '无音乐', file: '' }
+  }
   const hit = list.find(t => t.id === id)
   if (hit) return hit
-  // 旧档 handpan/universe 等已删除曲目 → 回落默认
   const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === 'm027') || list.find(t => t.file) || list[0]
-  return def || { id: '', name: '', file: '' }
+  return def || { id: '', name: '无音乐', file: '' }
 }
 
 function revokeUserUrl() {
@@ -69,29 +70,49 @@ function revokeUserUrl() {
   }
 }
 
+function stopAllSources() {
+  try { midiPlayer.stop() } catch (e) { /* ignore */ }
+  if (audioEl) {
+    try {
+      audioEl.pause()
+      audioEl.currentTime = 0
+    } catch (e) { /* ignore */ }
+  }
+  revokeUserUrl()
+}
+
 export function playBgm(id) {
   initBgm()
+  // 明确「无音乐」
+  if (id === '' || id == null) {
+    currentId = ''
+    playSeq++
+    stopAllSources()
+    return
+  }
   const t = trackOf(id)
-  // 仅当同一曲确实还在响时才跳过
-  const samePlaying = t.id && t.id === currentId && (
-    (t.kind === 'midi' || (t.file && isMidiFile(t.file)) ? midiPlayer.playing : (audioEl && !audioEl.paused && !!audioEl.src))
+  const seq = ++playSeq
+
+  // 同一曲仍在响则不打断
+  const samePlaying = t.id === currentId && (
+    (t.kind === 'midi' || (t.file && isMidiFile(t.file)))
+      ? midiPlayer.playing
+      : (audioEl && !audioEl.paused && !!audioEl.src)
   )
   if (samePlaying) return
+
   currentId = t.id
+  stopAllSources()
 
   if (t.custom && t.blob) {
-    if (audioEl) {
-      audioEl.pause()
-      audioEl.removeAttribute('src')
-    }
-    midiPlayer.stop()
-    revokeUserUrl()
     if (t.kind === 'midi') {
       t.blob.arrayBuffer().then(buf => {
+        if (seq !== playSeq) return
         midiPlayer.loop = true
         return midiPlayer.playArrayBuffer(buf, t.id)
       }).catch(() => {})
     } else {
+      if (seq !== playSeq) return
       userUrl = blobUrl(t.blob)
       audioEl.src = userUrl
       audioEl.play().catch(() => {})
@@ -100,52 +121,36 @@ export function playBgm(id) {
   }
 
   if (!t.file) {
-    stopBgm()
+    // 无文件 = 无音乐
+    currentId = ''
     return
   }
   if (isMidiFile(t.file)) {
-    if (audioEl) {
-      audioEl.pause()
-      audioEl.removeAttribute('src')
-    }
     midiPlayer.loop = true
     midiPlayer.playUrl(t.file, t.id).then(r => {
+      if (seq !== playSeq) {
+        midiPlayer.stop()
+        return
+      }
       if (r && r.ok) midiPlayer.playing = true
     }).catch(() => {})
     return
   }
-  midiPlayer.stop()
-  revokeUserUrl()
-  if (audioEl.src.endsWith(t.file) && !audioEl.paused) return
+  if (seq !== playSeq) return
   audioEl.src = t.file
   audioEl.play().catch(() => {})
 }
 
-export function showGamePlay(S) {
-  try {
-    const track = (S && S.bgmTrack) || 'm027'
-    playBgm(track)
-    // 双保险：稍后再补一次（有些环境首帧 resume 后才允许出声）
-    setTimeout(() => {
-      try {
-        const t = trackOf(currentId || track)
-        const midi = t.kind === 'midi' || (t.file && isMidiFile(t.file))
-        if (midi && !midiPlayer.playing) playBgm(t.id)
-      } catch (e) { /* ignore */ }
-    }, 400)
-  } catch (e) { /* ignore */ }
-}
-
 export function stopBgm() {
-  if (audioEl) audioEl.pause()
-  midiPlayer.stop()
+  playSeq++
+  currentId = ''
+  stopAllSources()
 }
 
 export function currentBgmId() {
   return currentId
 }
 
-/** 设置页：添加本地文件 */
 export async function addLocalBgmFiles(fileList) {
   const files = Array.from(fileList || []).slice(0, 8)
   const added = []
@@ -165,4 +170,12 @@ export async function removeLocalBgm(id) {
   await removeCustomBgm(id)
   userTracks = customTracksFrom(await listCustomBgm())
   if (currentId === id) stopBgm()
+}
+
+export function showGamePlay(S) {
+  try {
+    // 存档里显式 '' = 无音乐；undefined/null 用默认
+    const raw = S && Object.prototype.hasOwnProperty.call(S, 'bgmTrack') ? S.bgmTrack : null
+    playBgm(raw == null ? 'm027' : raw)
+  } catch (e) { /* ignore */ }
 }
