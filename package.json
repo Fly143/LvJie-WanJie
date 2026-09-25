@@ -14,6 +14,7 @@
     "smoke:book": "node scripts/smoke-book.mjs",
     "smoke:chars": "node scripts/smoke-chars.mjs",
     "smoke:npc": "node scripts/smoke-npc.mjs",
+    "smoke:quest": "node scripts/smoke-quest.mjs",
     "smoke:llm": "node scripts/llm-endpoints.mjs",
     "smoke:stage": "node scripts/stage-smoke.js"
   },

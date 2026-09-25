@@ -9,7 +9,7 @@ import { totalPowerF } from './engine/power.js'
 import { curLoc } from './engine/map.js'
 import { startEvent, runEventTurn, endEvent } from './engine/event.js'
 import { applyThemeTokens } from './engine/theme.js'
-import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings } from './ui/render.js'
+import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings, renderQuests } from './ui/render.js'
 import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
@@ -29,6 +29,7 @@ const RENDERS = {
   map: renderMap,
   profile: renderProfile,
   friends: renderFriends,
+  quests: renderQuests,
   bag: renderBag,
   settings: renderSettings
 }
@@ -367,13 +368,14 @@ function applyNavLabels(pack) {
     map: nav.map,
     profile: nav.profile,
     friends: nav.friends,
+    quests: '任务',
     bag: nav.bag,
     settings: nav.settings
   }
   Object.keys(map).forEach(id => {
     const el = document.getElementById('nav-' + id)
     if (!el) return
-    const icon = { scene: '📍', map: '🗺️', profile: '👤', friends: '🤝', bag: '🎒', settings: '⚙️' }[id]
+    const icon = { scene: '📍', map: '🗺️', profile: '👤', friends: '🤝', quests: '📜', bag: '🎒', settings: '⚙️' }[id]
     if (map[id]) el.textContent = `${icon} ${map[id]}`
   })
 }

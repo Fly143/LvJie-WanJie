@@ -270,6 +270,7 @@ function migrateSave(s) {
   if (!Array.isArray(s.inventory)) s.inventory = []
   if (!Array.isArray(s.bigEvents)) s.bigEvents = []
   if (!Array.isArray(s.smallEvents)) s.smallEvents = []
+  if (!Array.isArray(s.quests)) s.quests = []
   if (!s.skills || typeof s.skills !== 'object') s.skills = {}
   if (s.factionRep == null) s.factionRep = 0
   if (s.giftChoice === undefined) s.giftChoice = null
@@ -369,6 +370,7 @@ export function newGame(name, packId) {
     inventory: [],
     bigEvents: [],
     smallEvents: [],
+    quests: [],
     map: pack.createMap(),
     currentLoc: pack.startLoc,
     skills: Object.fromEntries((pack.skills || []).map(sk => [sk.id, 0])),

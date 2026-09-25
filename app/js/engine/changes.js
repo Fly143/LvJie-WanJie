@@ -4,6 +4,7 @@ import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByNa
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
+import { applyQuestChanges } from './quests.js'
 
 /** 单轮熔断：防 AI 刷爆数值 */
 export const CHANGE_CAPS = {
@@ -47,6 +48,7 @@ export function applyChanges(S, ch, hooks = {}) {
   if (!Array.isArray(S.smallEvents)) S.smallEvents = []
   if (!Array.isArray(S.friends)) S.friends = []
   if (!Array.isArray(S.inventory)) S.inventory = []
+  if (!Array.isArray(S.quests)) S.quests = []
   if (!S.money || typeof S.money !== 'object') S.money = { main: 0, mid: 0, high: 0 }
 
   const pack = packOf(S)
@@ -231,6 +233,16 @@ export function applyChanges(S, ch, hooks = {}) {
   // 不允许 AI 直接改等级
   if (ch.tierIndex != null || ch.realmIndex != null || ch.tier != null) {
     // 忽略
+  }
+
+  if (Array.isArray(ch.quests)) {
+    const qres = applyQuestChanges(S, ch.quests)
+    for (const t of qres.added) major.push(`接取委托「${t}」`)
+    for (const t of qres.updated) {
+      if (String(t).includes('→done')) major.push(`完成委托「${String(t).split('→')[0]}」`)
+      else if (String(t).includes('→failed')) minor.push(`委托失败：${String(t).split('→')[0]}`)
+      else minor.push(`委托更新：${t}`)
+    }
   }
 
   return { major, minor }
