@@ -102,7 +102,9 @@ function normPerson(p) {
     realm: String(p.realm || ''),
     power: Number(p.power) || 0,
     intro: String(p.intro || ''),
-    gender: p.gender === '女' ? '女' : p.gender === '男' ? '男' : (p.gender || '')
+    gender: p.gender === '女' ? '女' : p.gender === '男' ? '男' : (p.gender || ''),
+    relations: Array.isArray(p.relations) ? p.relations.slice(0, 12) : [],
+    grudges: Array.isArray(p.grudges) ? p.grudges.slice(0, 8) : []
   }
 }
 

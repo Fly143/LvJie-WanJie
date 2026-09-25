@@ -102,6 +102,8 @@ export function buildSystemPrompt(S, opts = {}) {
     好感度: f.favor,
     人设: f.intro || '',
     长期记忆: f.mem || '',
+    关系网: f.relations || [],
+    恩怨: f.grudges || [],
     所在地: (friendLocOf(S, f.name) || {}).name || '行踪不明',
     近期交谈: (f.history || []).slice(-6)
   }))
@@ -218,7 +220,7 @@ ${limitOn
   "major_events":["…"],
   "small_events":["…"],
   "skills":{},
-  "friends":[{"name":"…","favor":3,"rank":"${tierLabel(S)}","gender":"男","power":10,"intro":"…","mem":"…"}],
+  "friends":[{"name":"…","favor":3,"rank":"${tierLabel(S)}","gender":"男","power":10,"intro":"…","mem":"…","relations":[{"to":"某人","rel":"师徒/仇敌/旧友/兄妹","note":"一句"}],"grudges":[{"to":"某人","kind":"恩|怨|仇|债","note":"一句"}]}],
   "new_locations":[{"name":"…","world":"${(pack.worlds && pack.worlds[0]) || '主世界'}","continent":"…","type":"…","desc":"…","people":[],"shop":[],"beasts":[],"interactables":[]}],
   "remove_locations":["…"],
   "modify_locations":[{"name":"…","change":"…"}],

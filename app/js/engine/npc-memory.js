@@ -26,6 +26,8 @@ export function buildNpcIndex(S) {
       intro: f.intro || '',
       mem: f.mem || '',
       at: friendLocName(S, f.name),
+      relations: normRelations(f.relations),
+      grudges: normGrudges(f.grudges),
       recent: Array.isArray(f.history) ? f.history.slice(-4) : []
     })
   }
@@ -43,6 +45,8 @@ export function buildNpcIndex(S) {
         world: loc.world || '',
         favor: null,
         mem: '',
+        relations: normRelations(p.relations),
+        grudges: normGrudges(p.grudges),
         recent: []
       })
     }
@@ -70,6 +74,50 @@ function friendLocName(S, name) {
     if ((l.people || []).some(p => p && p.name === name)) return l.name
   }
   return null
+}
+
+/** 关系网：[{ to, rel, note }] */
+export function normRelations(list) {
+  if (!Array.isArray(list)) return []
+  const out = []
+  for (const r of list) {
+    if (!r) continue
+    if (typeof r === 'string') {
+      out.push({ to: r, rel: '相关', note: '' })
+      continue
+    }
+    const to = String(r.to || r.name || r.target || '').trim()
+    if (!to) continue
+    out.push({
+      to,
+      rel: String(r.rel || r.relation || r.type || '相关').slice(0, 12),
+      note: String(r.note || r.desc || '').slice(0, 40)
+    })
+    if (out.length >= 12) break
+  }
+  return out
+}
+
+/** 恩怨：[{ to, kind: 恩|怨|仇|债, note }] */
+export function normGrudges(list) {
+  if (!Array.isArray(list)) return []
+  const out = []
+  for (const g of list) {
+    if (!g) continue
+    if (typeof g === 'string') {
+      out.push({ to: '', kind: '怨', note: g.slice(0, 40) })
+      continue
+    }
+    const kindRaw = String(g.kind || g.type || g.grudge || '怨')
+    const kind = /恩/.test(kindRaw) ? '恩' : /仇/.test(kindRaw) ? '仇' : /债/.test(kindRaw) ? '债' : '怨'
+    out.push({
+      to: String(g.to || g.name || g.target || '').trim(),
+      kind,
+      note: String(g.note || g.desc || g.reason || '').slice(0, 40)
+    })
+    if (out.length >= 8) break
+  }
+  return out
 }
 
 /** 从文本里挑出已知名字（长名优先，避免短名误匹配） */
@@ -113,6 +161,12 @@ ${list.map(c => {
     if (c.at) bits.push(`出没：${c.at}`)
     if (c.intro) bits.push(`人设：${c.intro}`)
     if (c.mem) bits.push(`长期记忆：${c.mem}`)
+    if (c.relations && c.relations.length) {
+      bits.push('关系网：' + c.relations.map(r => `${r.to}（${r.rel}${r.note ? '·' + r.note : ''}）`).join('、'))
+    }
+    if (c.grudges && c.grudges.length) {
+      bits.push('恩怨：' + c.grudges.map(g => `${g.to ? g.to + '·' : ''}${g.kind}${g.note ? '·' + g.note : ''}`).join('、'))
+    }
     if (c.recent && c.recent.length) {
       bits.push(`近况：${c.recent.map(h => typeof h === 'string' ? h : (h && h.text) || '').filter(Boolean).join('；')}`)
     }

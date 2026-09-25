@@ -3,7 +3,11 @@ import { buildNpcIndex, matchNpcNames, focusNpcBlock, npcFocusFromTexts } from '
 
 const S = {
   currentLoc: 'a1',
-  friends: [{ name: '张三', realm: '炼气', power: 12, favor: 3, intro: '酒馆老板', mem: '欠你一顿酒', history: ['一起打过狼'] }],
+  friends: [{
+    name: '张三', realm: '炼气', power: 12, favor: 3, intro: '酒馆老板', mem: '欠你一顿酒', history: ['一起打过狼'],
+    relations: [{ to: '李四', rel: '旧友', note: '合伙开过摊' }],
+    grudges: [{ to: '王五', kind: '怨', note: '抢过生意' }]
+  }],
   map: [
     {
       id: 'a1', name: '酒馆', world: '主世界',
@@ -32,5 +36,7 @@ if (!block.includes('张三')) {
 }
 const block2 = focusNpcBlock(idx, ['张三'])
 if (!block2.includes('欠你一顿酒')) throw new Error('friend mem')
+if (!block2.includes('关系网') || !block2.includes('李四')) throw new Error('relations')
+if (!block2.includes('恩怨') || !block2.includes('怨')) throw new Error('grudges')
 
 console.log('NPC_OK')
