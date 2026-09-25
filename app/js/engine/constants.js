@@ -38,6 +38,7 @@ export const BGM_TRACKS = [
   { id: '', name: '无音乐', file: '' },
   { id: 'handpan', name: '手碟', file: 'assets/handpan音乐.mp3' },
   { id: 'universe', name: '宇宙', file: 'assets/Alpha宇宙音乐.mp3' },
-  { id: 'midi-demo', name: 'MIDI示例', file: 'assets/示例旋律.mid' }
+  { id: 'midi-demo', name: 'MIDI示例', file: 'assets/示例旋律.mid' },
+  { id: 'midi-031', name: '031.MID', file: 'assets/031.mid' }
 ]
 export const BGM_DEFAULT = 'handpan'
