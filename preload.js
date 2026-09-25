@@ -22,6 +22,9 @@ ipcRenderer.on('aw:http:head', (_e, data) => {
 })
 
 contextBridge.exposeInMainWorld('awHost', {
+  asset: {
+    read: (rel) => ipcRenderer.invoke('aw:asset:read', rel)
+  },
   http: {
     request: (req) => ipcRenderer.invoke('aw:http', req),
     stream: (req) => ipcRenderer.invoke('aw:http:stream', req),

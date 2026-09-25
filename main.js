@@ -52,6 +52,26 @@ function secretsPath() {
   return path.join(app.getPath('userData'), 'agentworlds_apikeys.bin')
 }
 
+/** 读取资源文件（渲染层 file:// 下 fetch 可能被拦） */
+ipcMain.handle('aw:asset:read', async (_e, rel) => {
+  try {
+    const clean = String(rel || '').replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!clean || clean.includes('..')) return { ok: false, error: '非法路径' }
+    const base = __dirname
+    const p = path.join(base, clean)
+    if (!p.startsWith(base)) return { ok: false, error: '路径越界' }
+    if (!fs.existsSync(p)) return { ok: false, error: '文件不存在' }
+    const buf = fs.readFileSync(p)
+    return {
+      ok: true,
+      data: buf.toString('base64'),
+      type: /\.mid$/i.test(p) ? 'audio/midi' : 'application/octet-stream'
+    }
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || '读取失败' }
+  }
+})
+
 /* ---------- HTTP 代理：渲染进程不直连外网 ---------- */
 const ALLOWED_HTTP = /^https?:\/\//i
 let streamSeq = 0

@@ -53,13 +53,11 @@ function revokeUserUrl() {
 export function playBgm(id) {
   initBgm()
   const t = trackOf(id)
-  // 同一曲已在播：切 Tab/选项不打断
-  if (t.id && t.id === currentId) {
-    if (t.custom && t.kind === 'midi' && midiPlayer.playing) return
-    if (t.custom && t.kind !== 'midi' && userUrl && audioEl && !audioEl.paused) return
-    if (!t.custom && t.file && isMidiFile(t.file) && midiPlayer.playing) return
-    if (!t.custom && t.file && !isMidiFile(t.file) && audioEl && !audioEl.paused && audioEl.src) return
-  }
+  // 仅当同一曲确实还在响时才跳过
+  const samePlaying = t.id && t.id === currentId && (
+    (t.kind === 'midi' || (t.file && isMidiFile(t.file)) ? midiPlayer.playing : (audioEl && !audioEl.paused && !!audioEl.src))
+  )
+  if (samePlaying) return
   currentId = t.id
 
   if (t.custom && t.blob) {
@@ -92,7 +90,9 @@ export function playBgm(id) {
       audioEl.removeAttribute('src')
     }
     midiPlayer.loop = true
-    midiPlayer.playUrl(t.file).catch(() => {})
+    midiPlayer.playUrl(t.file).then(r => {
+      if (r && r.ok) midiPlayer.playing = true
+    }).catch(() => {})
     return
   }
   midiPlayer.stop()

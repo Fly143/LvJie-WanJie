@@ -167,9 +167,18 @@ export class MidiPlayer {
   }
 
   async playUrl(url) {
-    const res = await fetch(url)
-    if (!res.ok) return { ok: false, error: '读取失败 ' + res.status }
-    const buf = await res.arrayBuffer()
+    let buf
+    const host = globalThis.awHost && globalThis.awHost.asset
+    if (host && host.read) {
+      const r = await host.read(url)
+      if (!r || !r.ok) return { ok: false, error: (r && r.error) || '读取失败' }
+      const bin = Uint8Array.from(atob(r.data), c => c.charCodeAt(0))
+      buf = bin.buffer
+    } else {
+      const res = await fetch(url)
+      if (!res.ok) return { ok: false, error: '读取失败 ' + res.status }
+      buf = await res.arrayBuffer()
+    }
     return this.playArrayBuffer(buf)
   }
 
