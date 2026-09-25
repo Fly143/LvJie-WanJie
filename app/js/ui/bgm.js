@@ -35,7 +35,12 @@ export function allBgmTracks() {
 }
 
 function trackOf(id) {
-  return allBgmTracks().find(t => t.id === id) || allBgmTracks().find(t => t.id === BGM_DEFAULT) || allBgmTracks()[0]
+  const list = allBgmTracks()
+  const hit = list.find(t => t.id === id)
+  if (hit) return hit
+  // 旧档 handpan/universe 等已删除曲目 → 回落默认
+  const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === 'midi-031') || list.find(t => t.file) || list[0]
+  return def || { id: '', name: '', file: '' }
 }
 
 function revokeUserUrl() {

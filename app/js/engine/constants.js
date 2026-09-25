@@ -66,4 +66,4 @@ export const BGM_DEFAULT_TRACK = 'midi-031'
 
 /** 使用 031 作为默认曲的界面 */
 export const BGM_DEFAULT_TABS = ['scene', 'map', 'profile', 'friends', 'quests', 'bag', 'settings']
-export const BGM_DEFAULT = 'handpan'
+export const BGM_DEFAULT = 'midi-031'

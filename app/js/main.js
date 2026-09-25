@@ -342,7 +342,12 @@ function showGame(S) {
   app.selectedPack = S.worldview || defaultPackId()
   setShell('game')
   applyTheme(getPack(S.worldview))
-  try { playBgm(S.bgmTrack) } catch (e) { /* music optional */ }
+  try {
+    const track = S.bgmTrack || BGM_DEFAULT_TRACK || 'midi-031'
+    // 旧曲目 id 无效时统一回 031
+    S.bgmTrack = track === 'handpan' || track === 'universe' ? (BGM_DEFAULT_TRACK || 'midi-031') : track
+    playBgm(S.bgmTrack)
+  } catch (e) { /* music optional */ }
   refreshAll()
 }
 

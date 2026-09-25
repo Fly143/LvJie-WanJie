@@ -136,7 +136,7 @@ export class MidiPlayer {
       if (!AC) throw new Error('当前环境不支持 Web Audio')
       this.ctx = new AC()
       this.master = this.ctx.createGain()
-      this.master.gain.value = this.volume
+      this.master.gain.value = Math.max(0.15, this.volume)
       this.master.connect(this.ctx.destination)
     }
     if (this.ctx.state === 'suspended') this.ctx.resume()
@@ -188,14 +188,14 @@ export class MidiPlayer {
       const g = ctx.createGain()
       osc.type = waveForProgram(0)
       osc.frequency.value = freqOf(n.note)
-      const amp = Math.min(0.28, 0.05 + (n.vel / 127) * 0.22)
+      const amp = Math.min(0.32, 0.08 + (n.vel / 127) * 0.24)
       g.gain.setValueAtTime(0.0001, s)
-      g.gain.exponentialRampToValueAtTime(amp, s + 0.012)
-      g.gain.exponentialRampToValueAtTime(0.0001, s + dur)
+      g.gain.exponentialRampToValueAtTime(amp, s + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, Math.max(s + 0.05, s + dur - 0.02))
       osc.connect(g)
       g.connect(this.master)
-      osc.start(s)
-      osc.stop(s + dur + 0.02)
+      osc.start(Math.max(this.ctx.currentTime, s))
+      osc.stop(Math.max(this.ctx.currentTime, s + dur + 0.02))
       this.nodes.push(osc, g)
     }
     return end - t0

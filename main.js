@@ -1,5 +1,8 @@
 // 《Agent万象》Electron 主进程（Packed：resources/app/main.js）
 // 由 runtime/AgentWorlds.exe 加载；require('electron') 为内建 API
+// 允许程序化启动 BGM（无需用户手势）
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
 if (process.env.ELECTRON_RUN_AS_NODE) delete process.env.ELECTRON_RUN_AS_NODE
 
 const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron')
