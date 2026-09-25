@@ -1,5 +1,5 @@
-// 轻量 Standard MIDI File 解析 + Web Audio 播放（无音色库）
-// 支持 format 0/1、note on/off、tempo、program change（映射波形）
+// 轻量 Standard MIDI File 解析 + Web Audio 播放
+// 播放：OfflineAudioContext 一次性渲染成 AudioBuffer，再单源播放（避免实时千音符卡顿）
 
 export function parseMidi(buf) {
   const d = buf instanceof DataView ? buf : new DataView(buf.buffer ? buf.buffer : buf)
@@ -21,7 +21,7 @@ export function parseMidi(buf) {
 
   const ticksPerBeat = division || 480
   const rawNotes = []
-  let tempoUs = 500000 // 默认 120 BPM
+  let tempoUs = 500000
 
   for (let t = 0; t < ntrks && pos < d.byteLength; t++) {
     if (tag() !== 'MTrk') break
@@ -29,7 +29,7 @@ export function parseMidi(buf) {
     const end = pos + len
     let tick = 0
     let running = 0
-    const onMap = new Map() // key ch<<8|note -> {tick, vel}
+    const onMap = new Map()
 
     const readVLQ = () => {
       let v = 0
@@ -44,10 +44,8 @@ export function parseMidi(buf) {
     while (pos < end) {
       tick += readVLQ()
       let status = d.getUint8(pos)
-      if (status < 0x80) {
-        // running status
-        status = running
-      } else {
+      if (status < 0x80) status = running
+      else {
         pos++
         if (status < 0xf0) running = status
       }
@@ -62,8 +60,7 @@ export function parseMidi(buf) {
         }
         pos += mlen
       } else if (status === 0xf0 || status === 0xf7) {
-        const mlen = readVLQ()
-        pos += mlen
+        pos += readVLQ()
       } else if (hi === 0x80 || hi === 0x90) {
         const note = d.getUint8(pos++)
         const vel = d.getUint8(pos++)
@@ -73,13 +70,7 @@ export function parseMidi(buf) {
         } else {
           const st = onMap.get(key)
           if (st) {
-            rawNotes.push({
-              note,
-              vel: st.vel,
-              ch,
-              startTick: st.tick,
-              endTick: tick
-            })
+            rawNotes.push({ note, vel: st.vel, ch, startTick: st.tick, endTick: tick })
             onMap.delete(key)
           }
         }
@@ -88,7 +79,6 @@ export function parseMidi(buf) {
       } else if (hi === 0xc0 || hi === 0xd0) {
         pos += 1
       } else {
-        // 未知，尽量跳过
         break
       }
     }
@@ -99,20 +89,12 @@ export function parseMidi(buf) {
   return { format, ticksPerBeat, tempoUs, notes: rawNotes }
 }
 
-/** tick → 秒 */
 function tickToSec(tick, ticksPerBeat, tempoUs) {
   return (tick * (tempoUs / 1e6)) / ticksPerBeat
 }
 
-/** GM program → 波形近似 */
-function waveForProgram(p) {
-  if (p >= 8 && p <= 15) return 'triangle' // 键盘
-  if (p >= 24 && p <= 31) return 'sawtooth' // 吉他
-  if (p >= 32 && p <= 39) return 'triangle' // 贝斯
-  if (p >= 40 && p <= 55) return 'triangle' // 弦乐
-  if (p >= 56 && p <= 63) return 'square' // 铜管
-  if (p >= 64 && p <= 79) return 'sine' // 木管
-  return 'sine'
+function waveForProgram() {
+  return 'triangle'
 }
 
 function freqOf(note) {
@@ -123,11 +105,11 @@ export class MidiPlayer {
   constructor() {
     this.ctx = null
     this.master = null
-    this.nodes = []
-    this.timer = null
+    this.source = null
     this.playing = false
     this.loop = true
     this.volume = 0.22
+    this._bufCache = new Map()
   }
 
   _ensureCtx() {
@@ -136,7 +118,7 @@ export class MidiPlayer {
       if (!AC) throw new Error('当前环境不支持 Web Audio')
       this.ctx = new AC()
       this.master = this.ctx.createGain()
-      this.master.gain.value = Math.max(0.15, this.volume)
+      this.master.gain.value = this.volume
       this.master.connect(this.ctx.destination)
     }
     if (this.ctx.state !== 'running' && this.ctx.resume) {
@@ -145,45 +127,101 @@ export class MidiPlayer {
     return this.ctx
   }
 
-  get running() {
-    return !!(this.ctx && this.ctx.state === 'running' && this.playing)
-  }
-
   setVolume(v) {
     this.volume = Math.max(0, Math.min(1, Number(v) || 0))
     if (this.master) this.master.gain.value = this.volume
   }
 
-  async playArrayBuffer(buf) {
-    this.stop()
-    let midi
-    try {
-      midi = parseMidi(buf)
-    } catch (e) {
-      return { ok: false, error: (e && e.message) || 'MIDI 解析失败' }
-    }
-    if (!midi.notes.length) return { ok: false, error: 'MIDI 无音符' }
-    this._ensureCtx()
-    let duration = 0
-    try {
-      duration = this._schedule(midi, 0)
-    } catch (e) {
-      this.playing = false
-      return { ok: false, error: (e && e.message) || '排程失败' }
-    }
-    this.playing = true
-    this.timer = setTimeout(() => {
-      if (this.loop && this.playing) {
-        this.stop()
-        this.playArrayBuffer(buf).catch(() => {})
+  /** 离线渲染 MIDI → AudioBuffer */
+  async renderMidi(buf, cacheKey) {
+    if (cacheKey && this._bufCache.has(cacheKey)) return this._bufCache.get(cacheKey)
+    const midi = parseMidi(buf)
+    if (!midi.notes.length) throw new Error('MIDI 无音符')
+
+    const notes = midi.notes
+      .filter(n => n && n.endTick > n.startTick && n.vel > 0)
+      .slice(0, 2500)
+    const lastTick = Math.max(...notes.map(n => n.endTick), 1)
+    const duration = Math.min(180, tickToSec(lastTick, midi.ticksPerBeat, midi.tempoUs) + 0.15)
+    const sampleRate = 22050
+    const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext
+    if (!OAC) throw new Error('当前环境不支持离线音频渲染')
+    const frames = Math.ceil(duration * sampleRate)
+    const off = new OAC(1, frames, sampleRate)
+
+    const MAX_VOICES = 24
+    let voices = 0
+    let lastKick = -1
+    for (const n of notes) {
+      const s = tickToSec(n.startTick, midi.ticksPerBeat, midi.tempoUs)
+      const e = tickToSec(Math.max(n.endTick, n.startTick + 1), midi.ticksPerBeat, midi.tempoUs)
+      const dur = Math.max(0.04, Math.min(1.6, e - s))
+      if (s < lastKick) {
+        voices++
+        if (voices > MAX_VOICES) continue
       } else {
-        this.playing = false
+        voices = 1
+        lastKick = s
       }
-    }, (duration + 0.4) * 1000)
-    return { ok: true, duration, notes: midi.notes.length }
+      try {
+        const osc = off.createOscillator()
+        const g = off.createGain()
+        osc.type = waveForProgram()
+        osc.frequency.value = freqOf(n.note)
+        const amp = Math.min(0.22, 0.05 + (n.vel / 127) * 0.16)
+        g.gain.setValueAtTime(0.0001, s)
+        g.gain.linearRampToValueAtTime(amp, s + 0.025)
+        g.gain.linearRampToValueAtTime(0.0001, s + dur)
+        osc.connect(g)
+        g.connect(off.destination)
+        osc.start(s)
+        osc.stop(s + dur + 0.02)
+      } catch (e) { /* skip */ }
+    }
+
+    const rendered = await off.startRendering()
+    if (cacheKey) {
+      this._bufCache.set(cacheKey, rendered)
+      if (this._bufCache.size > 6) {
+        const first = this._bufCache.keys().next().value
+        this._bufCache.delete(first)
+      }
+    }
+    return rendered
   }
 
-  async playUrl(url) {
+  async playArrayBuffer(buf, cacheKey) {
+    this.stop()
+    this._ensureCtx()
+    let audioBuf
+    try {
+      audioBuf = await this.renderMidi(buf, cacheKey)
+    } catch (e) {
+      this.playing = false
+      return { ok: false, error: (e && e.message) || '渲染失败' }
+    }
+    if (!this.ctx) return { ok: false, error: '音频上下文不可用' }
+    const src = this.ctx.createBufferSource()
+    src.buffer = audioBuf
+    src.loop = this.loop
+    src.connect(this.master)
+    src.onended = () => {
+      if (this.source === src) {
+        this.playing = false
+        this.source = null
+      }
+    }
+    try {
+      src.start()
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || '播放失败' }
+    }
+    this.source = src
+    this.playing = true
+    return { ok: true, duration: audioBuf.duration, notes: (audioBuf && audioBuf.length) || 0 }
+  }
+
+  async playUrl(url, cacheKey) {
     let buf
     const host = globalThis.awHost && globalThis.awHost.asset
     if (host && host.read) {
@@ -196,79 +234,19 @@ export class MidiPlayer {
       if (!res.ok) return { ok: false, error: '读取失败 ' + res.status }
       buf = await res.arrayBuffer()
     }
-    return this.playArrayBuffer(buf)
-  }
-
-  _schedule(midi, when) {
-    const ctx = this.ctx
-    const t0 = (when || ctx.currentTime) + 0.08
-    // 按开始时间排序；过密曲目限流，避免一次建上千 oscillator 导致静音/异常
-    const MAX_NOTES = 1800
-    const MAX_VOICES = 48
-    const notes = midi.notes
-      .filter(n => n && n.endTick > n.startTick && n.vel > 0)
-      .sort((a, b) => a.startTick - b.startTick || a.note - b.note)
-      .slice(0, MAX_NOTES)
-
-    let end = 0
-    let voices = 0
-    let lastKick = 0
-    for (const n of notes) {
-      const s = t0 + tickToSec(n.startTick, midi.ticksPerBeat, midi.tempoUs)
-      const e = t0 + tickToSec(Math.max(n.endTick, n.startTick + 1), midi.ticksPerBeat, midi.tempoUs)
-      const dur = Math.max(0.04, Math.min(2.2, e - s))
-      end = Math.max(end, s + dur)
-
-      // 粗略并发控制：同刻只放有限声部
-      if (s < lastKick) {
-        voices++
-        if (voices > MAX_VOICES) continue
-      } else {
-        voices = 1
-        lastKick = s
-      }
-
-      try {
-        const osc = ctx.createOscillator()
-        const g = ctx.createGain()
-        osc.type = waveForProgram(0)
-        const freq = freqOf(n.note)
-        if (!isFinite(freq) || freq <= 0) {
-          osc.disconnect()
-          g.disconnect()
-          continue
-        }
-        osc.frequency.value = freq
-        const amp = Math.min(0.3, 0.07 + (n.vel / 127) * 0.2)
-        const startAt = Math.max(ctx.currentTime + 0.01, s)
-        g.gain.setValueAtTime(0.0001, startAt)
-        g.gain.linearRampToValueAtTime(amp, startAt + 0.03)
-        g.gain.linearRampToValueAtTime(0.0001, startAt + dur)
-        osc.connect(g)
-        g.connect(this.master)
-        osc.start(startAt)
-        osc.stop(startAt + dur + 0.03)
-        this.nodes.push(osc, g)
-      } catch (e) {
-        // 单音失败不影响整曲
-      }
-    }
-    return Math.max(0.5, end - t0)
+    return this.playArrayBuffer(buf, cacheKey || url)
   }
 
   stop() {
     this.playing = false
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
-    for (const n of this.nodes) {
+    if (this.source) {
       try {
-        if (n.stop) n.stop()
-        if (n.disconnect) n.disconnect()
+        this.source.onended = null
+        this.source.stop()
       } catch (e) { /* ignore */ }
+      try { this.source.disconnect() } catch (e) { /* ignore */ }
+      this.source = null
     }
-    this.nodes = []
   }
 }
 

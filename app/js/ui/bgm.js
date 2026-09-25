@@ -89,7 +89,7 @@ export function playBgm(id) {
     if (t.kind === 'midi') {
       t.blob.arrayBuffer().then(buf => {
         midiPlayer.loop = true
-        return midiPlayer.playArrayBuffer(buf)
+        return midiPlayer.playArrayBuffer(buf, t.id)
       }).catch(() => {})
     } else {
       userUrl = blobUrl(t.blob)
@@ -109,7 +109,7 @@ export function playBgm(id) {
       audioEl.removeAttribute('src')
     }
     midiPlayer.loop = true
-    midiPlayer.playUrl(t.file).then(r => {
+    midiPlayer.playUrl(t.file, t.id).then(r => {
       if (r && r.ok) midiPlayer.playing = true
     }).catch(() => {})
     return
