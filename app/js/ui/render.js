@@ -9,6 +9,13 @@ import { skillLabel } from '../engine/skills.js'
 import { addItem, normalizeType, typeName, itemChip, useDirectItem } from '../engine/inventory.js'
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
+import { relationLines } from '../engine/npc-memory.js'
+
+function relBlock(person) {
+  const lines = relationLines(person)
+  if (!lines.length) return ''
+  return '<div class="cdim">' + lines.map(l => esc(l)).join('<br>') + '</div>'
+}
 import { BGM_TRACKS, AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY } from '../engine/constants.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal } from './modals.js'
@@ -82,6 +89,7 @@ export function renderScene(app, api) {
             <div class="cname">${esc(p.name)}</div>
             <div class="crealm">${esc(p.realm || p.rank || '')}</div>
             <div class="cdesc">${esc(p.intro || '')}</div>
+            ${relBlock(p)}
             <div class="cbtn"><button class="btn btn-sm" data-talk="${esc(p.name)}" type="button">${esc(pack.ui && pack.ui.talkBtn || '交谈')}</button></div>
           </div>
         `).join('') || '<div class="empty">此处无人</div>'}
@@ -364,6 +372,7 @@ export function renderFriends(app, api) {
             <div class="crealm">${esc(f.realm || '')} · 好感 ${fmtNum(f.favor || 0)}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
+            ${relBlock(f)}
             <div class="cbtn">
               <button class="btn btn-sm" data-chat="${i}" type="button">交谈</button>
               ${f.married ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}

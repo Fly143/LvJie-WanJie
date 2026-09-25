@@ -39,4 +39,17 @@ if (!block2.includes('欠你一顿酒')) throw new Error('friend mem')
 if (!block2.includes('关系网') || !block2.includes('李四')) throw new Error('relations')
 if (!block2.includes('恩怨') || !block2.includes('怨')) throw new Error('grudges')
 
+const { syncReverseRelations, relationLines } = await import('../app/js/engine/npc-memory.js')
+const S2 = {
+  friends: [
+    { name: '甲', relations: [{ to: '乙', rel: '旧友' }], grudges: [] },
+    { name: '乙', relations: [], grudges: [] }
+  ],
+  map: [{ id: 'm', name: 'x', people: [], beasts: [] }]
+}
+syncReverseRelations(S2, '甲', S2.friends[0].relations, [])
+if (!S2.friends[1].relations.some(r => r.to === '甲')) throw new Error('reverse rel')
+const rl = relationLines(S2.friends[0])
+if (!rl.length || !rl[0].includes('乙')) throw new Error('relationLines')
+
 console.log('NPC_OK')

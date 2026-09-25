@@ -120,7 +120,74 @@ export function normGrudges(list) {
   return out
 }
 
-/** 从文本里挑出已知名字（长名优先，避免短名误匹配） */
+/** 反向同步：A 挂了对 B 的关系时，B 若可知则补一条回指 */
+export function syncReverseRelations(S, name, relations, grudges) {
+  if (!S || !name) return
+  const targetName = String(name)
+  const upsert = (list, item, max) => {
+    const arr = Array.isArray(list) ? list.slice() : []
+    const i = arr.findIndex(x => x && x.to === item.to && (x.kind || '') === (item.kind || '') && (x.rel || '') === (item.rel || ''))
+    if (i >= 0) arr[i] = Object.assign({}, arr[i], item)
+    else arr.push(item)
+    return arr.slice(0, max)
+  }
+
+  const applyToFriend = (friendName, rel, grd) => {
+    const f = (S.friends || []).find(x => x.name === friendName)
+    if (!f) return false
+    if (rel) f.relations = upsert(f.relations, rel, 12)
+    if (grd) f.grudges = upsert(f.grudges, grd, 8)
+    return true
+  }
+
+  for (const r of relations || []) {
+    if (!r || !r.to || r.to === targetName) continue
+    const rel = { to: targetName, rel: r.rel || '相关', note: r.note || '' }
+    if (!applyToFriend(r.to, rel, null)) {
+      // 场景 NPC 可能也认识
+      for (const loc of S.map || []) {
+        const p = (loc.people || []).find(x => x.name === r.to)
+        if (p) {
+          p.relations = upsert(p.relations, rel, 12)
+          break
+        }
+      }
+    }
+  }
+  for (const g of grudges || []) {
+    if (!g || !g.to || g.to === targetName) continue
+    const kind = g.kind || '怨'
+    // 恩怨不对称：怨/仇 对方记反向（怨则对方也怨上你；恩则对方记恩）
+    const backKind = kind === '恩' ? '恩' : kind === '债' ? '债' : '怨'
+    const grd = { to: targetName, kind: backKind, note: g.note || '' }
+    if (!applyToFriend(g.to, null, grd)) {
+      for (const loc of S.map || []) {
+        const p = (loc.people || []).find(x => x.name === g.to)
+        if (p) {
+          p.grudges = upsert(p.grudges, grd, 8)
+          break
+        }
+      }
+    }
+  }
+}
+
+/** 界面用：某人的关系摘要行 */
+export function relationLines(card) {
+  const lines = []
+  for (const r of (card && card.relations) || []) {
+    if (!r) continue
+    lines.push(`🤝 ${r.to} · ${r.rel || '相关'}${r.note ? ' — ' + r.note : ''}`)
+  }
+  for (const g of (card && card.grudges) || []) {
+    if (!g) continue
+    const icon = g.kind === '恩' ? '💚' : g.kind === '债' ? '📜' : g.kind === '仇' ? '⚔️' : '⚡'
+    lines.push(`${icon} ${g.to || '（未指名）'} · ${g.kind || '怨'}${g.note ? ' — ' + g.note : ''}`)
+  }
+  return lines
+}
+
+/** 文本里挑出已知名字（长名优先，避免短名误匹配） */
 export function matchNpcNames(text, index) {
   const s = String(text || '')
   if (!s || !index || !index.size) return []

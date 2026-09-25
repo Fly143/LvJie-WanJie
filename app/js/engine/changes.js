@@ -3,6 +3,7 @@ import { addItem, removeItem, normalizeType } from './inventory.js'
 import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByName } from './map.js'
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
+import { syncReverseRelations } from './npc-memory.js'
 
 /** 单轮熔断：防 AI 刷爆数值 */
 export const CHANGE_CAPS = {
@@ -183,6 +184,10 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
+      // 双向关系回写
+      try {
+        syncReverseRelations(S, f.name, f.relations, f.grudges)
+      } catch (e) { /* ignore */ }
       if (raw.favor != null) {
         const d = Math.round(capAbs(Number(raw.favor) || 0, CHANGE_CAPS.favor_abs))
         f.favor = (f.favor || 0) + d
