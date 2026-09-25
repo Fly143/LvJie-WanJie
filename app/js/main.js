@@ -13,7 +13,7 @@ import { renderScene, renderMap, renderProfile, renderFriends, renderBag, render
 import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
-import { initBgm, playBgm } from './ui/bgm.js'
+import { initBgm, playBgm, hydrateCustomBgm } from './ui/bgm.js'
 import { BGM_MAP_TRACK } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 
@@ -394,6 +394,7 @@ function applyNavLabels(pack) {
 function boot() {
   bindHeader()
   initBgm()
+  hydrateCustomBgm().catch(() => {})
   const existing = loadSave()
   if (existing) {
     showGame(existing)

@@ -17,7 +17,8 @@ function relBlock(person) {
   if (!lines.length) return ''
   return '<div class="cdim">' + lines.map(l => esc(l)).join('<br>') + '</div>'
 }
-import { BGM_TRACKS, AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY } from '../engine/constants.js'
+import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY } from '../engine/constants.js'
+import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal } from './modals.js'
 import { openHelp } from './settings-panels.js'
@@ -572,10 +573,18 @@ export function renderSettings(app, api) {
 
       <h4>背景音乐</h4>
       <div class="btn-row">
-        ${BGM_TRACKS.map(t => `
-          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${t.name}</button>
+        ${allBgmTracks().map(t => `
+          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}</button>
         `).join('')}
       </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn btn-sm" id="bgm-add" type="button">➕ 本地音乐</button>
+        <input id="bgm-file" type="file" accept=".mp3,.wav,.ogg,.m4a,.mid,.midi" multiple hidden>
+        ${allBgmTracks().filter(t => t.custom).map(t => `
+          <button class="btn btn-sm btn-danger" data-bgm-del="${esc(t.id)}" type="button">删 ${esc(t.name)}</button>
+        `).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--faint);margin-top:4px">支持 mp3/wav/mid 等；自定义曲保存在本机浏览器库，不进游戏目录。</div>
 
       <h4>API</h4>
       <div class="btn-row">
@@ -611,6 +620,31 @@ export function renderSettings(app, api) {
       S.bgmTrack = b.dataset.bgm
       playBgm(S.bgmTrack)
       api.save()
+      api.refreshAll()
+    }
+  })
+  const bgmAdd = document.getElementById('bgm-add')
+  const bgmFile = document.getElementById('bgm-file')
+  if (bgmAdd && bgmFile) {
+    bgmAdd.onclick = () => bgmFile.click()
+    bgmFile.onchange = async (e) => {
+      const added = await addLocalBgmFiles(e.target.files)
+      e.target.value = ''
+      if (added.length) {
+        api.toast('已添加 ' + added.length + ' 首本地音乐')
+        api.refreshAll()
+      } else {
+        api.toast('未添加（仅支持 mp3/wav/ogg/m4a/mid）')
+      }
+    }
+  }
+  main.querySelectorAll('[data-bgm-del]').forEach(b => {
+    b.onclick = async () => {
+      await removeLocalBgm(b.dataset.bgmDel)
+      if (S.bgmTrack === b.dataset.bgmDel) {
+        S.bgmTrack = ''
+        api.save()
+      }
       api.refreshAll()
     }
   })
