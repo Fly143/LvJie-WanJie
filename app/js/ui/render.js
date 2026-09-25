@@ -541,6 +541,9 @@ export function renderSettings(app, api) {
 
       <h4>存档</h4>
       <div class="btn-row">
+        <button class="btn" id="set-export" type="button">导出存档 JSON</button>
+        <button class="btn" id="set-import" type="button">导入存档 JSON</button>
+        <input id="set-import-file" type="file" accept=".json,application/json" hidden>
         <button class="btn btn-danger" id="set-reset" type="button">重置本世界观存档</button>
       </div>
       <div style="font-size:12px;color:var(--faint);margin-top:8px">
@@ -571,6 +574,41 @@ export function renderSettings(app, api) {
     import('./settings-panels.js').then(m => m.openKeyModal(app, { save: api.save, refreshAll: api.refreshAll }))
   }
   document.getElementById('set-help').onclick = () => openHelp(app)
+  document.getElementById('set-export').onclick = () => {
+    import('../engine/state.js').then(m => {
+      const bundle = m.exportSaveBundle()
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'agentworlds-saves-' + Date.now() + '.json'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+      api.toast('已导出存档（不含 API Key）')
+    })
+  }
+  document.getElementById('set-import').onclick = () => {
+    document.getElementById('set-import-file').click()
+  }
+  document.getElementById('set-import-file').onchange = (e) => {
+    const f = e.target.files && e.target.files[0]
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const bundle = JSON.parse(String(reader.result || ''))
+        import('../engine/state.js').then(m => {
+          const r = m.importSaveBundle(bundle)
+          if (!r.ok) { api.toast(r.error || '导入失败'); return }
+          api.toast('已导入 ' + r.count + ' 个世界存档')
+          location.reload()
+        })
+      } catch (err) {
+        api.toast('JSON 解析失败')
+      }
+    }
+    reader.readAsText(f, 'utf-8')
+    e.target.value = ''
+  }
   document.getElementById('set-reset').onclick = () => {
     openModal(`
       <h2>重置存档？</h2>

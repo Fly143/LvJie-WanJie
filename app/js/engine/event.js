@@ -23,6 +23,7 @@ export function startEvent(kind, user, target) {
     error: '',
     resultText: '',
     changesBrief: null,
+    partial: '',
     _ctl: null,
     _turn: 0
   }
@@ -57,6 +58,7 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   })
 
   EV.history.push({ role: 'user', content: userText })
+  EV.partial = ''
 
   const ctl = new AbortController()
   EV._ctl = ctl
@@ -65,7 +67,13 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     system,
     user: userText,
     history: trimHistory(EV.history.slice(0, -1)),
-    signal: ctl.signal
+    signal: ctl.signal,
+    onDelta: (delta, acc) => {
+      if (EV._turn !== turn) return
+      EV.partial = acc
+      EV.resultText = stripJSONBlock(acc)
+      if (hooks.onState) hooks.onState(EV)
+    }
   })
 
   if (EV._turn !== turn) return // 过期响应丢弃

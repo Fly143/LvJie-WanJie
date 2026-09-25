@@ -204,6 +204,45 @@ export function deleteSave(worldview) {
   }
 }
 
+/** 导出全部分槽存档（不含 API Key） */
+export function exportSaveBundle() {
+  const slots = {}
+  for (const s of listSlots()) {
+    const raw = loadSlotRaw(slotKey(s.id)) || loadSlotRaw(SAVE_KEY)
+    if (!raw) continue
+    const dump = Object.assign({}, raw)
+    delete dump.playerKeys
+    delete dump.selectedKey
+    slots[s.id] = dump
+  }
+  return {
+    format: 'agentworlds_saves',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    activeWorld: getActiveWorld(),
+    slots
+  }
+}
+
+/** 导入分槽存档；默认覆盖同名槽 */
+export function importSaveBundle(bundle, { overwrite = true } = {}) {
+  if (!bundle || typeof bundle !== 'object') return { ok: false, error: '无效备份文件' }
+  const slots = bundle.slots && typeof bundle.slots === 'object' ? bundle.slots : null
+  if (!slots) return { ok: false, error: '缺少 slots' }
+  let n = 0
+  for (const [id, raw] of Object.entries(slots)) {
+    if (!raw || typeof raw !== 'object' || !raw.map) continue
+    const key = slotKey(raw.worldview || id)
+    if (!overwrite && loadSlotRaw(key)) continue
+    try {
+      localStorage.setItem(key, JSON.stringify(raw))
+      n++
+    } catch (e) { /* skip */ }
+  }
+  if (bundle.activeWorld) setActiveWorld(bundle.activeWorld)
+  return { ok: n > 0, count: n, error: n ? null : '没有可导入的存档' }
+}
+
 /** 载入时补齐/净化字段，保证多世界观旧档可用 */
 function migrateSave(s) {
   if (!s.worldview) s.worldview = 'xiuxian'

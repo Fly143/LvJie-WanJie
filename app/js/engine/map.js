@@ -58,9 +58,10 @@ export function applyNewLocations(S, arr) {
   if (!Array.isArray(arr)) return 0
   const pack = packOf(S)
   let n = 0
-  for (const raw of arr) {
+  for (const raw of arr.slice(0, 6)) {
     if (!raw || !raw.name) continue
     if (S.map.some(l => l.name === raw.name)) continue
+    if (S.map.length >= 80) break
     const cur = curLoc(S) || {}
     const world = normalizeWorld(pack, raw.world, cur.world)
     const continent = String(raw.continent || cur.continent || '未知地域')

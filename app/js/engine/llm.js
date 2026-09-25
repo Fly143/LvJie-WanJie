@@ -114,7 +114,7 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
  * 调用一次 LLM。
  * @returns {Promise<{ok:boolean, text?:string, error?:string, aborted?:boolean}>}
  */
-export async function callLLM({ keyObj, system, user, history = [], signal }) {
+export async function callLLM({ keyObj, system, user, history = [], signal, onDelta }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -130,8 +130,9 @@ export async function callLLM({ keyObj, system, user, history = [], signal }) {
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
+  const isChat = k.apiStyle !== 'response'
   let body
-  if (k.apiStyle === 'response') {
+  if (!isChat) {
     body = {
       model: k.model,
       input: messagesToResponseInput(messages),
@@ -145,6 +146,15 @@ export async function callLLM({ keyObj, system, user, history = [], signal }) {
       temperature: 0.9,
       max_tokens: MAX_TOKENS
     }
+  }
+
+  // 流式：仅 chat 协议 + 宿主支持 + 需要增量回调时
+  const canStream = isChat && typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream
+  if (canStream) {
+    body.stream = true
+    const streamed = await callLLMStream({ k, url, body, signal, onDelta })
+    if (streamed) return streamed
+    delete body.stream
   }
 
   try {
@@ -173,7 +183,7 @@ export async function callLLM({ keyObj, system, user, history = [], signal }) {
     try { data = JSON.parse(raw) } catch (e) { return { ok: false, error: '响应不是合法 JSON' } }
 
     let text = ''
-    if (k.apiStyle === 'response') text = extractResponseText(data)
+    if (!isChat) text = extractResponseText(data)
     else {
       text = data && data.choices && data.choices[0] && data.choices[0].message
         ? (data.choices[0].message.content || '')
@@ -185,6 +195,96 @@ export async function callLLM({ keyObj, system, user, history = [], signal }) {
     if (e && e.name === 'AbortError') return { ok: false, error: '已取消', aborted: true }
     return { ok: false, error: (e && e.message) || '网络错误' }
   }
+}
+
+/** OpenAI chat SSE；失败返回 null 以便回退非流式 */
+async function callLLMStream({ k, url, body, signal, onDelta }) {
+  const host = globalThis.awHost.http
+  const started = await host.stream({
+    url,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + k.key,
+      'Accept': 'text/event-stream'
+    },
+    body: JSON.stringify(body),
+    timeoutMs: DEFAULT_TIMEOUT_MS
+  })
+  if (!started || !started.ok || !started.id) return null
+
+  const id = started.id
+  let buf = ''
+  let text = ''
+  let status = 200
+  let err = null
+  let aborted = false
+
+  const onAbort = () => {
+    aborted = true
+    try { host.abort(id) } catch (e) { /* ignore */ }
+  }
+  if (signal) {
+    if (signal.aborted) onAbort()
+    else signal.addEventListener('abort', onAbort, { once: true })
+  }
+
+  const offChunk = host.onChunk((d) => {
+    if (!d || d.id !== id) return
+    buf += d.text || ''
+    let nl
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).replace(/\r$/, '')
+      buf = buf.slice(nl + 1)
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      try {
+        const j = JSON.parse(payload)
+        const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content
+        if (delta) {
+          text += delta
+          try { onDelta(delta, text) } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* partial json */ }
+    }
+  })
+  const offEnd = host.onEnd((d) => {
+    if (!d || d.id !== id) return
+    status = d.status || status
+    if (!d.ok) err = d.error || '流式失败'
+    if (d.aborted) aborted = true
+  })
+
+  await waitStreamEnd(host, id)
+  try { offChunk() } catch (e) { /* ignore */ }
+  try { offEnd() } catch (e) { /* ignore */ }
+  if (signal) signal.removeEventListener('abort', onAbort)
+
+  if (aborted) return { ok: false, error: '已取消', aborted: true }
+  if (err) return { ok: false, error: err }
+  if (status < 200 || status >= 300) return { ok: false, error: 'HTTP ' + status }
+  if (!text.trim()) return { ok: false, error: '模型返回空内容' }
+  return { ok: true, text }
+}
+
+function waitStreamEnd(host, id, maxMs = 185000) {
+  return new Promise((resolve) => {
+    const t0 = Date.now()
+    const timer = setInterval(() => {
+      if (Date.now() - t0 > maxMs) {
+        clearInterval(timer)
+        try { host.abort(id) } catch (e) { /* ignore */ }
+        resolve()
+      }
+    }, 250)
+    const off = host.onEnd((d) => {
+      if (!d || d.id !== id) return
+      clearInterval(timer)
+      try { off() } catch (e) { /* ignore */ }
+      resolve()
+    })
+  })
 }
 
 /** 拉取模型列表（OpenAI 兼容 GET {base}/models） */

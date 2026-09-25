@@ -49,16 +49,23 @@ function secretsPath() {
 
 /* ---------- HTTP 代理：渲染进程不直连外网 ---------- */
 const ALLOWED_HTTP = /^https?:\/\//i
+let streamSeq = 0
+const streamCtl = new Map()
+
+function rejectHttp(url, method) {
+  if (!ALLOWED_HTTP.test(url)) return { ok: false, error: '仅允许 http(s) 协议' }
+  const m = String(method || 'GET').toUpperCase()
+  if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(m)) {
+    return { ok: false, error: '不允许的 HTTP 方法' }
+  }
+  return null
+}
 
 ipcMain.handle('aw:http', async (_e, req) => {
   const url = String((req && req.url) || '')
-  if (!ALLOWED_HTTP.test(url)) {
-    return { ok: false, error: '仅允许 http(s) 协议' }
-  }
   const method = String((req && req.method) || 'GET').toUpperCase()
-  if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(method)) {
-    return { ok: false, error: '不允许的 HTTP 方法' }
-  }
+  const bad = rejectHttp(url, method)
+  if (bad) return bad
   const timeoutMs = Math.max(1000, Math.min(180000, Number(req.timeoutMs) || 120000))
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
@@ -83,6 +90,70 @@ ipcMain.handle('aw:http', async (_e, req) => {
   } finally {
     clearTimeout(timer)
   }
+})
+
+/** 流式：启动后按 chunk 回传，end/error 收尾 */
+ipcMain.handle('aw:http:stream', (event, req) => {
+  const url = String((req && req.url) || '')
+  const method = String((req && req.method) || 'GET').toUpperCase()
+  const bad = rejectHttp(url, method)
+  if (bad) return bad
+  const id = 's' + (++streamSeq)
+  const ctl = new AbortController()
+  streamCtl.set(id, ctl)
+  const timeoutMs = Math.max(1000, Math.min(180000, Number(req.timeoutMs) || 180000))
+  const timer = setTimeout(() => ctl.abort(), timeoutMs)
+  const sender = event.sender
+
+  ;(async () => {
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: (req && req.headers) || {},
+        body: method === 'GET' || method === 'HEAD' ? undefined : (req && req.body),
+        signal: ctl.signal
+      })
+      sender.send('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
+      if (!res.body) {
+        const text = await res.text()
+        sender.send('aw:http:chunk', { id, text })
+        sender.send('aw:http:end', { id, ok: true })
+        return
+      }
+      const reader = res.body.getReader()
+      const dec = new TextDecoder('utf-8')
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        sender.send('aw:http:chunk', { id, text: dec.decode(value, { stream: true }) })
+      }
+      sender.send('aw:http:chunk', { id, text: dec.decode() })
+      sender.send('aw:http:end', { id, ok: true, status: res.status })
+    } catch (e) {
+      const aborted = e && (e.name === 'AbortError' || e.name === 'TimeoutError')
+      sender.send('aw:http:end', {
+        id,
+        ok: false,
+        aborted,
+        error: aborted ? '请求超时或已取消' : ((e && e.message) || '网络错误')
+      })
+    } finally {
+      clearTimeout(timer)
+      streamCtl.delete(id)
+    }
+  })()
+
+  return { ok: true, id }
+})
+
+ipcMain.handle('aw:http:abort', (_e, id) => {
+  const ctl = streamCtl.get(String(id))
+  if (ctl) {
+    try { ctl.abort() } catch (err) { /* ignore */ }
+    streamCtl.delete(String(id))
+    return { ok: true }
+  }
+  return { ok: false }
 })
 
 /* ---------- API Key：safeStorage 加密落盘 ---------- */

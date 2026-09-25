@@ -4,6 +4,36 @@ import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByNa
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 
+/** 单轮熔断：防 AI 刷爆数值 */
+export const CHANGE_CAPS = {
+  age_days: 3650,
+  money_abs: 10_000_000,
+  progress_abs: 5_000_000,
+  item_count: 99,
+  add_items: 10,
+  remove_items: 10,
+  major_events: 8,
+  small_events: 12,
+  friends: 6,
+  new_locations: 6,
+  modify_locations: 10,
+  favor_abs: 80,
+  skill_abs: 200,
+  power_abs: 1_000_000
+}
+
+function capAbs(v, lim) {
+  const n = Number(v) || 0
+  if (n > lim) return lim
+  if (n < -lim) return -lim
+  return n
+}
+
+function capCount(v, lim) {
+  const n = Math.round(Number(v) || 0)
+  return Math.max(0, Math.min(lim, n))
+}
+
 /**
  * @returns {{major:string[], minor:string[]}} 弹窗用变更摘要
  */
@@ -17,7 +47,7 @@ export function applyChanges(S, ch, hooks = {}) {
   const progName = pack.lexicon.progress || '进度'
 
   if (ch.age_days) {
-    const d = Math.round(Number(ch.age_days) || 0)
+    const d = Math.round(capAbs(Number(ch.age_days) || 0, CHANGE_CAPS.age_days))
     if (d) {
       S.ageDays = Math.max(0, S.ageDays + d)
       minor.push(`年龄 ${d > 0 ? '+' : ''}${d} 天`)
@@ -33,7 +63,7 @@ export function applyChanges(S, ch, hooks = {}) {
   for (const [slot, keys] of moneyAdd) {
     for (const k of keys) {
       if (ch[k] != null) {
-        const v = Math.round(Number(ch[k]) || 0)
+        const v = Math.round(capAbs(Number(ch[k]) || 0, CHANGE_CAPS.money_abs))
         if (v) {
           const next = (S.money[slot] || 0) + v
           // 货币不为负；扣超持有则扣到 0
@@ -52,7 +82,7 @@ export function applyChanges(S, ch, hooks = {}) {
   }
 
   if (ch.cultivation != null || ch.progress != null) {
-    const v = Number(ch.cultivation != null ? ch.cultivation : ch.progress) || 0
+    const v = capAbs(Number(ch.cultivation != null ? ch.cultivation : ch.progress) || 0, CHANGE_CAPS.progress_abs)
     if (v) {
       S.progress = Math.max(0, S.progress + v)
       minor.push(`${progName} ${v > 0 ? '+' : ''}${fmtNum(v)}`)
@@ -60,36 +90,38 @@ export function applyChanges(S, ch, hooks = {}) {
   }
 
   if (Array.isArray(ch.add_items)) {
-    for (const raw of ch.add_items) {
+    for (const raw of ch.add_items.slice(0, CHANGE_CAPS.add_items)) {
       if (!raw || !raw.name) continue
       const it = Object.assign({}, raw, { type: normalizeType(raw.type) })
-      addItem(S, it, raw.count || 1)
-      major.push(`获得 ${raw.name}×${raw.count || 1}`)
+      const n = capCount(raw.count || 1, CHANGE_CAPS.item_count)
+      addItem(S, it, n)
+      major.push(`获得 ${raw.name}×${n}`)
     }
   }
 
   if (Array.isArray(ch.remove_items)) {
-    for (const raw of ch.remove_items) {
+    for (const raw of ch.remove_items.slice(0, CHANGE_CAPS.remove_items)) {
       if (!raw || !raw.name) continue
-      if (removeItem(S, raw, raw.count || 1)) {
-        minor.push(`失去 ${raw.name}${raw.count > 1 ? '×' + raw.count : ''}`)
+      const n = capCount(raw.count || 1, CHANGE_CAPS.item_count)
+      if (removeItem(S, raw, n)) {
+        minor.push(`失去 ${raw.name}${n > 1 ? '×' + n : ''}`)
       }
     }
   }
 
   if (Array.isArray(ch.major_events)) {
-    for (const e of ch.major_events) {
+    for (const e of ch.major_events.slice(0, CHANGE_CAPS.major_events)) {
       if (!e) continue
-      S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(e) })
-      major.push(String(e))
+      S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(e).slice(0, 200) })
+      major.push(String(e).slice(0, 120))
     }
     if (S.bigEvents.length > 200) S.bigEvents = S.bigEvents.slice(-200)
   }
   if (Array.isArray(ch.small_events)) {
-    for (const e of ch.small_events) {
+    for (const e of ch.small_events.slice(0, CHANGE_CAPS.small_events)) {
       if (!e) continue
-      S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(e) })
-      minor.push(String(e))
+      S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(e).slice(0, 200) })
+      minor.push(String(e).slice(0, 120))
     }
     if (S.smallEvents.length > 200) S.smallEvents = S.smallEvents.slice(-200)
   }
@@ -109,7 +141,7 @@ export function applyChanges(S, ch, hooks = {}) {
     for (const [k, v] of Object.entries(ch.skills)) {
       const key = skillKeyFor(S, pack, k)
       if (!key) continue
-      const d = Math.round(Number(v) || 0)
+      const d = Math.round(capAbs(Number(v) || 0, CHANGE_CAPS.skill_abs))
       if (d) {
         S.skills[key] = Math.max(0, (S.skills[key] || 0) + d)
         const sk = pack.skills.find(x => x.id === key)
@@ -119,7 +151,7 @@ export function applyChanges(S, ch, hooks = {}) {
   }
 
   if (Array.isArray(ch.friends)) {
-    for (const raw of ch.friends) {
+    for (const raw of ch.friends.slice(0, CHANGE_CAPS.friends)) {
       if (!raw || !raw.name) continue
       let f = S.friends.find(x => x.name === raw.name)
       const rankStr = String(raw.realm || raw.rank || tierLabel(S))
@@ -152,7 +184,7 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
       if (raw.favor != null) {
-        const d = Number(raw.favor) || 0
+        const d = Math.round(capAbs(Number(raw.favor) || 0, CHANGE_CAPS.favor_abs))
         f.favor = (f.favor || 0) + d
         if (d) minor.push(`${f.name} 好感 ${d > 0 ? '+' : ''}${d}`)
       }
@@ -174,7 +206,7 @@ export function applyChanges(S, ch, hooks = {}) {
   if (ch.move_to) moveByName(S, String(ch.move_to))
 
   if (ch.faction_rep != null) {
-    const v = Math.round(Number(ch.faction_rep) || 0)
+    const v = Math.round(capAbs(Number(ch.faction_rep) || 0, 500))
     S.factionRep = (S.factionRep || 0) + v
     if (v) minor.push(`声望 ${v > 0 ? '+' : ''}${v}`)
   }
