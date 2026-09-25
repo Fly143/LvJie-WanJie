@@ -8,7 +8,9 @@ const ART_SUM_DECAY = 0.6
 export function artPowerF(S, it) {
   const pack = packOf(S)
   const gradeMul = (pack.artPower && pack.artPower[it.grade]) || 0.1
-  return gradeMul * tierBase(S, it.realm_index || 0)
+  const raw = gradeMul * tierBase(S, it.realm_index || 0)
+  // 装备至少提供可见加成，避免四舍五入成 0
+  return Math.max(1, Math.round(raw * 10) / 10)
 }
 
 export function techniquePowerF(mm) {

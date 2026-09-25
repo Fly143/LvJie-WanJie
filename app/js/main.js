@@ -1,6 +1,6 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs } from './engine/state.js'
 import { esc, ageLabelShort, fmtNum } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -337,6 +337,7 @@ function startNewGame(name, packId) {
 }
 
 function showGame(S) {
+  try { applyGlobalPrefs(S) } catch (e) { /* ignore */ }
   app.S = S
   app.selectedPack = S.worldview || defaultPackId()
   setShell('game')
@@ -416,6 +417,10 @@ function boot() {
     }
   }).catch(() => { /* optional */ })
 }
+
+window.addEventListener('beforeunload', () => {
+  try { if (app.S) save() } catch (e) { /* ignore */ }
+})
 
 boot()
 window.__AW_APP__ = app

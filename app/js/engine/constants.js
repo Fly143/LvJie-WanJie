@@ -4,6 +4,7 @@ export const ACTIVE_WORLD_KEY = 'agentworlds_active_world_v2'
 export const SLOT_PREFIX = 'agentworlds_slot_v2_'
 export const KEYS_KEY = 'agentworlds_apikeys_v1'
 export const META_KEY = 'agentworlds_meta_v1'
+export const GLOBAL_PREFS_KEY = 'agentworlds_prefs_v1'
 
 export const SAVE_VERSION = 1
 export const MAX_EVENT_CHOICES = 10

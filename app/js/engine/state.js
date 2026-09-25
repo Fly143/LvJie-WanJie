@@ -1,6 +1,6 @@
 // 存档 / 账号级 meta / API Key
 // 存档按世界观分槽（SLOT_PREFIX + worldview），切换世界=换槽读档
-import { SAVE_KEY, ACTIVE_WORLD_KEY, SLOT_PREFIX, KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP, PACK_BGM, BGM_DEFAULT } from './constants.js'
+import { SAVE_KEY, ACTIVE_WORLD_KEY, SLOT_PREFIX, KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP, PACK_BGM, BGM_DEFAULT, GLOBAL_PREFS_KEY } from './constants.js'
 import { getPack } from '../worldviews/index.js'
 import { normalizeApiKey } from './llm.js'
 
@@ -451,4 +451,32 @@ export function wipeAll() {
 /** 只删指定世界观槽；API Key / meta 保留 */
 export function resetSaveKeepMeta(worldview) {
   deleteSave(worldview || getActiveWorld() || 'xiuxian')
+}
+
+export function loadGlobalPrefs() {
+  try {
+    const d = JSON.parse(localStorage.getItem(GLOBAL_PREFS_KEY))
+    return d && typeof d === 'object' ? d : null
+  } catch (e) { return null }
+}
+
+export function saveGlobalPrefsFrom(S) {
+  if (!S) return
+  const pref = {
+    bgmTrack: S.bgmTrack == null ? '' : S.bgmTrack,
+    aiStyle: S.aiStyle || 'normal',
+    playerGender: S.playerGender || '',
+    dialogLimit: S.dialogLimit !== false
+  }
+  try { localStorage.setItem(GLOBAL_PREFS_KEY, JSON.stringify(pref)) } catch (e) { /* ignore */ }
+}
+
+export function applyGlobalPrefs(S) {
+  const p = loadGlobalPrefs()
+  if (!S || !p) return S
+  if (Object.prototype.hasOwnProperty.call(p, 'bgmTrack')) S.bgmTrack = p.bgmTrack
+  if (p.aiStyle) S.aiStyle = p.aiStyle
+  if (p.playerGender != null) S.playerGender = p.playerGender
+  if (p.dialogLimit != null) S.dialogLimit = !!p.dialogLimit
+  return S
 }
