@@ -1,13 +1,13 @@
-// 都市世界观
+// 职场 / 商战世界观（原「都市」）
 import { createUrbanMap } from './map.js'
 import { buildUrbanRules } from './rules.js'
 
 export const urbanPack = {
   id: 'urban',
-  name: '都市',
-  icon: '🏙️',
-  tagline: '现代都市，从月薪三千到商业帝国',
-  gameTitle: 'Agent都市',
+  name: '职场',
+  icon: '💼',
+  tagline: '商战职场，从月薪三千到商业帝国',
+  gameTitle: 'Agent职场',
   theme: {
     accent: '#5ec8ff', accent2: '#2a8fd4', accentDim: '#1f6f9e',
     glow: 'rgba(94,200,255,.32)',
@@ -24,14 +24,14 @@ export const urbanPack = {
     decoSize: '36px 36px, 36px 36px',
     cardBg: 'linear-gradient(135deg, rgba(20,40,60,.8), rgba(12,24,40,.85))'
   },
-  defaultName: '都市新人',
-  startText: '你拖着行李箱走出地铁站，银行卡里只有三千块。',
+  defaultName: '职场新人',
+  startText: '你拖着行李箱走出地铁站，明天要去报到，银行卡里只有三千块。',
   features: { lifespan: false, levelPressure: false, marriage: true },
   ui: {
     advanceBtn: '📈 晋升',
     advanceVerb: '晋升',
     advanceTo: '晋升为',
-    advancePeak: '已至都市传奇',
+    advancePeak: '已至行业传奇',
     advanceSuccessTitle: '晋升成功',
     lifeWarn: '状态不佳',
     talkBtn: '社交',
@@ -58,8 +58,8 @@ export const urbanPack = {
     power: '影响力',
     technique: '方法论',
     startBtn: '开始奋斗',
-    welcomeTitle: 'Agent都市',
-    welcomeSub: 'AI驱动的开放世界都市之旅',
+    welcomeTitle: 'Agent职场',
+    welcomeSub: 'AI驱动的开放世界职场商战',
     nav: {
       scene: '当前位置', map: '城市地图', profile: '个人档案',
       friends: '人脉', bag: '资产包', settings: '设置'
@@ -95,7 +95,7 @@ export const urbanPack = {
     { name: '创业新贵', lifespan: 95 },
     { name: '行业大佬', lifespan: 100 },
     { name: '资本巨鳄', lifespan: 110 },
-    { name: '都市传奇', lifespan: 120 }
+    { name: '行业传奇', lifespan: 120 }
   ],
   createMap: createUrbanMap,
   buildRules: buildUrbanRules,
