@@ -210,7 +210,15 @@ function contEvent(app, api, content, isRetry) {
       runEventTurn(app.S, ev, content, {
         limitOn: app.S.dialogLimit,
         cheatUnlocked: app.cheatUnlocked,
-        onState: () => { if (app.EV === ev) api.refreshAll() },
+        onState: () => {
+          if (app.EV !== ev) return
+          const box = main.querySelector('.ev-text')
+          if (box && ev.resultText) {
+            box.textContent = ev.resultText
+            return
+          }
+          api.refreshAll()
+        },
         onDone: (e, brief) => {
           api.save()
           if (brief && brief.major && brief.major.length) api.toast(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))
@@ -228,7 +236,15 @@ function contEvent(app, api, content, isRetry) {
   runEventTurn(app.S, ev, content, {
     limitOn: app.S.dialogLimit,
     cheatUnlocked: app.cheatUnlocked,
-    onState: () => { if (app.EV === ev) api.refreshAll() },
+    onState: () => {
+      if (app.EV !== ev) return
+      const box = main.querySelector('.ev-text')
+      if (box && ev.resultText) {
+        box.textContent = ev.resultText
+        return
+      }
+      api.refreshAll()
+    },
     onDone: (e, brief) => {
       api.save()
       if (brief && brief.major && brief.major.length) api.toast(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))

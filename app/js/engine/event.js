@@ -62,6 +62,7 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
   const ctl = new AbortController()
   EV._ctl = ctl
+  let lastPaint = 0
   let res
   try {
     res = await callLLM({
@@ -74,7 +75,12 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
         if (EV._turn !== turn) return
         EV.partial = acc
         EV.resultText = stripJSONBlock(acc)
-        if (hooks.onState) hooks.onState(EV)
+        // 流式每 token 全量重绘会卡，节流刷新
+        const now = Date.now()
+        if (!hooks.onState) return
+        if (now - lastPaint < 120) return
+        lastPaint = now
+        hooks.onState(EV)
       }
     })
   } catch (e) {
