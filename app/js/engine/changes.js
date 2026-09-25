@@ -1,6 +1,6 @@
 // 应用 AI 返回的 changes JSON
 import { addItem, removeItem, normalizeType } from './inventory.js'
-import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByName } from './map.js'
+import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByName, gateReason } from './map.js'
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
@@ -20,7 +20,8 @@ export const CHANGE_CAPS = {
   modify_locations: 10,
   favor_abs: 80,
   skill_abs: 200,
-  power_abs: 1_000_000
+  power_abs: 1_000_000,
+  faction_rep_abs: 500
 }
 
 function capAbs(v, lim) {
@@ -42,6 +43,11 @@ export function applyChanges(S, ch, hooks = {}) {
   const major = []
   const minor = []
   if (!ch || typeof ch !== 'object') return { major, minor }
+  if (!Array.isArray(S.bigEvents)) S.bigEvents = []
+  if (!Array.isArray(S.smallEvents)) S.smallEvents = []
+  if (!Array.isArray(S.friends)) S.friends = []
+  if (!Array.isArray(S.inventory)) S.inventory = []
+  if (!S.money || typeof S.money !== 'object') S.money = { main: 0, mid: 0, high: 0 }
 
   const pack = packOf(S)
   const moneyName = (slot) => (pack.lexicon.money && pack.lexicon.money[slot]) || '货币'
@@ -161,7 +167,7 @@ export function applyChanges(S, ch, hooks = {}) {
           name: String(raw.name),
           realm: rankStr,
           gender: raw.gender === '女' ? '女' : raw.gender === '男' ? '男' : '',
-          power: Number(raw.power) || 0,
+          power: Math.abs(Math.round(Number(raw.power) || 0)) > CHANGE_CAPS.power_abs ? CHANGE_CAPS.power_abs : Math.abs(Math.round(Number(raw.power) || 0)),
           intro: String(raw.intro || ''),
           mem: String(raw.mem || ''),
           favor: 0,
@@ -176,7 +182,7 @@ export function applyChanges(S, ch, hooks = {}) {
         major.push(`结识 ${f.name}`)
       } else {
         if (raw.realm || raw.rank) f.realm = String(raw.realm || raw.rank)
-        if (raw.power != null) f.power = Number(raw.power) || f.power
+        if (raw.power != null) f.power = Math.abs(Math.round(capAbs(Number(raw.power) || f.power, CHANGE_CAPS.power_abs)))
         if (raw.intro) f.intro = String(raw.intro)
         if (raw.mem) f.mem = String(raw.mem)
         if (raw.married !== undefined) f.married = raw.married
@@ -200,7 +206,7 @@ export function applyChanges(S, ch, hooks = {}) {
   }
 
   if (Array.isArray(ch.remove_friends)) {
-    for (const n of ch.remove_friends) {
+    for (const n of ch.remove_friends.slice(0, 8)) {
       S.friends = S.friends.filter(f => f.name !== n)
     }
   }
@@ -208,10 +214,16 @@ export function applyChanges(S, ch, hooks = {}) {
   applyNewLocations(S, ch.new_locations)
   applyModifyLocations(S, ch.modify_locations)
   applyRemoveLocations(S, ch.remove_locations, pack)
-  if (ch.move_to) moveByName(S, String(ch.move_to))
+  if (ch.move_to) {
+    const t = S.map.find(l => l.name === String(ch.move_to))
+    const c = S.map.find(l => l.id === S.currentLoc) || S.map[0]
+    const gate = t ? gateReason(S, c || {}, t) : '没有这个地方'
+    if (!gate) moveByName(S, String(ch.move_to))
+    else if (String(gate) !== '没有这个地方') minor.push(String(gate))
+  }
 
   if (ch.faction_rep != null) {
-    const v = Math.round(capAbs(Number(ch.faction_rep) || 0, 500))
+    const v = Math.round(capAbs(Number(ch.faction_rep) || 0, CHANGE_CAPS.faction_rep_abs))
     S.factionRep = (S.factionRep || 0) + v
     if (v) minor.push(`声望 ${v > 0 ? '+' : ''}${v}`)
   }

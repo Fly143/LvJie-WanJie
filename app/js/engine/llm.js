@@ -5,6 +5,7 @@
 
 const DEFAULT_TIMEOUT_MS = 120000
 const MAX_TOKENS = 2000
+export const MAX_TOKENS_DRAFT = 8000
 
 /** 归一化玩家 Key 对象 */
 export function normalizeApiKey(k) {
@@ -114,7 +115,7 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
  * 调用一次 LLM。
  * @returns {Promise<{ok:boolean, text?:string, error?:string, aborted?:boolean}>}
  */
-export async function callLLM({ keyObj, system, user, history = [], signal, onDelta }) {
+export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -130,6 +131,7 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
+  const tokenCap = Math.max(256, Math.min(16000, Number(maxTokens) || MAX_TOKENS))
   const isChat = k.apiStyle !== 'response'
   let body
   if (!isChat) {
@@ -137,14 +139,14 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
       model: k.model,
       input: messagesToResponseInput(messages),
       temperature: 0.9,
-      max_output_tokens: MAX_TOKENS
+      max_output_tokens: tokenCap
     }
   } else {
     body = {
       model: k.model,
       messages,
       temperature: 0.9,
-      max_tokens: MAX_TOKENS
+      max_tokens: tokenCap
     }
   }
 
@@ -152,7 +154,13 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   const canStream = isChat && typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream
   if (canStream) {
     body.stream = true
-    const streamed = await callLLMStream({ k, url, body, signal, onDelta })
+    let streamed = null
+    try {
+      streamed = await callLLMStream({ k, url, body, signal, onDelta })
+    } catch (e) {
+      streamed = null
+    }
+    // 启动失败或零增量失败 → 回退非流式
     if (streamed) return streamed
     delete body.stream
   }
@@ -182,19 +190,34 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
     let data
     try { data = JSON.parse(raw) } catch (e) { return { ok: false, error: '响应不是合法 JSON' } }
 
-    let text = ''
-    if (!isChat) text = extractResponseText(data)
-    else {
-      text = data && data.choices && data.choices[0] && data.choices[0].message
-        ? (data.choices[0].message.content || '')
-        : extractResponseText(data)
-    }
+    let text = normalizeContentText(
+      !isChat
+        ? extractResponseText(data)
+        : (data && data.choices && data.choices[0] && data.choices[0].message
+            ? data.choices[0].message.content
+            : extractResponseText(data))
+    )
     if (!text) return { ok: false, error: '模型返回空内容' }
     return { ok: true, text }
   } catch (e) {
     if (e && e.name === 'AbortError') return { ok: false, error: '已取消', aborted: true }
     return { ok: false, error: (e && e.message) || '网络错误' }
   }
+}
+
+/** content 可能是 string 或 [{type,text}] */
+function normalizeContentText(v) {
+  if (v == null) return ''
+  if (typeof v === 'string') return v
+  if (Array.isArray(v)) {
+    return v.map(p => {
+      if (typeof p === 'string') return p
+      if (p && typeof p.text === 'string') return p.text
+      if (p && typeof p.content === 'string') return p.content
+      return ''
+    }).join('')
+  }
+  return String(v)
 }
 
 /** OpenAI chat SSE；失败返回 null 以便回退非流式 */
@@ -261,28 +284,35 @@ async function callLLMStream({ k, url, body, signal, onDelta }) {
   try { offEnd() } catch (e) { /* ignore */ }
   if (signal) signal.removeEventListener('abort', onAbort)
 
+  // 零增量失败 → 让上层回退非流式
+  const gotText = text.trim().length > 0
+  if (!gotText) return null
   if (aborted) return { ok: false, error: '已取消', aborted: true }
   if (err) return { ok: false, error: err }
   if (status < 200 || status >= 300) return { ok: false, error: 'HTTP ' + status }
-  if (!text.trim()) return { ok: false, error: '模型返回空内容' }
   return { ok: true, text }
 }
 
 function waitStreamEnd(host, id, maxMs = 185000) {
   return new Promise((resolve) => {
     const t0 = Date.now()
+    let settled = false
+    const done = () => {
+      if (settled) return
+      settled = true
+      clearInterval(timer)
+      try { off() } catch (e) { /* ignore */ }
+      resolve()
+    }
     const timer = setInterval(() => {
       if (Date.now() - t0 > maxMs) {
-        clearInterval(timer)
         try { host.abort(id) } catch (e) { /* ignore */ }
-        resolve()
+        done()
       }
     }, 250)
     const off = host.onEnd((d) => {
       if (!d || d.id !== id) return
-      clearInterval(timer)
-      try { off() } catch (e) { /* ignore */ }
-      resolve()
+      done()
     })
   })
 }
@@ -344,13 +374,15 @@ export async function listModels({ baseUrl, key }) {
 
 /** 从模型输出中抽出 JSON（优先 ```json 块；降级用括号配对扫描） */
 export function extractGameJSON(text) {
-  if (!text) return null
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (text == null) return null
+  const s = typeof text === 'string' ? text : String(text)
+  if (!s) return null
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence) {
     const j = safeParse(fence[1].trim())
     if (j) return j
   }
-  const scanned = scanFirstJSON(text)
+  const scanned = scanFirstJSON(s)
   if (scanned) {
     const j = safeParse(scanned)
     if (j) return j

@@ -10,6 +10,7 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   console.error('[AgentWorlds] 已有实例在运行，本进程退出（单实例锁）')
   app.quit()
+  // 不再注册窗口逻辑
 } else {
   app.on('second-instance', () => {
     const w = BrowserWindow.getAllWindows()[0]
@@ -241,5 +242,7 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+if (gotLock) {
+  app.whenReady().then(createWindow)
+}
 app.on('window-all-closed', () => app.quit())

@@ -126,7 +126,13 @@ export function syncReverseRelations(S, name, relations, grudges) {
   const targetName = String(name)
   const upsert = (list, item, max) => {
     const arr = Array.isArray(list) ? list.slice() : []
-    const i = arr.findIndex(x => x && x.to === item.to && (x.kind || '') === (item.kind || '') && (x.rel || '') === (item.rel || ''))
+    const kindKey = item.kind || ''
+    const relKey = item.rel || ''
+    const i = arr.findIndex(x => {
+      if (!x || x.to !== item.to) return false
+      if (kindKey) return (x.kind || '') === kindKey
+      return (x.rel || '') === relKey
+    })
     if (i >= 0) arr[i] = Object.assign({}, arr[i], item)
     else arr.push(item)
     return arr.slice(0, max)

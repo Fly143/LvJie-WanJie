@@ -2,9 +2,9 @@
 import { openModal, closeModal, toast } from './modals.js'
 import { esc } from '../engine/util.js'
 import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/worldpack.js'
-import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts } from '../engine/custom-packs.js'
+import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts, hasCustomPack } from '../engine/custom-packs.js'
 import { reloadPacks, getPack, isBuiltinPack } from '../worldviews/index.js'
-import { callLLM, extractGameJSON } from '../engine/llm.js'
+import { callLLM, extractGameJSON, MAX_TOKENS_DRAFT } from '../engine/llm.js'
 import { sampleBookChunks, extractBookFacts, bibleToUserBrief, mergeWebOnly, buildCharacterSeeds, npcSeedsToBrief } from '../engine/book-ingest.js'
 import { gatherWebLore, webNotesToBlock, fetchCharacterLore } from '../engine/book-web.js'
 
@@ -205,11 +205,9 @@ export function openWorldAuthor(app, { onSaved } = {}) {
           return
         }
         user = bibleToUserBrief(title, f.author, ex.bible)
-        if (webNotes.length) {
-          user += `\n\n联网补充（已用于合并，生成时仍以设定圣经为准）：\n${webNotesToBlock(webNotes).slice(0, 4000)}`
-        }
         if (f.levels) user += `\n用户补充等级提示：${f.levels}`
         if (f.setting) user += `\n用户补充设定：${f.setting}`
+        // webNotes 已并入设定圣经，此处不再重复拼贴，省 token
 
         // 人物 → NPC 种子
         try {
@@ -252,7 +250,8 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         keyObj,
         system: PACK_DRAFT_PROMPT,
         user,
-        signal: genCtl.signal
+        signal: genCtl.signal,
+        maxTokens: MAX_TOKENS_DRAFT
       })
       if (!res.ok) {
         status.textContent = '生成失败：' + (res.error || '')
@@ -264,9 +263,8 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         jsonEl.value = res.text.slice(0, 12000)
         return
       }
-      if (!json.id || getPack(json.id)) {
-        json.id = 'book-' + hashId(title)
-        if (getPack(json.id)) json.id = json.id + '-' + String(Date.now()).slice(-4)
+      if (!json.id || getPack(json.id) || hasCustomPack(json.id)) {
+        json.id = 'book-' + hashId(title) + '-' + String(Date.now()).slice(-5)
       }
       if (BUILTIN_HIT(json.id)) json.id = json.id + '-x'
       jsonEl.value = JSON.stringify(json, null, 2)
@@ -301,14 +299,18 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   document.getElementById('cw-save').onclick = () => {
     const r = parseDraft(jsonEl.value)
     if (!r) { msg.style.color = 'var(--red)'; msg.textContent = 'JSON 解析失败'; return }
-    const saved = saveCustomPackDraft(r)
+    let saved = saveCustomPackDraft(r, { overwrite: false })
+    if (saved.needConfirm) {
+      if (!confirm('已存在同 id 世界包，覆盖保存？')) return
+      saved = saveCustomPackDraft(r, { overwrite: true })
+    }
     if (!saved.ok) {
       msg.style.color = 'var(--red)'
       msg.textContent = (saved.errors || []).join('；') || '保存失败'
       return
     }
     reloadPacks()
-    toast('世界包已保存：' + saved.pack.name)
+    toast('世界包已保存：' + esc(saved.pack.name))
     closeModal()
     if (onSaved) onSaved(saved.pack)
   }

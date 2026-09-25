@@ -5,23 +5,34 @@ const UA_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (compatible; AgentWorlds/0.1; +local)'
 }
 
-async function httpGet(url, timeoutMs = 25000) {
+async function httpGet(url, timeoutMs = 25000, signal) {
   const host = globalThis.awHost && globalThis.awHost.http
   if (host && host.request) {
-    const r = await host.request({ url, method: 'GET', headers: UA_HEADERS, timeoutMs })
-    if (!r || !r.ok) return { ok: false, error: (r && r.error) || '网络错误' }
-    return { ok: true, text: r.text || '', status: r.status }
+    try {
+      const r = await host.request({ url, method: 'GET', headers: UA_HEADERS, timeoutMs })
+      if (signal && signal.aborted) return { ok: false, error: '已取消', aborted: true }
+      if (!r || !r.ok) return { ok: false, error: (r && r.error) || '网络错误' }
+      return { ok: true, text: r.text || '', status: r.status }
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || '网络错误' }
+    }
   }
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), timeoutMs)
+  const onAbort = () => ctl.abort()
+  if (signal) {
+    if (signal.aborted) { clearTimeout(t); return { ok: false, error: '已取消', aborted: true } }
+    signal.addEventListener('abort', onAbort, { once: true })
+  }
   try {
     const res = await fetch(url, { method: 'GET', headers: UA_HEADERS, signal: ctl.signal })
     const text = await res.text()
     return { ok: true, text, status: res.status }
   } catch (e) {
-    return { ok: false, error: (e && e.message) || '网络错误' }
+    return { ok: false, error: (e && e.message) || '网络错误', aborted: !!(signal && signal.aborted) }
   } finally {
     clearTimeout(t)
+    if (signal) signal.removeEventListener('abort', onAbort)
   }
 }
 

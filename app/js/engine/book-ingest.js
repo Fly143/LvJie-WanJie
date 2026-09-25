@@ -1,5 +1,5 @@
 // 整本书 → 分片抽样 → 多次 LLM 提取 → 合并设定
-import { callLLM } from './llm.js'
+import { callLLM, extractGameJSON } from './llm.js'
 
 export const CHUNK_CHARS = 3600
 export const MAX_SAMPLES = 10
@@ -43,55 +43,61 @@ export const MERGE_PROMPT = `你是开放世界游戏世界观架构师。根据
 
 要求：以原文考据为准，联网材料可补全等级/货币/地名等硬设定；等级命名前后统一；style_rules 只写正向描述。`
 
-/** 粗切章节并抽样：头 / 中 / 尾覆盖成长线 */
+/** 粗切章节并抽样：头 / 中 / 尾覆盖成长线（全书三段，避免只取书头） */
 export function sampleBookChunks(text) {
   const raw = String(text || '')
-  const body = raw.length > MAX_BOOK_CHARS ? raw.slice(0, MAX_BOOK_CHARS) : raw
-  const chapters = splitChapters(body)
-  const picks = []
-  if (chapters.length >= 3) {
-    const idx = [
-      0,
-      1,
-      Math.floor(chapters.length * 0.25),
-      Math.floor(chapters.length * 0.5),
-      Math.floor(chapters.length * 0.75),
-      Math.max(0, chapters.length - 3),
-      Math.max(0, chapters.length - 2),
-      chapters.length - 1
-    ]
-    const seen = new Set()
-    for (const i of idx) {
-      const j = Math.max(0, Math.min(chapters.length - 1, i))
-      if (seen.has(j)) continue
-      seen.add(j)
-      picks.push(chapters[j])
-      if (picks.length >= MAX_SAMPLES) break
-    }
+  const total = raw.length
+  const segLen = Math.max(20000, Math.floor(total / 3))
+  const segments = []
+  if (total <= Math.max(MAX_BOOK_CHARS, segLen * 2 + 1000) && total <= 250000) {
+    // 中短文本整本进段
+    segments.push(raw)
+  } else if (total <= MAX_BOOK_CHARS) {
+    segments.push(raw)
   } else {
-    const n = Math.max(1, Math.floor(body.length / CHUNK_CHARS))
-    const step = Math.max(1, Math.floor(n / MAX_SAMPLES))
-    for (let i = 0; i < n && picks.length < MAX_SAMPLES; i += step) {
-      picks.push(body.slice(i * CHUNK_CHARS, i * CHUNK_CHARS + CHUNK_CHARS))
-    }
-    if (!picks.length) picks.push(body.slice(0, CHUNK_CHARS))
+    segments.push(raw.slice(0, segLen))
+    segments.push(raw.slice(Math.max(0, Math.floor(total / 2) - Math.floor(segLen / 2)), Math.floor(total / 2) + Math.floor(segLen / 2)))
+    segments.push(raw.slice(Math.max(0, total - segLen)))
   }
+
+  const samples = []
+  for (const seg of segments) {
+    const chapters = splitChapters(seg)
+    if (chapters.length >= 4) {
+      const idxSet = new Set()
+      const n = chapters.length
+      const step = Math.max(1, Math.floor(n / MAX_SAMPLES))
+      for (let i = 0; i < n && idxSet.size < MAX_SAMPLES; i += step) idxSet.add(i)
+      idxSet.add(0)
+      idxSet.add(n - 1)
+      idxSet.add(Math.floor(n / 2))
+      for (const j of [...idxSet].sort((a, b) => a - b)) {
+        if (samples.length >= MAX_SAMPLES) break
+        samples.push(chapters[j].slice(0, CHUNK_CHARS))
+      }
+    } else {
+      for (let i = 0; i < seg.length && samples.length < MAX_SAMPLES; i += CHUNK_CHARS) {
+        samples.push(seg.slice(i, i + CHUNK_CHARS))
+      }
+    }
+    if (samples.length >= MAX_SAMPLES) break
+  }
+  if (!samples.length) samples.push(raw.slice(0, CHUNK_CHARS))
   return {
-    chapters: chapters.length,
-    samples: picks.map(s => s.slice(0, CHUNK_CHARS)),
-    totalChars: body.length
+    chapters: segments.reduce((n, s) => n + splitChapters(s).length, 0),
+    samples: samples.slice(0, MAX_SAMPLES),
+    totalChars: total
   }
 }
 
 export function splitChapters(text) {
   const lines = String(text || '').split(/\r?\n/)
   const marks = []
-  const re = /^(第\s*[0-9一二三四五六七八九十百千零两]+\s*[章回节卷幕]|Chapter\s*\d+|CHAPTER\s*\d+)/
+  const re = /^(第\s*[0-9０-９一二三四五六七八九十百千零两]+\s*[章回节卷幕]|序章|楔子|尾声|Chapter\s*\d+|CHAPTER\s*\d+)/
   for (let i = 0; i < lines.length; i++) {
     if (re.test(lines[i].trim())) marks.push(i)
   }
   if (marks.length < 4) {
-    // 按块切
     const out = []
     for (let i = 0; i < text.length; i += CHUNK_CHARS * 2) {
       out.push(text.slice(i, i + CHUNK_CHARS * 2))
@@ -152,17 +158,7 @@ export const CHAR_CARD_PROMPT = `你是游戏角色档案撰写者。根据作�
 - 只输出 JSON`
 
 function safeJSON(text) {
-  try {
-    const fence = String(text || '').match(/```(?:json)?\s*([\s\S]*?)```/i)
-    const body = fence ? fence[1].trim() : String(text || '').trim()
-    return JSON.parse(body)
-  } catch (e) {
-    try {
-      return JSON.parse(String(text || '').replace(/,\s*([}\]])/g, '$1'))
-    } catch (e2) {
-      return null
-    }
-  }
+  return extractGameJSON(text)
 }
 
 /** 从多段考据 + 设定圣经里抽出人名候选 */
@@ -225,15 +221,19 @@ export async function buildCharacterSeeds({
 
   const charNotes = []
   if (useWeb && fetchCharacterLore) {
-    for (let i = 0; i < roster.length; i++) {
-      const c = roster[i]
-      report({ message: `查角色条目 ${i + 1}/${roster.length}：${c.name}…` })
+    const targets = roster.slice(0, 4) // 控制联网次数
+    const jobs = targets.map(async (c, i) => {
+      report({ message: `查角色条目 ${i + 1}/${targets.length}：${c.name}…` })
       try {
         const r = await fetchCharacterLore(c.name, title)
-        if (r.ok && r.notes) {
-          for (const n of r.notes) charNotes.push({ ...n, char: c.name })
-        }
-      } catch (e) { /* skip */ }
+        return r.ok && r.notes ? r.notes : []
+      } catch (e) {
+        return []
+      }
+    })
+    const groups = await Promise.all(jobs)
+    for (const g of groups) {
+      for (const n of g) charNotes.push({ ...n })
     }
   }
 

@@ -129,6 +129,11 @@ export function validatePackDraft(raw) {
   }
 
   const map = Array.isArray(d.map) ? d.map.map((l, i) => normalizeLoc(l, i, d)) : []
+  const seenIds = new Set()
+  for (const l of map) {
+    if (seenIds.has(l.id)) l.id = l.id + '_' + seenIds.size
+    seenIds.add(l.id)
+  }
   const startLoc = d.startLoc && map.some(l => l.id === d.startLoc)
     ? d.startLoc
     : (map[0] && map[0].id) || null
@@ -224,13 +229,17 @@ export function validatePackDraft(raw) {
   }
 
   if (d.init && typeof d.init === 'object') {
-    const init = d.init
+    const initRaw = d.init
     pack.createInitState = () => ({
-      ageDays: Number(init.ageDays) || 3600,
-      money: Object.assign({ main: 0, mid: 0, high: 0 }, init.money || {}),
-      tierIndex: Number(init.tierIndex) || 0,
-      sub: Number(init.sub) || 0,
-      progress: Number(init.progress) || 0
+      ageDays: initRaw.ageDays != null ? Number(initRaw.ageDays) : 3600,
+      money: {
+        main: Number((initRaw.money && initRaw.money.main) || 0),
+        mid: Number((initRaw.money && initRaw.money.mid) || 0),
+        high: Number((initRaw.money && initRaw.money.high) || 0)
+      },
+      tierIndex: Number(initRaw.tierIndex) || 0,
+      sub: Number(initRaw.sub) || 0,
+      progress: Number(initRaw.progress) || 0
     })
   }
 
@@ -262,7 +271,12 @@ function normalizeLoc(l, i, d) {
       grade: s.grade != null ? String(s.grade) : undefined,
       price: Math.max(0, Number(s.price) || 0),
       usable: s.usable || undefined,
-      use_effect: s.use_effect || undefined
+      use_effect: s.use_effect && typeof s.use_effect === 'object' && s.use_effect.type
+        ? {
+            type: String(s.use_effect.type).slice(0, 24),
+            value: Number(s.use_effect.value) || 0
+          }
+        : undefined
     })) : [],
     beasts: Array.isArray(l.beasts) ? l.beasts.map(b => ({
       name: String(b.name || '生物'),

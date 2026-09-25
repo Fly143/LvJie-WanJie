@@ -98,14 +98,15 @@ function normalizeWorld(pack, w, fallback) {
 }
 
 function normPerson(p) {
+  const power = Math.abs(Number(p.power) || 0)
   return {
     name: String(p.name || '无名氏'),
     realm: String(p.realm || ''),
-    power: Number(p.power) || 0,
+    power: Math.min(1e7, power),
     intro: String(p.intro || ''),
     gender: p.gender === '女' ? '女' : p.gender === '男' ? '男' : (p.gender || ''),
-    relations: Array.isArray(p.relations) ? p.relations.slice(0, 12) : [],
-    grudges: Array.isArray(p.grudges) ? p.grudges.slice(0, 8) : []
+    relations: Array.isArray(p.relations) ? p.relations.filter(r => r && typeof r === 'object' && r.to).slice(0, 12) : [],
+    grudges: Array.isArray(p.grudges) ? p.grudges.filter(g => g && typeof g === 'object').slice(0, 8) : []
   }
 }
 
@@ -148,19 +149,19 @@ function clampItemTier(S, pack, loc, it) {
 
 export function applyModifyLocations(S, arr) {
   if (!Array.isArray(arr)) return
-  for (const raw of arr) {
+  for (const raw of arr.slice(0, 10)) {
     if (!raw || !raw.name) continue
     const loc = S.map.find(l => l.name === raw.name)
     if (!loc) continue
     if (raw.change) {
       loc.notes = loc.notes || []
-      loc.notes.push(String(raw.change))
+      loc.notes.push(String(raw.change).slice(0, 200))
       if (loc.notes.length > 30) loc.notes = loc.notes.slice(-30)
-      loc.desc = (loc.desc ? loc.desc + ' ' : '') + String(raw.change)
+      loc.desc = (loc.desc ? loc.desc + ' ' : '') + String(raw.change).slice(0, 200)
       if (loc.desc.length > 2000) loc.desc = loc.desc.slice(-2000)
     }
     if (Array.isArray(raw.people)) {
-      for (const p of raw.people) {
+      for (const p of raw.people.slice(0, 10)) {
         if (!p || !p.name) continue
         const ex = loc.people.find(x => x.name === p.name)
         if (ex) Object.assign(ex, normPerson(p))
@@ -168,7 +169,7 @@ export function applyModifyLocations(S, arr) {
       }
     }
     if (Array.isArray(raw.shop)) {
-      for (const s of raw.shop) {
+      for (const s of raw.shop.slice(0, 10)) {
         if (!s || !s.name) continue
         const it = normShop(S, packOf(S), s)
         clampItemTier(S, packOf(S), loc, it)
@@ -183,7 +184,7 @@ export function applyModifyLocations(S, arr) {
 export function applyRemoveLocations(S, names, pack) {
   if (!Array.isArray(names) || !S.map) return
   const startLoc = pack && pack.startLoc
-  for (const n of names) {
+  for (const n of names.slice(0, 10)) {
     const loc = S.map.find(l => l.name === n)
     if (!loc) continue
     if (loc.id === S.currentLoc) continue

@@ -38,10 +38,14 @@ export function saveGame(S) {
     return false
   }
   try {
-    localStorage.setItem(KEYS_KEY, JSON.stringify({
-      keys: S.playerKeys || [],
-      selected: S.selectedKey
-    }))
+    // 宿主加密仓可用时，明文 Key 不镜像进 localStorage
+    const host = secretsHost()
+    if (!(host && host.save)) {
+      localStorage.setItem(KEYS_KEY, JSON.stringify({
+        keys: S.playerKeys || [],
+        selected: S.selectedKey
+      }))
+    }
     persistPlayerKeysAsync(S)
   } catch (e) { /* ignore */ }
   saveMeta({
@@ -260,9 +264,12 @@ function migrateSave(s) {
   if (s.tierIndex == null) s.tierIndex = Number(s.realmIndex) || 0
   if (s.sub == null) s.sub = 0
   if (s.progress == null) s.progress = Number(s.cultivation) || 0
+  if (!s.techniques) s.techniques = []
   if (!Array.isArray(s.techniques)) s.techniques = []
   if (!Array.isArray(s.friends)) s.friends = []
   if (!Array.isArray(s.inventory)) s.inventory = []
+  if (!Array.isArray(s.bigEvents)) s.bigEvents = []
+  if (!Array.isArray(s.smallEvents)) s.smallEvents = []
   if (!s.skills || typeof s.skills !== 'object') s.skills = {}
   if (s.factionRep == null) s.factionRep = 0
   if (s.giftChoice === undefined) s.giftChoice = null

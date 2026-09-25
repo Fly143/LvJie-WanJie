@@ -62,19 +62,24 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
   const ctl = new AbortController()
   EV._ctl = ctl
-  const res = await callLLM({
-    keyObj,
-    system,
-    user: userText,
-    history: trimHistory(EV.history.slice(0, -1)),
-    signal: ctl.signal,
-    onDelta: (delta, acc) => {
-      if (EV._turn !== turn) return
-      EV.partial = acc
-      EV.resultText = stripJSONBlock(acc)
-      if (hooks.onState) hooks.onState(EV)
-    }
-  })
+  let res
+  try {
+    res = await callLLM({
+      keyObj,
+      system,
+      user: userText,
+      history: trimHistory(EV.history.slice(0, -1)),
+      signal: ctl.signal,
+      onDelta: (delta, acc) => {
+        if (EV._turn !== turn) return
+        EV.partial = acc
+        EV.resultText = stripJSONBlock(acc)
+        if (hooks.onState) hooks.onState(EV)
+      }
+    })
+  } catch (e) {
+    res = { ok: false, error: (e && e.message) || '调用异常' }
+  }
 
   if (EV._turn !== turn) return // 过期响应丢弃
   if (EV._ctl === ctl) EV._ctl = null
@@ -82,15 +87,18 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
   if (!res.ok) {
     EV.error = res.error || '调用失败'
-    // 回滚最后一条 user，允许重试
+    EV.partial = ''
+    // 回滚最后一条 user，允许重试；并恢复上一轮叙事，避免半截残文
     if (EV.history.length && EV.history[EV.history.length - 1].role === 'user') {
       EV.history.pop()
     }
+    const lastAsst = [...EV.history].reverse().find(h => h && h.role === 'assistant')
+    EV.resultText = (lastAsst && lastAsst.content) || ''
     if (hooks.onState) hooks.onState(EV)
     return
   }
 
-  const text = res.text || ''
+  const text = normalizeText(res.text)
   const json = extractGameJSON(text)
   const narrative = stripJSONBlock(text)
 
@@ -107,12 +115,16 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       EV.options = json.options.slice(0, 4).map(o => String(o).slice(0, 40))
     } else {
       EV.options = null
-      EV.ended = !!json.end || !json.options
+      EV.ended = true
     }
     if (json.end) EV.ended = true
     if (json.changes) {
-      changesBrief = applyChanges(S, json.changes, hooks)
-      EV.changesBrief = changesBrief
+      try {
+        changesBrief = applyChanges(S, json.changes, hooks)
+        EV.changesBrief = changesBrief
+      } catch (e) {
+        EV.error = '数据写入失败'
+      }
       S.lastEventText = narrative
     }
   } else {
@@ -146,6 +158,15 @@ export function endEvent(EV) {
 function trimHistory(history) {
   const arr = Array.isArray(history) ? history : []
   return arr.slice(-MAX_HISTORY_MSGS)
+}
+
+function normalizeText(t) {
+  if (t == null) return ''
+  if (typeof t === 'string') return t
+  if (Array.isArray(t)) {
+    return t.map(p => (p && typeof p.text === 'string') ? p.text : (typeof p === 'string' ? p : '')).join('')
+  }
+  return String(t)
 }
 
 function stripJSONBlock(text) {

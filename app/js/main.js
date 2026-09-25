@@ -213,11 +213,11 @@ function renderWelcome() {
           const slot = slotMeta(p.id)
           return `
           <div class="pack-card ${p.id === sel ? 'on' : ''}" data-id="${p.id}" style="--pk:${p.theme.accent};background:${p.theme.cardBg || p.theme.panel}">
-            <div class="picon">${p.icon}</div>
+            <div class="picon">${esc(p.icon)}</div>
             <div class="pname">${esc(p.name)}</div>
             <div class="ptag">${esc(p.tagline)}</div>
             <div class="pchip">${esc(p.lexicon.level)} · ${esc(p.lexicon.progress)}</div>
-            <div class="pmeta">${(p.worlds || []).join(' / ')} · ${(p.tiers || []).length} 阶</div>
+            <div class="pmeta">${esc((p.worlds || []).join(' / '))} · ${(p.tiers || []).length} 阶</div>
             <div class="psave">${slot
               ? `💾 ${esc(slot.name)} · ${esc(slot.levelText || '')}`
               : '新开旅程'}</div>
@@ -272,7 +272,7 @@ function renderWelcome() {
       if (S) {
         setActiveWorld(id)
         showGame(S)
-        toast(`已载入《${getPack(id).name}》存档`)
+        toast(`已载入《${esc(getPack(id).name)}》存档`)
         return
       }
     }
@@ -337,7 +337,7 @@ function showGame(S) {
 
 function firstGuide(S) {
   if (S.guideDone) return
-  toast(`欢迎来到《${getPack(S.worldview).name}》世界。左侧选择功能，场景内点行动与 AI 互动。`, 6000)
+  toast(`欢迎来到《${esc(getPack(S.worldview).name)}》世界。左侧选择功能，场景内点行动与 AI 互动。`, 6000)
   S.guideDone = true
   save()
 }
