@@ -139,8 +139,14 @@ export class MidiPlayer {
       this.master.gain.value = Math.max(0.15, this.volume)
       this.master.connect(this.ctx.destination)
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume()
+    if (this.ctx.state !== 'running' && this.ctx.resume) {
+      this.ctx.resume().catch(() => {})
+    }
     return this.ctx
+  }
+
+  get running() {
+    return !!(this.ctx && this.ctx.state === 'running' && this.playing)
   }
 
   setVolume(v) {

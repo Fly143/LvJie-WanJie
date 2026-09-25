@@ -13,7 +13,7 @@ import { renderScene, renderMap, renderProfile, renderFriends, renderBag, render
 import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
-import { initBgm, playBgm, hydrateCustomBgm } from './ui/bgm.js'
+import { initBgm, playBgm, hydrateCustomBgm, showGamePlay } from './ui/bgm.js'
 import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 
@@ -342,9 +342,8 @@ function showGame(S) {
   applyTheme(getPack(S.worldview))
   try {
     const track = S.bgmTrack || BGM_DEFAULT_TRACK || 'midi-031'
-    // 旧曲目 id 无效时统一回 031
     S.bgmTrack = track === 'handpan' || track === 'universe' ? (BGM_DEFAULT_TRACK || 'midi-031') : track
-    playBgm(S.bgmTrack)
+    showGamePlay(S)
   } catch (e) { /* music optional */ }
   refreshAll()
 }
