@@ -14,6 +14,7 @@ import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm } from './ui/bgm.js'
+import { BGM_MAP_TRACK } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 
 export const app = {
@@ -48,6 +49,16 @@ export function setTab(t) {
   document.querySelectorAll('.navbtn').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === t)
   })
+  // 地图页切换逛图曲，离开后恢复存档 BGM
+  try {
+    if (app.S) {
+      if (t === 'map' && BGM_MAP_TRACK) {
+        playBgm(BGM_MAP_TRACK)
+      } else if (app.S.bgmTrack) {
+        playBgm(app.S.bgmTrack)
+      }
+    }
+  } catch (e) { /* music optional */ }
   renderMain()
 }
 

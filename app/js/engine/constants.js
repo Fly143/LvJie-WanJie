@@ -59,4 +59,7 @@ export const PACK_BGM = {
   apocalypse: 'xj-still',
   western: 'xj-rise'
 }
+
+/** 打开「地图」时的逛图曲 */
+export const BGM_MAP_TRACK = 'midi-031'
 export const BGM_DEFAULT = 'handpan'
