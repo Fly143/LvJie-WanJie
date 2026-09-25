@@ -10,6 +10,7 @@ import { addItem, normalizeType, typeName, itemChip, useDirectItem } from '../en
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
+import { questMarkers, questStatusLabel } from '../engine/quests.js'
 
 function relBlock(person) {
   const lines = relationLines(person)
@@ -243,6 +244,7 @@ export function renderMap(app, api) {
   const S = app.S
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
+  const markers = questMarkers(S)
   const worlds = pack.worlds || []
   const byWorld = {}
   for (const l of S.map) {
@@ -270,8 +272,8 @@ export function renderMap(app, api) {
                 return `
                   <div class="card loc-card ${cur ? 'cur' : ''}" style="margin-bottom:8px">
                     <div class="linfo">
-                      <div class="cname">${esc(l.name)} ${cur ? '· 当前' : ''}</div>
-                      <div class="cdim">${esc(l.type)} · 约 ${days} 天</div>
+                      <div class="cname">${esc(l.name)} ${cur ? '· 当前' : ''}${markers.get(l.name) ? ' <span class="ctype">📜任务</span>' : ''}</div>
+                      <div class="cdim">${esc(l.type)} · 约 ${days} 天${markers.get(l.name) ? ' · ' + esc(markers.get(l.name).join('、')) : ''}</div>
                       <div class="cdesc">${esc(l.desc || '')}</div>
                       ${gate ? `<div class="lock">🔒 ${esc(gate)}</div>` : ''}
                     </div>
@@ -403,8 +405,8 @@ export function renderQuests(app, api) {
   const failed = quests.filter(q => q.status === 'failed')
   const card = (q) => `
     <div class="card" style="margin-bottom:8px">
-      <div class="cname">${esc(q.title)} <span class="ctype">${q.status === 'done' ? '已完成' : q.status === 'failed' ? '失败' : '进行中'}</span></div>
-      ${q.from ? `<div class="crealm">委托人：${esc(q.from)}</div>` : ''}
+      <div class="cname">${esc(q.title)} <span class="ctype">${questStatusLabel(q.status)}</span></div>
+      ${q.from ? `<div class="crealm">委托人：${esc(q.from)}${q.loc ? ' · 📍' + esc(q.loc) : ''}</div>` : (q.loc ? `<div class="crealm">📍 ${esc(q.loc)}</div>` : '')}
       ${q.desc ? `<div class="cdesc">${esc(q.desc)}</div>` : ''}
       ${(q.objectives || []).length ? `<div class="cdim">目标：${q.objectives.map(o => esc(o)).join('；')}</div>` : ''}
       ${q.reward ? `<div class="cdim">奖励：${esc(q.reward)}</div>` : ''}
@@ -419,7 +421,7 @@ export function renderQuests(app, api) {
         : '<div class="empty">暂无进行中的委托，可在剧情里接取</div>'}
       ${done.length ? `<h4 style="margin-top:12px">已完成 ${done.length}</h4>` + done.map(card).join('') : ''}
       ${failed.length ? `<h4 style="margin-top:12px">失败 ${failed.length}</h4>` + failed.map(card).join('') : ''}
-      <div class="ai-note" style="margin-top:10px">任务由剧情中的委托自动登记；完成时奖励会一并写入数值。</div>
+      <div class="ai-note" style="margin-top:10px">带 📍 的委托会在地图标点；开放世界无强制时限，随时可推进。</div>
     </div>
   `
   void pack

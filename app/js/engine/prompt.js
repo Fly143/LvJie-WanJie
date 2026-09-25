@@ -85,6 +85,7 @@ export function buildSystemPrompt(S, opts = {}) {
       title: q.title,
       status: q.status === 'done' ? '已完成' : q.status === 'failed' ? '失败' : '进行中',
       from: q.from || '',
+      loc: q.loc || '',
       objectives: q.objectives || [],
       reward: q.reward || '',
       notes: q.notes || ''
@@ -230,7 +231,7 @@ ${limitOn
   "skills":{},
   "friends":[{"name":"…","favor":3,"rank":"${tierLabel(S)}","gender":"男","power":10,"intro":"…","mem":"…","relations":[{"to":"某人","rel":"师徒/仇敌/旧友/兄妹","note":"一句"}],"grudges":[{"to":"某人","kind":"恩|怨|仇|债","note":"一句"}]}],
   "new_locations":[{"name":"…","world":"${(pack.worlds && pack.worlds[0]) || '主世界'}","continent":"…","type":"…","desc":"…","people":[],"shop":[],"beasts":[],"interactables":[]}],
-  "quests":[{"title":"委托名","desc":"一句","from":"委托人","status":"active","objectives":["目标"],"reward":"奖励说明","notes":"进度备注"}],
+  "quests":[{"title":"委托名","desc":"一句","from":"委托人","loc":"相关地点名","status":"active","objectives":["目标"],"reward":"奖励说明","notes":"进度备注"}],
   "remove_locations":["…"],
   "modify_locations":[{"name":"…","change":"…"}],
   "move_to":"…"
@@ -241,6 +242,7 @@ ${limitOn
 - ${ui.advanceVerb}由玩家在界面完成，你只增减 progress/cultivation，不要直接改变玩家等级。
 - ${techName}若需学会，请用 add_items 且 type 为 technique，并带 realm_index、levels、level_costs、level_powers。
 - 玩家接取/推进/完成委托时用 quests 同步状态（active/done/failed），奖励要同时写进 changes 数值字段。
+- 委托可带 loc（任务地点名），便于地图标点；开放世界里没有强制时限，不要给委托硬设截止日。
 - 严禁输出\`\`\`json以外的代码块。JSON必须可直接解析。
 
 【世界地图一览】

@@ -1,5 +1,5 @@
-// 委托/任务：可追踪的接取 → 条件 → 完成
-// 状态：active（进行中）/ done（已完成）/ failed（失败）
+// 委托/任务：接取 → 推进 → 完成（开放世界，不设强制时限）
+// 状态：active（进行中）/ done（已完成）/ failed（主动失败/放弃）
 
 export const QUEST_STATUS = ['active', 'done', 'failed']
 const MAX_QUESTS = 20
@@ -15,7 +15,7 @@ function normObjectives(list) {
   return list.slice(0, 6).map(o => String(o).slice(0, 40)).filter(Boolean)
 }
 
-function normQuest(raw) {
+function normQuest(raw, S) {
   if (!raw || typeof raw !== 'object') return null
   const title = String(raw.title || raw.name || '').trim().slice(0, 40)
   if (!title) return null
@@ -24,11 +24,13 @@ function normQuest(raw) {
   if (status === '失败' || status === 'abandoned') status = 'failed'
   if (status === '接受' || status === 'accepted' || status === '进行中' || status === 'in_progress') status = 'active'
   if (!QUEST_STATUS.includes(status)) status = 'active'
+
   return {
     id: String(raw.id || ('q_' + Math.abs(hash(title)))).slice(0, 32),
     title,
     desc: String(raw.desc || '').slice(0, 120),
     from: String(raw.from || '').slice(0, 24),
+    loc: String(raw.loc || raw.location || raw.place || '').slice(0, 32),
     status,
     objectives: normObjectives(raw.objectives || raw.goals),
     reward: String(raw.reward || '').slice(0, 60),
@@ -46,7 +48,7 @@ function hash(s) {
 
 /**
  * 应用 changes.quests
- * [{ title, desc?, from?, status?, objectives?, reward?, notes?, id? }]
+ * [{ title, desc?, from?, loc?, status?, objectives?, reward?, notes?, id? }]
  */
 export function applyQuestChanges(S, list) {
   const added = []
@@ -54,14 +56,13 @@ export function applyQuestChanges(S, list) {
   if (!Array.isArray(list) || !list.length) return { added, updated }
   const quests = ensureQuestList(S)
   for (const raw of list.slice(0, 8)) {
-    const q = normQuest(raw)
+    const q = normQuest(raw, S)
     if (!q) continue
     const idx = quests.findIndex(x =>
       (q.id && x.id === q.id) || (x.title === q.title && (!raw.id || x.id === q.id))
     )
     if (idx < 0) {
       if (quests.length >= MAX_QUESTS) {
-        // 挤掉最早已完成的
         const drop = quests.findIndex(x => x.status !== 'active')
         if (drop >= 0) quests.splice(drop, 1)
         else continue
@@ -75,6 +76,7 @@ export function applyQuestChanges(S, list) {
         title: q.title || old.title,
         desc: q.desc || old.desc,
         from: q.from || old.from,
+        loc: q.loc || old.loc || '',
         status: raw.status ? q.status : old.status,
         objectives: q.objectives.length ? q.objectives : old.objectives,
         reward: q.reward || old.reward,
@@ -89,6 +91,26 @@ export function applyQuestChanges(S, list) {
     }
   }
   return { added, updated }
+}
+
+/** 地图任务点：active 委托对准 loc / 委托人所在地 */
+export function questMarkers(S) {
+  const quests = ensureQuestList(S).filter(q => q.status === 'active')
+  const byLoc = new Map()
+  for (const q of quests) {
+    const names = []
+    if (q.loc) names.push(q.loc)
+    if (q.from) {
+      for (const l of S.map || []) {
+        if ((l.people || []).some(p => p && p.name === q.from)) names.push(l.name)
+      }
+    }
+    for (const n of names) {
+      if (!byLoc.has(n)) byLoc.set(n, [])
+      byLoc.get(n).push(q.title)
+    }
+  }
+  return byLoc
 }
 
 export function questStatusLabel(status) {
