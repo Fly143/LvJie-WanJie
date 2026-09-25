@@ -33,10 +33,11 @@ export const PLAYER_GENDERS = [
   { v: 'female', name: '女' }
 ]
 
-// 背景音乐（相对 app 目录）
+// 背景音乐（相对 app 目录）；mp3 用 <audio>，mid 用 Web Audio 合成
 export const BGM_TRACKS = [
   { id: '', name: '无音乐', file: '' },
   { id: 'handpan', name: '手碟', file: 'assets/handpan音乐.mp3' },
-  { id: 'universe', name: '宇宙', file: 'assets/Alpha宇宙音乐.mp3' }
+  { id: 'universe', name: '宇宙', file: 'assets/Alpha宇宙音乐.mp3' },
+  { id: 'midi-demo', name: 'MIDI示例', file: 'assets/示例旋律.mid' }
 ]
 export const BGM_DEFAULT = 'handpan'

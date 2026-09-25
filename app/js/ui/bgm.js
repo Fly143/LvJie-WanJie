@@ -1,25 +1,54 @@
-// 背景音乐
+// 背景音乐：mp3 用 <audio>，mid/midi 用 Web Audio 合成
 import { BGM_TRACKS, BGM_DEFAULT } from '../engine/constants.js'
+import { MidiPlayer, isMidiFile } from '../engine/midi.js'
 
-let audio = null
-let curId = null
+let audioEl = null
+const midiPlayer = new MidiPlayer()
+let currentId = ''
 
 export function initBgm() {
-  // 懒加载
+  if (!audioEl) {
+    audioEl = new Audio()
+    audioEl.loop = true
+    audioEl.preload = 'auto'
+    audioEl.volume = 0.35
+  }
+}
+
+function trackOf(id) {
+  return BGM_TRACKS.find(t => t.id === id) || BGM_TRACKS.find(t => t.id === BGM_DEFAULT) || BGM_TRACKS[0]
 }
 
 export function playBgm(id) {
-  if (curId === id) return
-  curId = id
-  if (audio) {
-    audio.pause()
-    audio = null
+  initBgm()
+  const t = trackOf(id)
+  currentId = t.id
+  if (!t.file) {
+    stopBgm()
+    return
   }
-  if (!id) return
-  const track = BGM_TRACKS.find(t => t.id === id) || BGM_TRACKS.find(t => t.id === BGM_DEFAULT)
-  if (!track || !track.file) return
-  audio = new Audio(track.file)
-  audio.loop = true
-  audio.volume = 0.35
-  audio.play().catch(() => { /* autoplay may fail until gesture */ })
+  if (isMidiFile(t.file)) {
+    if (audioEl) {
+      audioEl.pause()
+      audioEl.removeAttribute('src')
+    }
+    midiPlayer.loop = true
+    midiPlayer.playUrl(t.file).catch(() => { /* optional */ })
+    return
+  }
+  midiPlayer.stop()
+  if (audioEl.src.endsWith(t.file) && !audioEl.paused) return
+  audioEl.src = t.file
+  audioEl.play().catch(() => { /* 自动播放限制 */ })
+}
+
+export function stopBgm() {
+  if (audioEl) {
+    audioEl.pause()
+  }
+  midiPlayer.stop()
+}
+
+export function currentBgmId() {
+  return currentId
 }
