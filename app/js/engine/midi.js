@@ -156,11 +156,22 @@ export class MidiPlayer {
 
   async playArrayBuffer(buf) {
     this.stop()
-    const midi = parseMidi(buf)
+    let midi
+    try {
+      midi = parseMidi(buf)
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || 'MIDI 解析失败' }
+    }
     if (!midi.notes.length) return { ok: false, error: 'MIDI 无音符' }
     this._ensureCtx()
+    let duration = 0
+    try {
+      duration = this._schedule(midi, 0)
+    } catch (e) {
+      this.playing = false
+      return { ok: false, error: (e && e.message) || '排程失败' }
+    }
     this.playing = true
-    const duration = this._schedule(midi, 0)
     this.timer = setTimeout(() => {
       if (this.loop && this.playing) {
         this.stop()
@@ -190,30 +201,59 @@ export class MidiPlayer {
 
   _schedule(midi, when) {
     const ctx = this.ctx
-    const t0 = (when || ctx.currentTime) + 0.05
-    const maxNotes = 4000
-    const notes = midi.notes.slice(0, maxNotes)
+    const t0 = (when || ctx.currentTime) + 0.08
+    // 按开始时间排序；过密曲目限流，避免一次建上千 oscillator 导致静音/异常
+    const MAX_NOTES = 1800
+    const MAX_VOICES = 48
+    const notes = midi.notes
+      .filter(n => n && n.endTick > n.startTick && n.vel > 0)
+      .sort((a, b) => a.startTick - b.startTick || a.note - b.note)
+      .slice(0, MAX_NOTES)
+
     let end = 0
+    let voices = 0
+    let lastKick = 0
     for (const n of notes) {
       const s = t0 + tickToSec(n.startTick, midi.ticksPerBeat, midi.tempoUs)
       const e = t0 + tickToSec(Math.max(n.endTick, n.startTick + 1), midi.ticksPerBeat, midi.tempoUs)
-      const dur = Math.max(0.03, e - s)
-      end = Math.max(end, e)
-      const osc = ctx.createOscillator()
-      const g = ctx.createGain()
-      osc.type = waveForProgram(0)
-      osc.frequency.value = freqOf(n.note)
-      const amp = Math.min(0.32, 0.08 + (n.vel / 127) * 0.24)
-      g.gain.setValueAtTime(0.0001, s)
-      g.gain.exponentialRampToValueAtTime(amp, s + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.0001, Math.max(s + 0.05, s + dur - 0.02))
-      osc.connect(g)
-      g.connect(this.master)
-      osc.start(Math.max(this.ctx.currentTime, s))
-      osc.stop(Math.max(this.ctx.currentTime, s + dur + 0.02))
-      this.nodes.push(osc, g)
+      const dur = Math.max(0.04, Math.min(2.2, e - s))
+      end = Math.max(end, s + dur)
+
+      // 粗略并发控制：同刻只放有限声部
+      if (s < lastKick) {
+        voices++
+        if (voices > MAX_VOICES) continue
+      } else {
+        voices = 1
+        lastKick = s
+      }
+
+      try {
+        const osc = ctx.createOscillator()
+        const g = ctx.createGain()
+        osc.type = waveForProgram(0)
+        const freq = freqOf(n.note)
+        if (!isFinite(freq) || freq <= 0) {
+          osc.disconnect()
+          g.disconnect()
+          continue
+        }
+        osc.frequency.value = freq
+        const amp = Math.min(0.3, 0.07 + (n.vel / 127) * 0.2)
+        const startAt = Math.max(ctx.currentTime + 0.01, s)
+        g.gain.setValueAtTime(0.0001, startAt)
+        g.gain.linearRampToValueAtTime(amp, startAt + 0.03)
+        g.gain.linearRampToValueAtTime(0.0001, startAt + dur)
+        osc.connect(g)
+        g.connect(this.master)
+        osc.start(startAt)
+        osc.stop(startAt + dur + 0.03)
+        this.nodes.push(osc, g)
+      } catch (e) {
+        // 单音失败不影响整曲
+      }
     }
-    return end - t0
+    return Math.max(0.5, end - t0)
   }
 
   stop() {

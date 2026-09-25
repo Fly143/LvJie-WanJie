@@ -47,7 +47,6 @@ export const BGM_TRACKS = [
   { id: 'xj-rise', name: '昂扬 049', file: 'assets/xj-扬-049.mid' },
   { id: 'xj-still', name: '空静 063', file: 'assets/xj-静-063.mid' },
   { id: 'xj-soul', name: '魂牵 068', file: 'assets/xj-魂-068.mid' },
-  { id: 'midi-demo', name: 'MIDI示例', file: 'assets/示例旋律.mid' },
   { id: 'midi-031', name: '031.MID', file: 'assets/031.mid' }
 ]
 
