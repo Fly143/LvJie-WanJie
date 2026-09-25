@@ -36,6 +36,7 @@ export const PLAYER_GENDERS = [
 // 背景音乐（相对 app 目录）；mp3 用 <audio>，mid 用 Web Audio 合成
 export const BGM_TRACKS = [
   { id: '', name: '无音乐', file: '' },
+  { id: 'm027', name: 'M027', file: 'assets/M027.mp3' },
   { id: 'xj-slow', name: '静谧 030', file: 'assets/xj-缓-030.mid' },
   { id: 'xj-soft', name: '舒缓 033', file: 'assets/xj-舒-033.mid' },
   { id: 'xj-walk', name: '行旅 010', file: 'assets/xj-行-010.mid' },
@@ -50,20 +51,20 @@ export const BGM_TRACKS = [
   { id: 'midi-031', name: '031.MID', file: 'assets/031.mid' }
 ]
 
-/** 各世界观默认曲（可被存档 bgmTrack 覆盖）；现统一默认 031 */
+/** 各世界观默认曲（可被存档 bgmTrack 覆盖）；现统一默认 M027 */
 export const PACK_BGM = {
-  xiuxian: 'midi-031',
-  xuanhuan: 'midi-031',
-  wuxia: 'midi-031',
-  urban: 'midi-031',
-  apocalypse: 'midi-031',
-  western: 'midi-031'
+  xiuxian: 'm027',
+  xuanhuan: 'm027',
+  wuxia: 'm027',
+  urban: 'm027',
+  apocalypse: 'm027',
+  western: 'm027'
 }
 
-/** 打开「地图」及主玩法页时的默认曲 */
-export const BGM_MAP_TRACK = 'midi-031'
-export const BGM_DEFAULT_TRACK = 'midi-031'
+/** 主玩法页默认曲 */
+export const BGM_MAP_TRACK = 'm027'
+export const BGM_DEFAULT_TRACK = 'm027'
+export const BGM_DEFAULT = 'm027'
 
-/** 使用 031 作为默认曲的界面 */
+/** 使用默认曲的界面 */
 export const BGM_DEFAULT_TABS = ['scene', 'map', 'profile', 'friends', 'quests', 'bag', 'settings']
-export const BGM_DEFAULT = 'midi-031'

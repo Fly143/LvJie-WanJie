@@ -341,8 +341,8 @@ function showGame(S) {
   setShell('game')
   applyTheme(getPack(S.worldview))
   try {
-    const track = S.bgmTrack || BGM_DEFAULT_TRACK || 'midi-031'
-    S.bgmTrack = track === 'handpan' || track === 'universe' ? (BGM_DEFAULT_TRACK || 'midi-031') : track
+    const track = S.bgmTrack || BGM_DEFAULT_TRACK || 'm027'
+    S.bgmTrack = track === 'handpan' || track === 'universe' ? (BGM_DEFAULT_TRACK || 'm027') : track
     showGamePlay(S)
   } catch (e) { /* music optional */ }
   refreshAll()

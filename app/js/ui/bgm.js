@@ -27,7 +27,7 @@ export function initBgm() {
           if (midi && !midiPlayer.playing) playBgm(currentId)
           else if (!midi && audioEl && audioEl.paused && audioEl.src) audioEl.play().catch(() => {})
         } else {
-          playBgm(currentId || 'midi-031')
+          playBgm(currentId || 'm027')
         }
       } catch (e) { /* ignore */ }
     }
@@ -58,7 +58,7 @@ function trackOf(id) {
   const hit = list.find(t => t.id === id)
   if (hit) return hit
   // 旧档 handpan/universe 等已删除曲目 → 回落默认
-  const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === 'midi-031') || list.find(t => t.file) || list[0]
+  const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === 'm027') || list.find(t => t.file) || list[0]
   return def || { id: '', name: '', file: '' }
 }
 
@@ -123,7 +123,7 @@ export function playBgm(id) {
 
 export function showGamePlay(S) {
   try {
-    const track = (S && S.bgmTrack) || 'midi-031'
+    const track = (S && S.bgmTrack) || 'm027'
     playBgm(track)
     // 双保险：稍后再补一次（有些环境首帧 resume 后才允许出声）
     setTimeout(() => {
