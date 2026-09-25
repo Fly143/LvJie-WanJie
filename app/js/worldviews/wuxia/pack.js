@@ -27,11 +27,11 @@ export const wuxiaPack = {
   startText: '你背着一柄旧剑，踏入了风雨飘摇的江湖。',
   features: { lifespan: false, levelPressure: true, marriage: true },
   ui: {
-    advanceBtn: '⚔️ 冲关',
-    advanceVerb: '冲关',
-    advanceTo: '冲关至',
+    advanceBtn: '✨ 精进',
+    advanceVerb: '精进',
+    advanceTo: '精进至',
     advancePeak: '已至武道绝巅',
-    advanceSuccessTitle: '冲关成功',
+    advanceSuccessTitle: '精进成功',
     lifeWarn: '内伤缠身',
     talkBtn: '交谈',
     fightBtn: '切磋'
