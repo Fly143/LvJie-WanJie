@@ -179,6 +179,7 @@ function stripJSONBlock(text) {
   return String(text || '')
     .replace(/```json\s*[\s\S]*?```/gi, '')
     .replace(/```\s*[\s\S]*?```/g, '')
+    .replace(/(^|\n)\s*(我写[:：]|让我写|思考[:：]|分析[:：]|等等[，,]|不给东西|规则说|不要随便|这把思考)[^\n]*/g, '$1')
     .trim()
 }
 
