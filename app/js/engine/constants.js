@@ -36,9 +36,27 @@ export const PLAYER_GENDERS = [
 // 背景音乐（相对 app 目录）；mp3 用 <audio>，mid 用 Web Audio 合成
 export const BGM_TRACKS = [
   { id: '', name: '无音乐', file: '' },
-  { id: 'handpan', name: '手碟', file: 'assets/handpan音乐.mp3' },
-  { id: 'universe', name: '宇宙', file: 'assets/Alpha宇宙音乐.mp3' },
+  { id: 'xj-slow', name: '静谧 030', file: 'assets/xj-缓-030.mid' },
+  { id: 'xj-soft', name: '舒缓 033', file: 'assets/xj-舒-033.mid' },
+  { id: 'xj-walk', name: '行旅 010', file: 'assets/xj-行-010.mid' },
+  { id: 'xj-gentle', name: '柔情 015', file: 'assets/xj-柔-015.mid' },
+  { id: 'xj-town', name: '人间 028', file: 'assets/xj-镇-028.mid' },
+  { id: 'xj-battle', name: '交锋 037', file: 'assets/xj-战-037.mid' },
+  { id: 'xj-blaze', name: '激燃 039', file: 'assets/xj-烈-039.mid' },
+  { id: 'xj-rise', name: '昂扬 049', file: 'assets/xj-扬-049.mid' },
+  { id: 'xj-still', name: '空静 063', file: 'assets/xj-静-063.mid' },
+  { id: 'xj-soul', name: '魂牵 068', file: 'assets/xj-魂-068.mid' },
   { id: 'midi-demo', name: 'MIDI示例', file: 'assets/示例旋律.mid' },
   { id: 'midi-031', name: '031.MID', file: 'assets/031.mid' }
 ]
+
+/** 各世界观默认曲（可被存档 bgmTrack 覆盖） */
+export const PACK_BGM = {
+  xiuxian: 'xj-slow',
+  xuanhuan: 'xj-walk',
+  wuxia: 'xj-gentle',
+  urban: 'xj-town',
+  apocalypse: 'xj-still',
+  western: 'xj-rise'
+}
 export const BGM_DEFAULT = 'handpan'

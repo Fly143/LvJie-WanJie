@@ -1,9 +1,6 @@
 // 存档 / 账号级 meta / API Key
 // 存档按世界观分槽（SLOT_PREFIX + worldview），切换世界=换槽读档
-import {
-  SAVE_KEY, ACTIVE_WORLD_KEY, SLOT_PREFIX,
-  KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP
-} from './constants.js'
+import { SAVE_KEY, ACTIVE_WORLD_KEY, SLOT_PREFIX, KEYS_KEY, META_KEY, SAVE_VERSION, LEGACY_TYPE_MAP, PACK_BGM, BGM_DEFAULT } from './constants.js'
 import { getPack } from '../worldviews/index.js'
 import { normalizeApiKey } from './llm.js'
 
@@ -383,7 +380,7 @@ export function newGame(name, packId) {
     lastEventText: '',
     talent: null,
     medY: 0, medM: 0, medD: 10,
-    bgmTrack: 'handpan',
+    bgmTrack: (PACK_BGM && PACK_BGM[pack.id]) || BGM_DEFAULT || '',
     aiStyle: 'normal',
     playerGender: '',
     dialogLimit: true,
