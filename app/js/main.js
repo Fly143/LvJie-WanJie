@@ -216,8 +216,8 @@ function renderWelcome() {
   const sel = app.selectedPack
   root.innerHTML = `
     <div class="wbox">
-      <div class="wtitle">Agent万象</div>
-      <div class="wsub">AI 驱动的多世界观开放世界 — 每个世界独立存档，随时切换</div>
+      <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
+      <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
       <div id="pack-grid">
         ${packs.map(p => {
           const slot = slotMeta(p.id)
@@ -330,6 +330,8 @@ function startNewGame(name, packId) {
     setShell('game')
     applyTheme(getPack(packId))
     refreshAll()
+    firstGuide(app.S)
+    firstGuide(app.S)
   } catch (e) {
     console.error(e)
     toast('进入世界失败：' + esc(e && e.message || e))
@@ -343,8 +345,8 @@ function showGame(S) {
   setShell('game')
   applyTheme(getPack(S.worldview))
   try {
-    const track = S.bgmTrack || BGM_DEFAULT_TRACK || 'm027'
-    S.bgmTrack = track === 'handpan' || track === 'universe' ? (BGM_DEFAULT_TRACK || 'm027') : track
+    const rawBgm = Object.prototype.hasOwnProperty.call(S, 'bgmTrack') ? S.bgmTrack : null
+    const track = (rawBgm === 'handpan' || rawBgm === 'universe') ? (BGM_DEFAULT_TRACK || 'm027') : (rawBgm == null ? (BGM_DEFAULT_TRACK || 'm027') : rawBgm)
     showGamePlay(S)
   } catch (e) { /* music optional */ }
   refreshAll()
@@ -382,7 +384,7 @@ function applyNavLabels(pack) {
     map: nav.map,
     profile: nav.profile,
     friends: nav.friends,
-    quests: '任务',
+    quests: (nav && nav.quests) || '任务',
     bag: nav.bag,
     settings: nav.settings
   }

@@ -278,7 +278,7 @@ export function renderMap(app, api) {
       <div class="loc-desc">当前所在：<b style="color:var(--accent)">${esc((curLoc(S) || {}).name || '')}</b></div>
       ${worlds.map(w => `
         <div class="world-sec">
-          <div class="world-title map-h" data-w="${esc(w)}"><span>${esc(w)}</span><span class="tag">▾</span></div>
+          <div class="world-title map-h" data-w="${esc(w)}"><span>${esc(w)}</span><span class="tag map-caret">▾</span></div>
           <div class="map-body" data-wbody="${esc(w)}">
             ${Object.keys(byWorld[w] || {}).map(cont => `
               <div class="cont-title">${esc(cont)}</div>
@@ -290,7 +290,7 @@ export function renderMap(app, api) {
                   <div class="card loc-card ${cur ? 'cur' : ''}" style="margin-bottom:8px">
                     <div class="linfo">
                       <div class="cname">${esc(l.name)} ${cur ? '· 当前' : ''}${markers.get(l.name) ? ' <span class="ctype">📜任务</span>' : ''}</div>
-                      <div class="cdim">${esc(l.type)} · 约 ${days} 天${markers.get(l.name) ? ' · ' + esc(markers.get(l.name).join('、')) : ''}</div>
+                      <div class="cdim">${esc(l.type)} · ${cur ? '当前' : '约 ' + days + ' 天'}${markers.get(l.name) ? ' · ' + esc(markers.get(l.name).join('、')) : ''}</div>
                       <div class="cdesc">${esc(l.desc || '')}</div>
                       ${gate ? `<div class="lock">🔒 ${esc(gate)}</div>` : ''}
                     </div>
@@ -308,7 +308,11 @@ export function renderMap(app, api) {
   main.querySelectorAll('.map-h').forEach(h => {
     h.onclick = () => {
       const body = main.querySelector(`[data-wbody="${CSS.escape(h.dataset.w)}"]`)
-      if (body) body.classList.toggle('hide')
+      if (body) {
+        body.classList.toggle('hide')
+        const car = h.querySelector('.map-caret')
+        if (car) car.textContent = body.classList.contains('hide') ? '▸' : '▾'
+      }
     }
   })
   main.querySelectorAll('[data-go]').forEach(b => {
@@ -376,7 +380,7 @@ export function renderProfile(app, api) {
       ${(S.techniques || []).length
         ? S.techniques.map(m => `<div class="skill-row"><span class="k">${esc(m.name)}</span><span class="v">${m.level}/${m.levels} · ${esc(m.grade || '')}</span></div>`).join('')
         : '<div class="empty">尚未习得</div>'}
-      <h4>已知 ${esc(pack.lexicon.level)}表</h4>
+      <h4>等级一览</h4>
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         ${pack.tiers.map((t, i) => `<span style="color:${i === S.tierIndex ? 'var(--accent)' : 'inherit'}">${i + 1}.${esc(t.name)}</span>`).join(' · ')}
       </div>
@@ -417,7 +421,7 @@ export function renderFriends(app, api) {
             ${relBlock(f)}
             <div class="cbtn">
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
-              ${f.married ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
+              ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
             </div>
           </div>
         `}).join('') || '<div class="empty">尚无同伴，去场景中结识吧</div>'}
@@ -433,16 +437,32 @@ export function renderFriends(app, api) {
       const at = friendAt(f)
       if (!at.here) {
         if (!feat.talkRemote) {
-          api.toast(`对方不在当前场景「${cur.name || ''}」，请先到 ${at.name}`)
+          api.toast(`对方不在当前场景「${cur.name || ''}」，对方行踪不明，需先在剧情中相遇或打听到位置`)
           return
         }
+        const dayKey2 = String(Math.floor(S.ageDays / 30))
+        if (f.lastDay !== dayKey2) { f.lastDay = dayKey2; f.talkCount = 0 }
+        if ((f.talkCount || 0) >= MAX_TALK_PER_DAY) {
+          api.toast(`今天与${f.name}联络太多了，明天再来`)
+          return
+        }
+        f.talkCount = (f.talkCount || 0) + 1
+        api.save()
         api.startFlow(
           '传讯',
-          `我通过${pack.features && pack.features.talkRemote === false ? '书信' : '现有联络方式'}联系「${f.name}」（对方在${at.name}）。背景：${f.intro || ''}。记忆：${f.mem || '无'}。注意这是远距离联络，当面才能做需要碰面的事。`,
+          `我通过现有联络方式联系「${f.name}」（对方在${at.name}）。背景：${f.intro || ''}。记忆：${f.mem || '无'}。注意这是远距离联络，当面才能做需要碰面的事。`,
           f.name
         )
         return
       }
+      const dayKey = String(Math.floor(S.ageDays / 30))
+      if (f.lastDay !== dayKey) { f.lastDay = dayKey; f.talkCount = 0 }
+      if ((f.talkCount || 0) >= MAX_TALK_PER_DAY) {
+        api.toast(`今天与${f.name}聊太多了，明天再来`)
+        return
+      }
+      f.talkCount = (f.talkCount || 0) + 1
+      api.save()
       api.startFlow(
         '交谈',
         `我在${cur.name || '此处'}与「${f.name}」当面交谈。背景：${f.intro || ''}。记忆：${f.mem || '无'}`,
@@ -506,6 +526,7 @@ export function renderBag(app, api) {
               ${it.usable === 'direct' ? `<button class="btn btn-sm btn-gold" data-use="${i}" type="button">使用</button>` : ''}
               ${it.usable === 'ai' ? `<button class="btn btn-sm" data-useai="${i}" type="button">AI 互动</button>` : ''}
               ${normalizeType(it.type) === 'equip' ? `<button class="btn btn-sm ${it.equipped ? 'btn-gold' : ''}" data-equip="${i}" type="button">${it.equipped ? '卸下' : '装备'}</button>` : ''}
+              ${normalizeType(it.type) === 'equip' && it.equipped && (it.grade == null || it.realm_index == null) ? `<span class="ctype" title="无品级/档位，不计入战力">无加成</span>` : ''}
               ${normalizeType(it.type) === 'technique' ? `<button class="btn btn-sm" data-learn="${i}" type="button">研习</button>` : ''}
               <button class="btn btn-sm" data-sell="${i}" type="button">出售</button>
             </div>
@@ -598,11 +619,22 @@ export function renderBag(app, api) {
     }
   })
   main.querySelectorAll('[data-sell]').forEach(b => {
+    // sell-guards
+
     b.onclick = () => {
       const i = Number(b.dataset.sell)
       const it = S.inventory[i]
-      const gain = Math.floor((it.price || 0) * 0.5)
+      if (!it) return
+      const gain = Math.floor((Number(it.price) || 0) * 0.5)
+      if (it.equipped) {
+        if (!confirm('「' + it.name + '」已装备，确认出售后将卸下？')) return
+      } else if (gain <= 0) {
+        if (!confirm('「' + it.name + '」卖不出价钱，确认直接丢弃？')) return
+      } else if (!confirm('出售 ' + it.name + '，约得 ' + gain + '？')) {
+        return
+      }
       S.money.main += gain
+      if (it.equipped) it.equipped = false
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
       api.toast(`售出 ${esc(it.name)}，+${fmtNum(gain)} ${esc(pack.lexicon.money.main)}`)
@@ -635,6 +667,7 @@ export function renderSettings(app, api) {
       </div>
 
       <h4>对话轮数限制</h4>
+      <div style="font-size:12px;color:var(--faint);margin-bottom:4px">开启后单次事件约 10 轮内收束；关闭可写更长剧情。</div>
       <div class="btn-row">
         <button class="btn btn-sm ${S.dialogLimit ? 'btn-gold' : ''}" data-limit="1" type="button">开启</button>
         <button class="btn btn-sm ${!S.dialogLimit ? 'btn-gold' : ''}" data-limit="0" type="button">关闭</button>
@@ -643,7 +676,7 @@ export function renderSettings(app, api) {
       <h4>背景音乐</h4>
       <div class="btn-row">
         ${allBgmTracks().map(t => `
-          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}</button>
+          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}${(S.bgmTrack || '') === t.id ? ' ●' : ''}></button>
         `).join('')}
       </div>
       <div class="btn-row" style="margin-top:6px">

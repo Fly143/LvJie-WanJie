@@ -11,7 +11,7 @@ const STYLE_HELP = {
 export function openKeyModal(app, { save, refreshAll }) {
   const S = app.S
   const keys = (S && Array.isArray(S.playerKeys)) ? S.playerKeys : []
-  const selected = S ? S.selectedKey : 0
+  let selected = S ? S.selectedKey : 0
 
   const rows = keys.map((k, i) => {
     const n = normalizeApiKey(k) || k
@@ -152,7 +152,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     let key = keyInput
     if (!key) {
       // 更新已有配置时允许不重填 Key
-      const old = typeof selected === 'number' ? keys[selected] : null
+      const old = typeof selNow === 'number' ? keys[selNow] : null
       key = (old && (old.key || old.value)) || ''
     }
     if (!key) {
@@ -161,11 +161,12 @@ export function openKeyModal(app, { save, refreshAll }) {
     }
     const rec = { name, baseUrl, key, model, apiStyle }
     S.playerKeys = S.playerKeys || []
-    if (typeof selected === 'number' && S.playerKeys[selected] && !keyInput) {
+    const selNow = typeof S.selectedKey === 'number' ? S.selectedKey : selected
+    if (typeof selNow === 'number' && S.playerKeys[selNow] && !keyInput) {
       // 覆盖当前条目（沿用原 Key）
-      S.playerKeys[selected] = rec
-    } else if (typeof selected === 'number' && S.playerKeys[selected] && keyInput && keyInput === (S.playerKeys[selected].key || S.playerKeys[selected].value)) {
-      S.playerKeys[selected] = rec
+      S.playerKeys[selNow] = rec
+    } else if (typeof selNow === 'number' && S.playerKeys[selNow] && keyInput && keyInput === (S.playerKeys[selNow].key || S.playerKeys[selNow].value)) {
+      S.playerKeys[selNow] = rec
     } else {
       S.playerKeys.push(rec)
       S.selectedKey = S.playerKeys.length - 1
@@ -198,6 +199,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     r.onchange = () => {
       if (!r.checked) return
       S.selectedKey = Number(r.value)
+      selected = Number(r.value)
       save()
       refreshAll()
     }
