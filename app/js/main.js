@@ -114,11 +114,11 @@ function renderPlayerCard() {
       ${expired ? `<span class="lifestatus">${esc(ui.lifeWarn || '⚠ 寿限将尽')}</span>` : ''}
     </div>
     <div class="bar${full ? ' full' : ''}"><div style="width:${pct}%"></div></div>
-    <div class="pgrid" style="margin-top:6px">
-      <div class="row"><span class="k">年龄</span><span class="v">${ageLabelShort(S.ageDays)}</span></div>
+    <div class="pgrid" style="margin-top:8px">
+      <div class="row"><span class="k">年龄</span><span class="v">${esc(ageLabelShort(S.ageDays))}</span></div>
       <div class="row"><span class="k">${esc(ui.powerLabel)}</span><span class="v">${fmtNum(totalPowerF(S))}</span></div>
       <div class="row"><span class="k">${esc(money.main)}</span><span class="v">${fmtNum(S.money.main)}</span></div>
-      <div class="row"><span class="k">${esc(pack.lexicon.progress)}</span><span class="v">${fmtNum(S.progress)}/${fmtNum(req)}</span></div>
+      <div class="row"><span class="k">${esc(pack.lexicon.progress)}</span><span class="v">${fmtNum(S.progress)} / ${fmtNum(req)}</span></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-gold btn-sm" id="btn-break" type="button" ${pct < 100 ? 'disabled' : ''}>${esc(ui.advanceBtn)}</button>

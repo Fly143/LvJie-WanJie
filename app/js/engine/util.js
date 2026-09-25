@@ -35,7 +35,10 @@ export function ageLabel(days) {
 }
 
 export function ageLabelShort(days) {
-  return ageLabel(days).replace(/0月0天$/, '').replace(/0天$/, '')
+  return ageLabel(days)
+    .replace(/0月0天$/, '')
+    .replace(/0天$/, '')
+    .replace(/0月$/, '')
 }
 
 export function safeParseJSON(s) {

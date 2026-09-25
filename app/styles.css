@@ -42,8 +42,8 @@ body{
 }
 .hbadge b{color:var(--accent)}
 
-#app{flex:1;min-height:0;display:flex;gap:14px;padding:14px;width:100%;max-width:1280px;margin:0 auto;overflow:hidden;position:relative}
-#side{width:236px;flex:0 0 236px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+#app{flex:1;min-height:0;display:flex;gap:14px;padding:14px;width:100%;max-width:1480px;margin:0 auto;overflow:hidden;position:relative}
+#side{width:260px;flex:0 0 260px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
 #main{flex:1;min-width:0;overflow-y:auto}
 
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;
@@ -56,10 +56,10 @@ body{
 .panel-body.hide{display:none}
 
 #pcard .pname{font-family:var(--font-display);font-size:20px;color:var(--accent);letter-spacing:2px}
-#pcard .pgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
-#pcard .row{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:13px;min-width:0}
-#pcard .row .k{color:var(--dim);white-space:nowrap}
-#pcard .row .v{text-align:right;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pcard .pgrid{display:grid;grid-template-columns:1fr;column-gap:0;row-gap:2px}
+#pcard .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:5px;font-size:13px;min-width:0;line-height:1.35}
+#pcard .row .k{color:var(--dim);flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#pcard .row .v{text-align:right;font-weight:bold;flex:0 1 auto;min-width:0;white-space:normal;word-break:break-all}
 .realmchip{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;font-weight:bold;border:1px solid}
 .bar{height:8px;background:color-mix(in srgb, var(--bg) 80%, black);border-radius:5px;overflow:hidden;margin-top:7px;border:1px solid var(--line)}
 .bar>div{height:100%;background:linear-gradient(90deg,var(--jade),var(--accent));border-radius:5px;transition:width .4s}
