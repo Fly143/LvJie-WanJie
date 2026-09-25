@@ -14,7 +14,7 @@ import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm, hydrateCustomBgm } from './ui/bgm.js'
-import { BGM_MAP_TRACK } from './engine/constants.js'
+import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 
 export const app = {
@@ -49,14 +49,13 @@ export function setTab(t) {
   document.querySelectorAll('.navbtn').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === t)
   })
-  // 地图页切换逛图曲，离开后恢复存档 BGM
+  // 主玩法页默认 031；用户在设置里改过的 bgmTrack 优先
   try {
-    if (app.S) {
-      if (t === 'map' && BGM_MAP_TRACK) {
-        playBgm(BGM_MAP_TRACK)
-      } else if (app.S.bgmTrack) {
-        playBgm(app.S.bgmTrack)
-      }
+    if (app.S && BGM_DEFAULT_TABS.includes(t)) {
+      const fallback = (t === 'map' && BGM_MAP_TRACK) || BGM_DEFAULT_TRACK
+      playBgm(app.S.bgmTrack || fallback)
+    } else if (app.S && app.S.bgmTrack) {
+      playBgm(app.S.bgmTrack)
     }
   } catch (e) { /* music optional */ }
   renderMain()

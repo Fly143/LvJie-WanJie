@@ -50,16 +50,20 @@ export const BGM_TRACKS = [
   { id: 'midi-031', name: '031.MID', file: 'assets/031.mid' }
 ]
 
-/** 各世界观默认曲（可被存档 bgmTrack 覆盖） */
+/** 各世界观默认曲（可被存档 bgmTrack 覆盖）；现统一默认 031 */
 export const PACK_BGM = {
-  xiuxian: 'xj-slow',
-  xuanhuan: 'xj-walk',
-  wuxia: 'xj-gentle',
-  urban: 'xj-town',
-  apocalypse: 'xj-still',
-  western: 'xj-rise'
+  xiuxian: 'midi-031',
+  xuanhuan: 'midi-031',
+  wuxia: 'midi-031',
+  urban: 'midi-031',
+  apocalypse: 'midi-031',
+  western: 'midi-031'
 }
 
-/** 打开「地图」时的逛图曲 */
+/** 打开「地图」及主玩法页时的默认曲 */
 export const BGM_MAP_TRACK = 'midi-031'
+export const BGM_DEFAULT_TRACK = 'midi-031'
+
+/** 使用 031 作为默认曲的界面 */
+export const BGM_DEFAULT_TABS = ['scene', 'map', 'profile', 'friends', 'quests', 'bag', 'settings']
 export const BGM_DEFAULT = 'handpan'
