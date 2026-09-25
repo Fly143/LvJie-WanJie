@@ -224,11 +224,42 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
   return { ok: notes.length > 0, notes, attempts }
 }
 
+/** 角色条目查询：作品名+人名 / 人名 */
+export async function fetchCharacterLore(name, workTitle) {
+  const n = String(name || '').trim()
+  if (!n || n.length > 12) return { ok: false, error: '人名无效' }
+  const queries = [
+    workTitle ? `${n}（${workTitle}）` : n,
+    workTitle ? `${n} ${workTitle}` : n,
+    n
+  ]
+  const notes = []
+  for (const q of queries) {
+    try {
+      const m = await fetchMoegirl(q)
+      if (m.ok && m.text.length > 100) {
+        notes.push({ kind: 'char', source: m.source, title: m.title, text: m.text.slice(0, 4000) })
+      }
+    } catch (e) { /* next */ }
+    if (notes.length) break
+    try {
+      const b = await fetchBaiduBaike(q)
+      if (b.ok && b.text.length > 100) {
+        notes.push({ kind: 'char', source: b.source, title: b.title, text: b.text.slice(0, 3000) })
+      }
+    } catch (e) { /* next */ }
+    if (notes.length) break
+  }
+  return notes.length
+    ? { ok: true, name: n, notes }
+    : { ok: false, name: n, error: '未找到角色条目' }
+}
+
 /** 压进合并提示词的补充块 */
 export function webNotesToBlock(notes) {
   if (!Array.isArray(notes) || !notes.length) return ''
   return notes.map((n, i) => {
-    const head = n.kind === 'wiki' ? '百科/条目' : '设定页'
+    const head = n.kind === 'wiki' ? '百科/条目' : (n.kind === 'char' ? '角色条目' : '设定页')
     return `【补充${i + 1}·${head}】${n.source || ''}\n${String(n.text || '').slice(0, 8000)}`
   }).join('\n\n')
 }

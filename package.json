@@ -12,6 +12,7 @@
     "rebuild:runtime": "node scripts/rebuild-runtime.js",
     "smoke:engine": "node scripts/smoke.mjs",
     "smoke:book": "node scripts/smoke-book.mjs",
+    "smoke:chars": "node scripts/smoke-chars.mjs",
     "smoke:llm": "node scripts/llm-endpoints.mjs",
     "smoke:stage": "node scripts/stage-smoke.js"
   },

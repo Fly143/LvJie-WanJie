@@ -106,6 +106,7 @@ export const PACK_DRAFT_PROMPT = `你是开放世界文字游戏的世界观架�
 硬性要求：
 - tiers 至少 5 个，从低到高；subNames 2~4 个
 - map 至少 2 个地点，startLoc 指向其中一个 id；world 字段必须属于 worlds
+- 若给出了人物/NPC 种子，必须尽量原名收入各 map.people，并填 realm/power/intro
 - rules 只写正向描述
 - 全部文案用该作品语感；不要输出 JSON 以外内容`
 

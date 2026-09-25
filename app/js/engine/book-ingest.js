@@ -108,6 +108,49 @@ export function splitChapters(text) {
   return out
 }
 
+export const CHAR_ROSTER_PROMPT = `你是小说设定考据员。从作品与下列材料中选出 8~15 位**适合在开放世界里当 NPC/同伴**的人物（主角、核心同伴、重要对手、势力领袖优先；龙套不要）。
+
+输出一个 \`\`\`json 代码块：
+{
+  "characters": [
+    {
+      "name": "准确人名",
+      "aliases": ["别名"],
+      "role": "身份/定位",
+      "tier_hint": "在力量体系中的大致档位或称号",
+      "intro": "40~80字人设，适合贴进游戏 NPC 档案",
+      "personality": "性格关键词",
+      "faction": "所属势力或空",
+      "spoiler_level": "无/轻微/涉及结局"
+    }
+  ]
+}
+
+要求：人名以原文为准；不要编造不存在的角色；用简体中文；只输出 JSON。`
+
+export const CHAR_CARD_PROMPT = `你是游戏角色档案撰写者。根据作品设定与角色考据材料，把人物整理成可直接放入游戏地图的 NPC 种子列表。
+
+输出一个 \`\`\`json 代码块：
+{
+  "npc_seeds": [
+    {
+      "name": "人名",
+      "realm": "档位/称号（贴合世界等级表）",
+      "power": 10,
+      "intro": "30~60字档案",
+      "gender": "男/女/空",
+      "home": "适合出现的地点类型，例如 酒馆/学院/王城",
+      "is_companion": true
+    }
+  ]
+}
+
+要求：
+- 8~12 人；power 用 1~200 的相对战力，与档位匹配
+- intro 只写身份与性格，不写结局剧透
+- home 要能落到地图 people 节点
+- 只输出 JSON`
+
 function safeJSON(text) {
   try {
     const fence = String(text || '').match(/```(?:json)?\s*([\s\S]*?)```/i)
@@ -120,6 +163,125 @@ function safeJSON(text) {
       return null
     }
   }
+}
+
+/** 从多段考据 + 设定圣经里抽出人名候选 */
+export function collectCharacterNames(facts, bible, limit = 16) {
+  const out = []
+  const seen = new Set()
+  const push = (n) => {
+    const name = String(n || '').trim()
+    if (!name || name.length < 2 || name.length > 12) return
+    if (/[的地得了吧呢啊呀]/.test(name) && name.length > 6) return
+    const key = name.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(name)
+  }
+  for (const f of facts || []) {
+    for (const c of f.characters || []) {
+      push(typeof c === 'string' ? c : (c && c.name))
+    }
+  }
+  if (bible && Array.isArray(bible.characters)) {
+    for (const c of bible.characters) push(typeof c === 'string' ? c : (c && c.name))
+  }
+  // 文本里常见的「XX说」不太可靠，只靠结构化字段
+  return out.slice(0, limit)
+}
+
+/**
+ * 选角 + 联网角色条目 + 写 NPC 种子
+ * @returns {Promise<{ok, roster?, npc_seeds?, error?}>}
+ */
+export async function buildCharacterSeeds({
+  keyObj,
+  title,
+  facts,
+  bible,
+  samples,
+  signal,
+  onProgress,
+  useWeb,
+  fetchCharacterLore
+}) {
+  const report = onProgress || (() => {})
+  report({ message: '筛选主要人物…' })
+  const rosterRes = await callLLM({
+    keyObj,
+    system: CHAR_ROSTER_PROMPT,
+    user: `作品：${title}\n设定摘要：${(bible && bible.setting_bible) || ''}\n考据片段：\n` +
+      JSON.stringify((facts || []).slice(0, 12)) +
+      (samples && samples[0] ? `\n原文开头摘录：\n${String(samples[0]).slice(0, 2500)}` : ''),
+    signal
+  })
+  if (!rosterRes.ok) return { ok: false, error: rosterRes.error || '选角失败', aborted: rosterRes.aborted }
+  const rosterJson = safeJSON(rosterRes.text) || {}
+  let roster = Array.isArray(rosterJson.characters) ? rosterJson.characters : []
+  if (!roster.length) {
+    roster = collectCharacterNames(facts, bible).map(name => ({ name, role: '角色', intro: '' }))
+  }
+  roster = roster.slice(0, 12)
+
+  const charNotes = []
+  if (useWeb && fetchCharacterLore) {
+    for (let i = 0; i < roster.length; i++) {
+      const c = roster[i]
+      report({ message: `查角色条目 ${i + 1}/${roster.length}：${c.name}…` })
+      try {
+        const r = await fetchCharacterLore(c.name, title)
+        if (r.ok && r.notes) {
+          for (const n of r.notes) charNotes.push({ ...n, char: c.name })
+        }
+      } catch (e) { /* skip */ }
+    }
+  }
+
+  report({ message: '生成 NPC 档案…' })
+  const cardRes = await callLLM({
+    keyObj,
+    system: CHAR_CARD_PROMPT,
+    user: `作品：${title}\n等级体系：${((bible && bible.power_ladder) || []).join('、')}\n角色名单：\n` +
+      JSON.stringify(roster) +
+      `\n角色百科/原文考据：\n` + JSON.stringify(charNotes.slice(0, 12)) +
+      `\n设定圣经：${(bible && bible.setting_bible) || ''}`,
+    signal
+  })
+  if (!cardRes.ok) return { ok: false, error: cardRes.error || 'NPC 档案失败', aborted: cardRes.aborted }
+  const cardJson = safeJSON(cardRes.text) || {}
+  const npc_seeds = Array.isArray(cardJson.npc_seeds) ? cardJson.npc_seeds.slice(0, 12) : []
+  if (!npc_seeds.length) {
+    return { ok: false, error: '未能生成 NPC 种子' }
+  }
+  return { ok: true, roster, npc_seeds, charNotes }
+}
+
+/** 把 NPC 种子压进生成世界包的用户消息 */
+export function npcSeedsToBrief(npcSeeds) {
+  const list = Array.isArray(npcSeeds) ? npc_seedsSafe(npcSeeds) : []
+  if (!list.length) return ''
+  return `\n地图 people 必须尽量收入以下人物（可按地点分布，home 只是建议）：\n` +
+    JSON.stringify(list.map(n => ({
+      name: n.name,
+      realm: n.realm,
+      power: n.power,
+      intro: n.intro,
+      gender: n.gender,
+      home: n.home,
+      companion: !!n.is_companion
+    })), null, 2)
+}
+
+function npc_seedsSafe(list) {
+  return list.filter(x => x && x.name).map(x => ({
+    name: String(x.name).slice(0, 24),
+    realm: String(x.realm || x.tier_hint || '').slice(0, 24),
+    power: Number(x.power) || 10,
+    intro: String(x.intro || x.role || '').slice(0, 120),
+    gender: x.gender === '男' || x.gender === '女' ? x.gender : '',
+    home: String(x.home || '主城').slice(0, 24),
+    is_companion: !!x.is_companion
+  }))
 }
 
 /**

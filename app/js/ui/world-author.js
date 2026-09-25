@@ -5,8 +5,8 @@ import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/wor
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts } from '../engine/custom-packs.js'
 import { reloadPacks, getPack, isBuiltinPack } from '../worldviews/index.js'
 import { callLLM, extractGameJSON } from '../engine/llm.js'
-import { sampleBookChunks, extractBookFacts, bibleToUserBrief, mergeWebOnly } from '../engine/book-ingest.js'
-import { gatherWebLore, webNotesToBlock } from '../engine/book-web.js'
+import { sampleBookChunks, extractBookFacts, bibleToUserBrief, mergeWebOnly, buildCharacterSeeds, npcSeedsToBrief } from '../engine/book-ingest.js'
+import { gatherWebLore, webNotesToBlock, fetchCharacterLore } from '../engine/book-web.js'
 
 function activeKey(app) {
   const S = app && app.S
@@ -210,6 +210,33 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         }
         if (f.levels) user += `\n用户补充等级提示：${f.levels}`
         if (f.setting) user += `\n用户补充设定：${f.setting}`
+
+        // 人物 → NPC 种子
+        try {
+          status.textContent = '筛选人物并生成 NPC 种子…'
+          const chs = await buildCharacterSeeds({
+            keyObj,
+            title,
+            facts: ex.facts || [],
+            bible: ex.bible,
+            samples: hasBook ? ch.samples : [],
+            signal: genCtl.signal,
+            useWeb: f.useWeb || f.urls.length > 0,
+            fetchCharacterLore,
+            onProgress: (p) => { status.textContent = p.message }
+          })
+          if (chs.ok && chs.npc_seeds.length) {
+            user += npcSeedsToBrief(chs.npc_seeds)
+            status.textContent = `已种子 ${chs.npc_seeds.length} 名 NPC，正在生成世界包…`
+          } else if (!chs.ok && chs.aborted) {
+            status.textContent = '已取消'
+            return
+          }
+        } catch (e) {
+          // 人物失败不阻断出包
+          console.warn('npc seeds', e)
+        }
+
         status.textContent = '设定已合并，正在生成世界包…'
       } else {
         user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
