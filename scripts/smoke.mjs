@@ -26,7 +26,7 @@ const { extractGameJSON } = await import(base + '/engine/llm.js')
 
 const packs = listPacks()
 console.log('packs:', packs.map(p => p.id).join(','))
-if (packs.length !== 7) throw new Error('expected 7 packs, got ' + packs.length)
+if (packs.length !== 6) throw new Error('expected 6 packs, got ' + packs.length)
 
 for (const p of packs) {
   if (!p.tiers || !p.tiers.length) throw new Error(p.id + ' missing tiers')
@@ -52,7 +52,6 @@ for (const p of packs) {
   const br = tryBreakthrough(S)
   if (!br.ok) throw new Error(p.id + ' breakthrough failed: ' + br.msg)
   if (/突破/.test(br.msg) && p.id === 'urban') throw new Error('urban should not say 突破: ' + br.msg)
-  if (/突破/.test(br.msg) && p.id === 'city') throw new Error('city should not say 突破: ' + br.msg)
   if (/突破/.test(br.msg) && p.id === 'apocalypse') throw new Error('apocalypse should not say 突破: ' + br.msg)
   if (/突破/.test(br.msg) && p.id === 'wuxia') throw new Error('wuxia should not say 突破: ' + br.msg)
 

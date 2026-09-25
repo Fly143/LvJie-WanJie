@@ -3,7 +3,6 @@ import { xiuxianPack } from './xiuxian/pack.js'
 import { xuanhuanPack } from './xuanhuan/pack.js'
 import { wuxiaPack } from './wuxia/pack.js'
 import { urbanPack } from './urban/pack.js'
-import { cityPack } from './city/pack.js'
 import { apocalypsePack } from './apocalypse/pack.js'
 import { westernPack } from './western/pack.js'
 import { loadCustomPacks } from '../engine/custom-packs.js'
@@ -13,7 +12,6 @@ const BUILTIN_LIST = [
   xuanhuanPack,
   wuxiaPack,
   urbanPack,
-  cityPack,
   apocalypsePack,
   westernPack
 ]

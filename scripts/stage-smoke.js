@@ -69,7 +69,7 @@ const r = spawnSync(path.join(STAGE, 'AgentWorlds.exe'), [], {
 })
 const out = (r.stdout || '') + (r.stderr || '')
 process.stdout.write(out)
-const packsOk = /"packs"\s*:\s*7/.test(out) || /"packCards"\s*:\s*7/.test(out)
+const packsOk = /"packs"\s*:\s*6/.test(out) || /"packCards"\s*:\s*6/.test(out)
 if (!packsOk) {
   console.error('SMOKE_FAIL')
   process.exit(1)
