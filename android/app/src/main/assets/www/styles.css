@@ -318,9 +318,10 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
   #hdr .hbadge{order:2;padding:3px 10px;font-size:12px}
   #hdr .who{order:3;flex-basis:100%;font-size:12px;overflow:hidden;text-overflow:ellipsis}
   #hdr button{order:4;flex:1;padding:6px 8px;font-size:12px;white-space:nowrap}
-  body.menu #app{display:block;padding:0}
-  body.menu #app #side{width:100%!important;flex:none!important;height:100%}
-  body.menu #app #main{display:none!important}
+  body.menu #app{display:none!important}
+  body:not(.menu) #app{display:flex!important;padding:8px;gap:8px}
+  body:not(.menu) #app #main{display:block!important;flex:1;min-width:0;overflow-y:auto}
+  body:not(.menu) #app #side{width:120px!important;flex:0 0 120px!important;height:auto}
   body.menu .navbtn{padding:12px 14px;font-size:15px}
   body:not(.menu) #app #side{display:none!important}
   body:not(.menu) #backbtn{display:flex!important}
@@ -386,3 +387,5 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
   main{padding:6px 8px 24px}
   .card{padding:12px}
 }
+
+#hdr{padding-top:max(12px,env(safe-area-inset-top,0px))}

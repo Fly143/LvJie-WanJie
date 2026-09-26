@@ -2,6 +2,7 @@ package com.lvjie.app
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -9,15 +10,76 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.webkit.WebViewAssetLoader
-import java.io.ByteArrayInputStream
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
+    private val httpExecutor = Executors.newCachedThreadPool()
+
+    inner class Bridge {
+        @JavascriptInterface
+        fun httpRequest(id: String, url: String, method: String, headersJson: String?, body: String?, timeoutMs: Int) {
+            httpExecutor.execute {
+                var conn: HttpURLConnection? = null
+                try {
+                    val methodU = method.uppercase()
+                    val u = URL(url)
+                    conn = (u.openConnection() as HttpURLConnection)
+                    conn.requestMethod = if (methodU == "GET" || methodU == "HEAD") methodU else methodU
+                    conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
+                    conn.readTimeout = conn.connectTimeout
+                    conn.instanceFollowRedirects = true
+                    try {
+                        val headers = JSONObject(headersJson ?: "{}")
+                        val keys = headers.keys()
+                        while (keys.hasNext()) {
+                            val k = keys.next()
+                            conn.setRequestProperty(k, headers.optString(k))
+                        }
+                    } catch (_: Exception) {}
+                    if (methodU != "GET" && methodU != "HEAD" && body != null) {
+                        conn.doOutput = true
+                        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    }
+                    val code = conn.responseCode
+                    val stream = if (code >= 400) conn.errorStream else conn.inputStream
+                    val text = stream?.readBytes()?.toString(Charsets.UTF_8) ?: ""
+                    postResult(id, true, code, text, null)
+                } catch (e: Exception) {
+                    postResult(id, false, 0, "", e.message ?: "网络错误")
+                } finally {
+                    conn?.disconnect()
+                }
+            }
+        }
+    }
+
+    private fun postResult(id: String, ok: Boolean, status: Int, text: String, error: String?) {
+        val payload = JSONObject()
+            .put("id", id)
+            .put("ok", ok)
+            .put("status", status)
+            .put("text", text)
+            .put("error", error ?: "")
+            .toString()
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace("\r", "")
+        runOnUiThread {
+            webView.evaluateJavascript("window.__awHostHttpCb&&window.__awHostHttpCb('$payload')", null)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
 
         val assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -36,6 +98,8 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             cacheMode = WebSettings.LOAD_DEFAULT
         }
+
+        webView.addJavascriptInterface(Bridge(), "AndroidHttp")
 
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
@@ -56,16 +120,64 @@ class MainActivity : AppCompatActivity() {
                 return !(url.scheme == "https" && url.host == "appassets.androidplatform.net")
             }
 
-            override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: android.webkit.WebResourceError?
-            ) {
-                // keep shell alive on subresource errors
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // 注入与 Electron awHost 兼容的 HTTP 桥（绕过 CORS）
+                val js = """
+                    (function(){
+                      if (window.awHost) return;
+                      const seq = { n: 0 };
+                      const cbs = {};
+                      window.__awHostHttpCb = function(payloadStr){
+                        try {
+                          const p = JSON.parse(payloadStr);
+                          const cb = cbs[p.id];
+                          if (cb) { delete cbs[p.id]; cb(p); }
+                        } catch (e) {}
+                      };
+                      function request(req) {
+                        return new Promise(function(resolve){
+                          const id = 'r' + (++seq.n);
+                          cbs[id] = resolve;
+                          try {
+                            AndroidHttp.httpRequest(
+                              id,
+                              String(req.url||''),
+                              String(req.method||'GET'),
+                              JSON.stringify(req.headers||{}),
+                              req.body == null ? null : String(req.body),
+                              Number(req.timeoutMs||30000)
+                            );
+                          } catch (e) {
+                            delete cbs[id];
+                            resolve({ ok:false, error:String(e) });
+                          }
+                        });
+                      }
+                      window.awHost = {
+                        http: {
+                          request: request,
+                          stream: function(){ return Promise.resolve({ ok:false }); },
+                          abort: function(){ return Promise.resolve({ok:true}); },
+                          onChunk: function(){ return function(){}; },
+                          onEnd: function(){ return function(){}; },
+                          onHead: function(){ return function(){}; }
+                        },
+                        asset: {
+                          read: function(){ return Promise.resolve({ ok:false, error:'n/a' }); }
+                        },
+                        secrets: {
+                          load: function(){ return Promise.resolve(null); },
+                          save: function(){ return Promise.resolve({ ok:true }); },
+                          clear: function(){ return Promise.resolve({ ok:true }); }
+                        }
+                      };
+                    })();
+                """.trimIndent()
+                view?.evaluateJavascript(js, null)
             }
         }
 
-        // 加载与桌面端同一套游戏代码（assets/www = app/ 同步）
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
     }
 
