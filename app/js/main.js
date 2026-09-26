@@ -22,7 +22,8 @@ export const app = {
   TAB: 'scene',
   EV: null,
   selectedPack: defaultPackId(),
-  cheatUnlocked: false
+  cheatUnlocked: false,
+  packMoreOpen: false
 }
 
 const RENDERS = {
@@ -342,8 +343,15 @@ function renderWelcome() {
   const moreBtn = document.getElementById('w-more')
   const moreGrid = document.getElementById('pack-grid-more')
   if (moreBtn && moreGrid) {
+    // 排序/重绘后保持展开；选中卡若在折叠区则自动展开
+    const selInRest = rest.some(p => p.id === app.selectedPack)
+    moreGrid.hidden = !(app.packMoreOpen || selInRest)
+    moreBtn.textContent = moreGrid.hidden
+      ? `展开其余 ${rest.length} 个世界 ▾`
+      : `收起部分世界 ▴`
     moreBtn.onclick = () => {
       moreGrid.hidden = !moreGrid.hidden
+      app.packMoreOpen = !moreGrid.hidden
       moreBtn.textContent = moreGrid.hidden
         ? `展开其余 ${rest.length} 个世界 ▾`
         : `收起部分世界 ▴`
