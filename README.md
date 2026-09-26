@@ -112,3 +112,24 @@ npm run smoke:stage
 ## License
 
 MIT
+
+## 从 master 构建
+
+本仓库 `master` 同时包含 **Windows 桌面** 与 **Android** 工程。
+
+### Windows 可执行 / 便携包
+```bash
+npm install                # 可选，仅 electron devDependency
+npm run rebuild:runtime    # 或自备 runtime/（Electron 发行版）
+npm start                  # 同步 app/ 并启动
+# 便携 zip：把 runtime/ 整目录打包即可
+```
+
+### Android APK
+```bash
+node scripts/sync-android.js   # 把 app/ 同步进 android assets
+cd android
+# 需 JDK17 + Android SDK 35（设置 JAVA_HOME / ANDROID_HOME）
+gradlew.bat assembleRelease
+# 产物：android/app/build/outputs/apk/release/app-release.apk
+```
