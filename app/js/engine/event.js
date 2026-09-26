@@ -1,7 +1,7 @@
 // AI 事件状态机
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON } from './llm-bridge.js'
-import { applyChanges, syncGiftsWithNarrative } from './changes.js'
+import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './changes.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
 const MAX_HISTORY_MSGS = 20
@@ -147,18 +147,37 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       S.lastEventText = narrative
     }
   } else {
-    // 无 json：若正文像完整叙事则继续，不弹吓人提示
-
+    // 无 json：从正文补奖励，并尽量向模型要一次 json
+    let recovered = null
+    try {
+      recovered = await recoverChangesFromLLM({ keyObj, narrative, S, signal: ctl.signal })
+    } catch (e) { recovered = null }
+    const ch = recovered || inferLite(narrative)
+    if (ch && Object.keys(ch).length) {
+      try {
+        changesBrief = applyChanges(S, ch, hooks)
+        EV.changesBrief = changesBrief
+      } catch (e) { /* ignore */ }
+    }
     const opts = parseOptionsFromText(narrative)
     if (opts.length) {
       EV.options = opts
       EV.ended = false
-      EV.error = ''
+      EV.error = (recovered && Object.keys(recovered).length) || (ch && Object.keys(ch).length)
+        ? '（本轮未附数据块，已按正文补写奖励）'
+        : '（本轮未附数据块，剧情继续；可能少了奖励写入）'
+      S.lastEventText = narrative
+    } else if (ch && Object.keys(ch).length) {
+      EV.options = null
+      EV.ended = true
+      EV.error = (recovered && Object.keys(recovered).length) || (ch && Object.keys(ch).length)
+        ? '（本轮未附数据块，已按正文补写奖励）'
+        : '（未解析到数据块，事件结束）'
       S.lastEventText = narrative
     } else {
       EV.options = null
       EV.ended = true
-      EV.error = ''
+      EV.error = '（未解析到数据块，事件结束）'
     }
   }
 
@@ -272,4 +291,27 @@ function resolveKey(S) {
 
 function giftMentioned(text) {
   return /[「“][^」”]{1,20}[」”]/.test(String(text || '')) && /(塞|递|交|送|给|赠)/.test(String(text || ''))
+}
+
+function inferLite(narrative) {
+  const s = String(narrative || '')
+  const ch = {}
+  const cn = { 一:1, 两:2, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10, 十二:12, 二十:20, 三十:30, 五十:50, 一百:100 }
+  const re = /([0-9]+|十[一二三]?|[一二两三四五六七八九十百]+)\s*(枚|个)?\s*(银币|金币|铜钱|现金|灵石)/g
+  let m
+  let sum = 0
+  while ((m = re.exec(s))) {
+    const raw = m[1]
+    const n = /\d/.test(raw) ? Number(raw) : (cn[raw] || 0)
+    sum += n
+    if (sum > 2000) { sum = 2000; break }
+  }
+  if (sum > 0) ch.money_main = sum
+  try {
+    const gifts = extractGiftNames(s)
+    if (gifts.length) {
+      ch.add_items = gifts.map(name => ({ name, count: 1, type: 'special', desc: '剧情所得' }))
+    }
+  } catch (e) { /* ignore */ }
+  return ch
 }
