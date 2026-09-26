@@ -3,9 +3,9 @@ package com.lvjie.app
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
-import android.webkit.ValueCallback
 import android.os.Bundle
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -14,34 +14,22 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
-import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.URL
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private val httpExecutor = Executors.newCachedThreadPool()
+    private var server: ServerSocket? = null
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
-
-
-        fun mimeFor(path: String): String {
-            val p = path.lowercase()
-            return when {
-                p.endsWith(".html") -> "text/html"
-                p.endsWith(".js") || p.endsWith(".mjs") -> "application/javascript"
-                p.endsWith(".css") -> "text/css"
-                p.endsWith(".json") -> "application/json"
-                p.endsWith(".svg") -> "image/svg+xml"
-                p.endsWith(".png") -> "image/png"
-                p.endsWith(".jpg") || p.endsWith(".jpeg") -> "image/jpeg"
-                p.endsWith(".mid") || p.endsWith(".midi") -> "audio/midi"
-                p.endsWith(".mp3") -> "audio/mpeg"
-                p.endsWith(".ico") -> "image/x-icon"
-                else -> "application/octet-stream"
-            }
-        }
 
     inner class Bridge {
         @JavascriptInterface
@@ -51,8 +39,8 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val methodU = method.uppercase()
                     val u = URL(url)
-                    conn = (u.openConnection() as HttpURLConnection)
-                    conn.requestMethod = if (methodU == "GET" || methodU == "HEAD") methodU else methodU
+                    conn = u.openConnection() as HttpURLConnection
+                    conn.requestMethod = methodU
                     conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
                     conn.readTimeout = conn.connectTimeout
                     conn.instanceFollowRedirects = true
@@ -89,23 +77,94 @@ class MainActivity : AppCompatActivity() {
             .put("text", text)
             .put("error", error ?: "")
             .toString()
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace("\n", "\\n")
-            .replace("\r", "")
+        val js = "window.__awHostHttpCb&&window.__awHostHttpCb(" + JSONObject.quote(payload) + ")"
         runOnUiThread {
-            webView.evaluateJavascript("window.__awHostHttpCb&&window.__awHostHttpCb('$payload')", null)
+            if (this::webView.isInitialized) webView.evaluateJavascript(js, null)
         }
+    }
+
+    private fun startLocalServer(): Int {
+        val sock = ServerSocket()
+        sock.bind(InetSocketAddress("127.0.0.1", 0))
+        server = sock
+        val port = sock.localPort
+        Thread {
+            while (!sock.isClosed) {
+                try {
+                    val client = sock.accept()
+                    httpExecutor.execute { handleHttp(client) }
+                } catch (_: Exception) {
+                    break
+                }
+            }
+        }.start()
+        return port
+    }
+
+    private fun handleHttp(client: java.net.Socket) {
+        client.use { s ->
+            try {
+                val input = BufferedReader(InputStreamReader(s.getInputStream(), Charsets.UTF_8))
+                val line = input.readLine() ?: return
+                val path = line.split(" ").getOrNull(1) ?: "/"
+                var rel = path.substringBefore("?").removePrefix("/")
+                if (rel.isEmpty() || rel.endsWith("/")) rel += "index.html"
+                if (rel.contains("..")) {
+                    writeResp(s, 400, "text/plain", "bad")
+                    return
+                }
+                val file = "www/$rel"
+                val bytes = try {
+                    assets.open(file).readBytes()
+                } catch (e: Exception) {
+                    writeResp(s, 404, "text/plain", "not found")
+                    return
+                }
+                writeResp(s, 200, mimeFor(rel), bytes)
+            } catch (e: Exception) {
+                try { writeResp(s, 500, "text/plain", "err") } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private fun writeResp(s: java.net.Socket, code: Int, mime: String, body: ByteArray) {
+        val header = "HTTP/1.1 $code OK\r\nContent-Type: $mime\r\nContent-Length: ${body.size}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
+        val out: OutputStream = s.getOutputStream()
+        out.write(header.toByteArray(Charsets.US_ASCII))
+        out.write(body)
+        out.flush()
+    }
+
+    private fun writeResp(s: java.net.Socket, code: Int, mime: String, body: String) {
+        writeResp(s, code, mime, body.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun mimeFor(path: String): String {
+        val p = path.lowercase()
+        return when {
+            p.endsWith(".html") -> "text/html"
+            p.endsWith(".js") || p.endsWith(".mjs") -> "application/javascript"
+            p.endsWith(".css") -> "text/css"
+            p.endsWith(".json") -> "application/json"
+            p.endsWith(".svg") -> "image/svg+xml"
+            p.endsWith(".png") -> "image/png"
+            p.endsWith(".jpg") || p.endsWith(".jpeg") -> "image/jpeg"
+            p.endsWith(".mid") || p.endsWith(".midi") -> "audio/midi"
+            p.endsWith(".mp3") -> "audio/mpeg"
+            p.endsWith(".ico") -> "image/x-icon"
+            else -> "application/octet-stream"
+        }
+    }
+
+    private fun injectBridge(view: WebView?) {
+        val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostHttpCb=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(){return Promise.resolve({ok:false})},abort:function(){return Promise.resolve({ok:true})},onChunk:function(){return function(){}},onEnd:function(){return function(){}},onHead:function(){return function(){}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){return Promise.resolve(null)},save:function(){return Promise.resolve({ok:true})},clear:function(){return Promise.resolve({ok:true})}}};})()"
+        view?.evaluateJavascript(js, null)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
-
-        val assetLoader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
-            .build()
 
         webView = WebView(this)
         setContentView(webView)
@@ -118,7 +177,7 @@ class MainActivity : AppCompatActivity() {
             allowContentAccess = true
             mediaPlaybackRequiresUserGesture = false
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = WebSettings.LOAD_NO_CACHE
         }
 
         webView.addJavascriptInterface(Bridge(), "AndroidHttp")
@@ -138,102 +197,26 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): WebResourceResponse? {
-                val url = request?.url ?: return null
-                if (url.host == "appassets.androidplatform.net") {
-                    val rel = (url.path ?: "").removePrefix("/assets/")
-                    return try {
-                        val stream = assets.open(rel)
-                        WebResourceResponse(mimeFor(rel), "utf-8", stream)
-                    } catch (e: Exception) {
-                        super.shouldInterceptRequest(view, request)
-                    }
-                }
-                return super.shouldInterceptRequest(view, request)
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                injectBridge(view)
             }
-
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean {
-                val url = request?.url ?: return false
-                return !(url.scheme == "https" && url.host == "appassets.androidplatform.net")
-            }
-
-
-        fun injectBridge(view: WebView?) {
-            val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostHttpCb=function(p){try{var o=JSON.parse(p);var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(){return Promise.resolve({ok:false})},abort:function(){return Promise.resolve({ok:true})},onChunk:function(){return function(){}},onEnd:function(){return function(){}},onHead:function(){return function(){}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){return Promise.resolve(null)},save:function(){return Promise.resolve({ok:true})},clear:function(){return Promise.resolve({ok:true})}}};})()"
-            view?.evaluateJavascript(js, null)
-        }
-
-        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-            super.onPageStarted(view, url, favicon)
-            injectBridge(view)
-        }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // 注入与 Electron awHost 兼容的 HTTP 桥（绕过 CORS）
-                val js = """
-                    (function(){
-                      if (window.awHost) return;
-                      const seq = { n: 0 };
-                      const cbs = {};
-                      window.__awHostHttpCb = function(payloadStr){
-                        try {
-                          const p = JSON.parse(payloadStr);
-                          const cb = cbs[p.id];
-                          if (cb) { delete cbs[p.id]; cb(p); }
-                        } catch (e) {}
-                      };
-                      function request(req) {
-                        return new Promise(function(resolve){
-                          const id = 'r' + (++seq.n);
-                          cbs[id] = resolve;
-                          try {
-                            AndroidHttp.httpRequest(
-                              id,
-                              String(req.url||''),
-                              String(req.method||'GET'),
-                              JSON.stringify(req.headers||{}),
-                              req.body == null ? null : String(req.body),
-                              Number(req.timeoutMs||30000)
-                            );
-                          } catch (e) {
-                            delete cbs[id];
-                            resolve({ ok:false, error:String(e) });
-                          }
-                        });
-                      }
-                      window.awHost = {
-                        http: {
-                          request: request,
-                          stream: function(){ return Promise.resolve({ ok:false }); },
-                          abort: function(){ return Promise.resolve({ok:true}); },
-                          onChunk: function(){ return function(){}; },
-                          onEnd: function(){ return function(){}; },
-                          onHead: function(){ return function(){}; }
-                        },
-                        asset: {
-                          read: function(){ return Promise.resolve({ ok:false, error:'n/a' }); }
-                        },
-                        secrets: {
-                          load: function(){ return Promise.resolve(null); },
-                          save: function(){ return Promise.resolve({ ok:true }); },
-                          clear: function(){ return Promise.resolve({ ok:true }); }
-                        }
-                      };
-                    })();
-                """.trimIndent()
-                view?.evaluateJavascript(js, null)
+                injectBridge(view)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url ?: return false
+                return !(url.host == "127.0.0.1" || url.scheme == "http" && url.host == "127.0.0.1")
             }
         }
 
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+        val port = startLocalServer()
+        webView.loadUrl("http://127.0.0.1:$port/index.html")
     }
 
     @Deprecated("Deprecated in Java")
@@ -250,5 +233,10 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         if (this::webView.isInitialized && webView.canGoBack()) webView.goBack()
         else super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        try { server?.close() } catch (_: Exception) {}
+        super.onDestroy()
     }
 }
