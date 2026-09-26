@@ -204,6 +204,10 @@ ${worldviewBlock}
 - type：${typeList}；${techName}用 add_items(type=technique) 并带 realm_index、levels、level_costs、level_powers。
 - 货币字段 money_main/mid/high → ${moneyNames.main}/${moneyNames.mid}/${moneyNames.high}（兼容 ling_shi 等旧名）。
 
+【反例】（禁止出现于正文）
+错误开头示例：「用户与米拉交谈…」「应该给奖励…」「写约100字…」「JSON 要一致…」「开始写。」
+这些只能出现在 think 块；玩家看到的只能是小说正文。
+
 【JSON 骨架】
 \`\`\`json
 {

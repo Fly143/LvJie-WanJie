@@ -205,25 +205,37 @@ function stripJSONBlock(text) {
 
   const rawLines = s.split(/\r?\n/)
   const kept = []
+  const isMeta = (t) => {
+    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,|Based on|Start writing|Write a)\b/i.test(t)) return true
+    if (/\bdesc\s*[:：]/i.test(t)) return true
+    if (/^(我应|我述|我写|写吧|写完|根据|注意|不过|可以给|不需要|应该这样|玩家是|玩家要|玩家还|任务线索|选项[:：]|叙事|正文写|对话应该|规则说|不要随便|这把思考|给玩家|先给|让我|保持简洁|接近收束)/.test(t)) return true
+    if (/^(用户|玩家|委托人|数值|金额|物品|地图|任务|关系|新增|应该|需要|必须|可以|最好|记得|确保|对齐|一致).{0,40}(交谈|递送|加|写|给|标|进|在|完成|推进|选择|选项)/.test(t)) return true
+    if (/^(写|开始写|再写|补一).{0,20}(正文|一段|一百|100|字)/.test(t)) return true
+    if (/\b(new_locations|add_items|remove_items|money_main|changes|quests|options|JSON)\b/i.test(t) && !/[「」""']/.test(t)) return true
+    if (/^\s*(数值|报酬|奖励|参数)\s*[:：]/.test(t)) return true
+    if (/^(嗯|额|这个|其实|算了)[，,、]/.test(t) && t.length < 80) return true
+    return false
+  }
   for (const line of rawLines) {
     const t = line.trim()
     if (!t) {
       if (kept.length) kept.push('')
       continue
     }
-    // 英文旁白
-    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,|Based on)\b/i.test(t)) continue
-    if (/\bdesc\s*[:：]/i.test(t)) continue
-    if (/^["\u201c\u300c].*["\u201d\u300d]?\s*[—-]\s*(desc|note)/i.test(t)) continue
-    // 中文旁白/推演
-    if (/^(我应|我述|我写|写吧|写完|根据|注意|不过|可以给|不需要|应该这样|玩家是|玩家要|玩家还|任务线索|选项[:：]|叙事|正文写|老汤姆的对话|对话应该|规则说|不要随便|这把思考|给玩家|先给|让我)/.test(t)) continue
-    if (/^(嗯|额|这个|其实|算了)[，,、]/.test(t) && t.length < 80) continue
-    const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length
-    const latin = (t.match(/[A-Za-z]/g) || []).length
-    // 仅去掉明显旁白，不再按中英比丢弃（多语言正文）
+    if (isMeta(t)) continue
     kept.push(line)
   }
-  return kept.join('\n').trim()
+  let out = kept.join('\n').trim()
+  // 去掉开头残留的半截规划（直到出现明显叙事句）
+  const lines = out.split('\n')
+  while (lines.length) {
+    const head = lines[0].trim()
+    if (!head) { lines.shift(); continue }
+    const looksStory = /[。！？」"]/.test(head) && !/^(写|开始|应该|用户|玩家要|数值|JSON)/.test(head)
+    if (looksStory || lines.length <= 1) break
+    lines.shift()
+  }
+  return lines.join('\n').trim()
 }
 
 function parseOptionsFromText(text) {
