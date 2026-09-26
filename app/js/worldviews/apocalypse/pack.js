@@ -50,7 +50,7 @@ export const apocalypsePack = {
   lexicon: {
     spouse: '伴侣',
     propose: '结为伴侣',
-    divorce: '分道扬镳',
+    divorce: '解除关系',
     level: '进化等阶',
     progress: '进化点',
     money: { main: '物资点', mid: '信用点', high: '核心币' },

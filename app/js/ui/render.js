@@ -14,6 +14,13 @@ import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
 import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR } from '../engine/marriage.js'
 
+function favorColor(v) {
+  const n = Number(v) || 0
+  if (n < 0) return 'var(--red)'
+  if (n >= 80) return 'var(--gold, #e8c46a)'
+  return 'inherit'
+}
+
 function relBlock(person) {
   const lines = relationLines(person)
   if (!lines.length) return ''
@@ -415,7 +422,7 @@ export function renderFriends(app, api) {
           return `
           <div class="card">
             <div class="cname">${esc(f.name)} ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
-            <div class="crealm">${esc(f.realm || '')} · 好感 ${fmtNum(f.favor || 0)}${f.relType ? ' · ' + esc(f.relType) : ''}</div>
+            <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">好感 ${fmtNum(f.favor || 0)}</span>${f.relType ? ' · ' + esc(f.relType) : ''}</div>
             <div class="cdim">📍 ${esc(at.name)}${at.here ? ' · 当前场景' : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}

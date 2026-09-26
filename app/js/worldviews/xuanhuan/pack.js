@@ -50,7 +50,7 @@ export const xuanhuanPack = {
   lexicon: {
     spouse: '道侣',
     propose: '结为道侣',
-    divorce: '斩尘缘',
+    divorce: '解除关系',
     level: '境界',
     progress: '灵力',
     money: { main: '金币', mid: '灵玉', high: '神晶' },

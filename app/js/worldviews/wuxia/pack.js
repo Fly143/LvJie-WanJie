@@ -50,7 +50,7 @@ export const wuxiaPack = {
   lexicon: {
     spouse: '眷侣',
     propose: '结为眷侣',
-    divorce: '斩断尘缘',
+    divorce: '解除关系',
     level: '武功境界',
     progress: '内力',
     money: { main: '银两', mid: '金叶', high: '奇珍' },

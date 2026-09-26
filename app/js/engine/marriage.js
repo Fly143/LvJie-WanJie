@@ -29,7 +29,7 @@ export function proposeWord(pack) {
 }
 
 export function divorceWord(pack) {
-  return (pack && pack.lexicon && pack.lexicon.divorce) || '解除关系'
+  return '解除关系'
 }
 
 export function marriedList(S) {

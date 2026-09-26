@@ -48,7 +48,7 @@ export const xiuxianPack = {
   lexicon: {
     spouse: '道侣',
     propose: '结为道侣',
-    divorce: '斩尘缘',
+    divorce: '解除关系',
     level: '境界',
     progress: '修为',
     money: { main: '灵石', mid: '上品灵石', high: '仙元石' },

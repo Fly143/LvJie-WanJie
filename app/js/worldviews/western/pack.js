@@ -50,7 +50,7 @@ export const westernPack = {
   lexicon: {
     spouse: '伴侣',
     propose: '求婚',
-    divorce: '解除婚约',
+    divorce: '解除关系',
     level: '位阶',
     progress: '魔力/经验',
     money: { main: '银币', mid: '金币', high: '魔晶' },
