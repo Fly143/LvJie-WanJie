@@ -25,6 +25,24 @@ class MainActivity : AppCompatActivity() {
     private val httpExecutor = Executors.newCachedThreadPool()
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
+
+        fun mimeFor(path: String): String {
+            val p = path.lowercase()
+            return when {
+                p.endsWith(".html") -> "text/html"
+                p.endsWith(".js") || p.endsWith(".mjs") -> "application/javascript"
+                p.endsWith(".css") -> "text/css"
+                p.endsWith(".json") -> "application/json"
+                p.endsWith(".svg") -> "image/svg+xml"
+                p.endsWith(".png") -> "image/png"
+                p.endsWith(".jpg") || p.endsWith(".jpeg") -> "image/jpeg"
+                p.endsWith(".mid") || p.endsWith(".midi") -> "audio/midi"
+                p.endsWith(".mp3") -> "audio/mpeg"
+                p.endsWith(".ico") -> "image/x-icon"
+                else -> "application/octet-stream"
+            }
+        }
+
     inner class Bridge {
         @JavascriptInterface
         fun httpRequest(id: String, url: String, method: String, headersJson: String?, body: String?, timeoutMs: Int) {
@@ -125,8 +143,16 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse? {
-                val resp = assetLoader.shouldInterceptRequest(request?.url ?: return null)
-                if (resp != null) return resp
+                val url = request?.url ?: return null
+                if (url.host == "appassets.androidplatform.net") {
+                    val rel = (url.path ?: "").removePrefix("/assets/")
+                    return try {
+                        val stream = assets.open(rel)
+                        WebResourceResponse(mimeFor(rel), "utf-8", stream)
+                    } catch (e: Exception) {
+                        super.shouldInterceptRequest(view, request)
+                    }
+                }
                 return super.shouldInterceptRequest(view, request)
             }
 
@@ -207,7 +233,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        webView.loadUrl("file:///android_asset/www/index.html")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
     }
 
     @Deprecated("Deprecated in Java")
