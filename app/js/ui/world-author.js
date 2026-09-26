@@ -1,5 +1,6 @@
 // 自定义世界：导入 JSON / 从作品或整本小说生成草稿
 import { openModal, closeModal, toast } from './modals.js'
+import { openKeyModal } from './settings-panels.js'
 import { esc } from '../engine/util.js'
 import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/worldpack.js'
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts, hasCustomPack } from '../engine/custom-packs.js'
@@ -146,7 +147,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     const title = f.title || '未命名作品'
     const keyObj = activeKey(app)
     if (!keyObj) {
-      status.textContent = '未配置 API Key，请先在顶栏 🔑 API 中配置。'
+      status.textContent = '未配置 API Key，先配置后才能 AI 生成；也可只粘贴 JSON 保存。'
+      toast('请先配置 API Key')
+      try {
+        closeModal()
+        openKeyModal(app, { save: () => {}, refreshAll: () => {} })
+      } catch (e) { /* ignore */ }
       return
     }
     const btn = document.getElementById('cw-gen')
