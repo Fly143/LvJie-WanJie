@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div id="aw-errbox" style="display:none;position:fixed;left:8px;right:8px;top:8px;z-index:9999;background:#400;color:#fff;padding:10px;font:12px/1.4 monospace;border-radius:8px"></div>
 
 <header id="hdr" hidden>
   <span class="logo" id="hdr-logo">🗺️ 旅界</span>
@@ -38,8 +39,9 @@
 
 <div id="modals"></div>
 <div id="toasts"></div>
-<div id="welcome" hidden></div>
+<div id="welcome"></div>
 
+<script src="js/boot-errors.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
