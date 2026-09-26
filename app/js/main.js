@@ -229,10 +229,7 @@ function renderWelcome() {
     return 0
   })
   const sel = app.selectedPack
-  const q = (app.packFilter || '').trim().toLowerCase()
-  const filtered = q
-    ? packs.filter(p => ((p.name || '') + (p.tagline || '') + p.id).toLowerCase().includes(q))
-    : packs
+  const filtered = packs
 
   const PRIMARY_N = 3
   const primary = filtered.slice(0, PRIMARY_N)
@@ -264,8 +261,7 @@ function renderWelcome() {
       <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
       <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
       <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
-        <input id="w-filter" type="text" placeholder="搜索世界…" value="${esc(app.packFilter || '')}" style="max-width:240px">
-        ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? '收起其余世界 ▴' : '展开其余 ' + rest.length + ' 个世界 ▾'}</button>` : ''}
+                ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? '收起其余世界 ▴' : '展开其余 ' + rest.length + ' 个世界 ▾'}</button>` : ''}
       </div>
       <div id="pack-grid">
         ${primary.map(cardHtml).join('') || '<div class="empty">无匹配世界</div>'}
@@ -359,19 +355,6 @@ function renderWelcome() {
     }
   }
 
-  const filterEl = document.getElementById('w-filter')
-  if (filterEl) {
-    filterEl.oninput = () => {
-      app.packFilter = filterEl.value || ''
-      renderWelcome()
-      const f2 = document.getElementById('w-filter')
-      if (f2) {
-        f2.focus()
-        const n = f2.value.length
-        try { f2.setSelectionRange(n, n) } catch (e) { /* ignore */ }
-      }
-    }
-  }
 
   startBtn.onclick = () => {
     const id = app.selectedPack
