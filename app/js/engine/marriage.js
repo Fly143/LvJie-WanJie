@@ -91,3 +91,33 @@ export function divorce(S, friend, pack) {
   S.spouses = marriedList(S).map(x => x.name)
   return { ok: true, msg: `与${friend.name}${divorceWord(pack)}` }
 }
+
+
+export function addGrudge(f, to, kind, note) {
+  if (!f) return { ok: false }
+  const list = Array.isArray(f.grudges) ? f.grudges.slice() : []
+  const k = kind === '恩' ? '恩' : kind === '仇' ? '仇' : kind === '债' ? '债' : '怨'
+  list.unshift({ to: String(to || '玩家'), kind: k, note: String(note || '').slice(0, 40) })
+  f.grudges = list.slice(0, 8)
+  return { ok: true }
+}
+
+export function removeGrudge(f, index) {
+  if (!f || !Array.isArray(f.grudges)) return { ok: false }
+  f.grudges.splice(Number(index) || 0, 1)
+  return { ok: true }
+}
+
+/** 负好感 / 仇人 → 同步关系网与恩怨 */
+export function syncFavorToRelations(f) {
+  if (!f) return
+  const favor = Number(f.favor) || 0
+  if (favor < 0) {
+    if (!f.relType || f.relType === '熟人' || f.relType === '伙伴') f.relType = '仇人'
+    const list = Array.isArray(f.grudges) ? f.grudges.slice() : []
+    if (!list.some(g => g && g.to === '玩家')) {
+      list.unshift({ to: '玩家', kind: '怨', note: '好感跌至 ' + favor })
+      f.grudges = list.slice(0, 8)
+    }
+  }
+}

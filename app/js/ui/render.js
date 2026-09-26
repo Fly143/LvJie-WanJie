@@ -12,7 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
-import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR } from '../engine/marriage.js'
+import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
 function favorColor(v) {
   const n = Number(v) || 0
@@ -427,6 +427,10 @@ export function renderFriends(app, api) {
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
             ${relBlock(f)}
+            ${marriageEnabled(pack) || true ? `<div class="btn-row" style="margin-top:4px">
+              <button class="btn btn-sm" data-grudge="${i}" type="button">＋恩怨</button>
+              ${(f.grudges || []).length ? `<button class="btn btn-sm" data-ungudge="${i}" type="button">－恩怨</button>` : ''}
+            </div>` : ''}
             <div class="cbtn">
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
               ${marriageEnabled(pack) ? (f.married
@@ -442,6 +446,28 @@ export function renderFriends(app, api) {
   `
   const nb = document.getElementById('fr-new')
   if (nb) nb.onclick = () => api.startFlow('结识', `我想要结识一位新的${pack.lexicon.companion}。`)
+  main.querySelectorAll('[data-grudge]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.grudge)]
+      const to = prompt('对谁（默认自己）', '玩家')
+      if (to === null) return
+      const kind = prompt('类型：恩 / 怨 / 仇 / 债', '怨') || '怨'
+      const note = prompt('备注', '') || ''
+      addGrudge(f, to || '玩家', kind, note)
+      api.toast('已记入恩怨')
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-ungudge]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.ungudge)]
+      removeGrudge(f, 0)
+      api.toast('已去掉一条恩怨')
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-marry]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.marry)]

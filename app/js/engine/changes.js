@@ -4,7 +4,7 @@ import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByNa
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
-import { forceDivorce } from './marriage.js'
+import { forceDivorce, syncFavorToRelations } from './marriage.js'
 import { normalizeRelType } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
 
@@ -216,6 +216,7 @@ export function applyChanges(S, ch, hooks = {}) {
         const d = Math.round(capAbs(Number(raw.favor) || 0, CHANGE_CAPS.favor_abs))
         f.favor = (f.favor || 0) + d
         if (d) minor.push(`${f.name} 好感 ${d > 0 ? '+' : ''}${d}`)
+        syncFavorToRelations(f)
       }
       if (Array.isArray(f.history) && f.history.length > 50) {
         f.history = f.history.slice(-50)
