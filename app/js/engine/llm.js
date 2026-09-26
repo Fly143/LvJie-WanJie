@@ -21,8 +21,7 @@ export function normalizeApiKey(k) {
 
 export function maskKey(key) {
   const s = String(key || '')
-  if (s.length <= 8) return s ? '••••' : ''
-  return s.slice(0, 4) + '…' + s.slice(-4)
+  return s ? '••••••••' : ''
 }
 
 /** 把 Base URL 拼成最终 endpoint */

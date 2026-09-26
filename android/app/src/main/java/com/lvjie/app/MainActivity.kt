@@ -85,7 +85,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startLocalServer(): Int {
         val sock = ServerSocket()
-        sock.bind(InetSocketAddress("127.0.0.1", 0))
+        sock.bind(InetSocketAddress("127.0.0.1", 8765))
         server = sock
         val port = sock.localPort
         Thread {

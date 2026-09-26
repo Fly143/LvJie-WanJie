@@ -23,7 +23,7 @@ export function openKeyModal(app, { save, refreshAll }) {
           <b>${esc(n.name || '配置' + (i + 1))}</b>
           <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
           <span class="masktext">${esc(n.model || '')}</span>
-          <span class="masktext">${esc(maskKey(n.key || n.value || ''))}</span>
+          <span class="masktext">${(n.key || n.value) ? '已保存 · 不显示' : '未设置'}</span>
         </label>
         <button class="btn btn-sm btn-danger" data-del="${i}" type="button">删除</button>
       </div>
@@ -161,6 +161,15 @@ export function openKeyModal(app, { save, refreshAll }) {
       return
     }
     const rec = { name, baseUrl, key, model, apiStyle }
+    if (!S) {
+      // 欢迎页配置：写入全局 Key 库，不依赖存档
+      persistKeysStandalone(rec, selNow, keyInput)
+      save()
+      refreshAll()
+      closeModal()
+      toast('API 已保存')
+      return
+    }
     S.playerKeys = S.playerKeys || []
     if (typeof selNow === 'number' && S.playerKeys[selNow] && !keyInput) {
       // 覆盖当前条目（沿用原 Key）
@@ -221,4 +230,23 @@ export function openHelp(app) {
     <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机，API Key 加密保存。</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
   `)
+}
+
+function persistKeysStandalone(rec, selNow, keyInput) {
+  try {
+    const raw = localStorage.getItem('agentworlds_apikeys_v1')
+    const data = raw ? JSON.parse(raw) : { keys: [], selected: 0 }
+    if (!Array.isArray(data.keys)) data.keys = []
+    const exists = data.keys[selNow]
+    if (exists && !keyInput) data.keys[selNow] = rec
+    else if (exists && keyInput) data.keys[selNow] = rec
+    else {
+      data.keys.push(rec)
+      data.selected = data.keys.length - 1
+    }
+    localStorage.setItem('agentworlds_apikeys_v1', JSON.stringify(data))
+    if (window.awHost && window.awHost.secrets && window.awHost.secrets.save) {
+      window.awHost.secrets.save(data).catch(function () {})
+    }
+  } catch (e) { /* ignore */ }
 }
