@@ -1,0 +1,274 @@
+// AI 事件状态机
+import { buildSystemPrompt } from './prompt.js'
+import { callLLM, extractGameJSON } from './llm-bridge.js'
+import { applyChanges, syncGiftsWithNarrative } from './changes.js'
+import { MAX_EVENT_CHOICES } from './constants.js'
+
+const MAX_HISTORY_MSGS = 20
+const MAX_USER_LEN = 2000
+
+/**
+ * EV 结构：
+ * { kind, target, history:[{role,content}], count, options, ended, loading, error, resultText, changesBrief }
+ */
+export function startEvent(kind, user, target) {
+  return {
+    kind,
+    target: target || null,
+    history: [],
+    count: 0,
+    options: null,
+    ended: false,
+    loading: true,
+    error: '',
+    resultText: '',
+    changesBrief: null,
+    partial: '',
+    _ctl: null,
+    _turn: 0
+  }
+}
+
+/**
+ * 发送一轮。S 为存档，hooks 用于渲染回调。
+ */
+export async function runEventTurn(S, EV, userContent, hooks = {}) {
+  if (!EV || EV.ended) return
+  if (EV.loading && EV._ctl) return // 并发闸：上一轮未完成
+
+  let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
+  // 扩图提示：外出类行动在用户侧提醒模型补 new_locations
+  if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
+    userText += '\n（本轮为外出行动，请尽量在 json.changes.new_locations 添加 1 个新地点及 people/shop）'
+  }
+  EV.loading = true
+  EV.error = ''
+  const turn = (EV._turn = (EV._turn || 0) + 1)
+  if (hooks.onState) hooks.onState(EV)
+
+  const keyObj = resolveKey(S)
+  if (!keyObj) {
+    EV.loading = false
+    EV.error = '请先在设置中配置 API Key（🔑 切换 API Key）'
+    if (hooks.onState) hooks.onState(EV)
+    return
+  }
+
+  const system = buildSystemPrompt(S, {
+    limitOn: hooks.limitOn !== false,
+    cheatUnlocked: !!hooks.cheatUnlocked,
+    lang: S.lang,
+    focusText: userText,
+    focusNames: EV.target ? [String(EV.target)] : []
+  })
+
+  EV.history.push({ role: 'user', content: userText })
+  EV.partial = ''
+
+  const ctl = new AbortController()
+  EV._ctl = ctl
+  let lastPaint = 0
+  let res
+  try {
+    res = await callLLM({
+      keyObj,
+      system,
+      user: userText,
+      history: trimHistory(EV.history.slice(0, -1)),
+      signal: ctl.signal,
+      onDelta: (delta, acc) => {
+        if (EV._turn !== turn) return
+        EV.partial = acc
+        EV.resultText = stripJSONBlock(acc)
+        // 流式每 token 全量重绘会卡，节流刷新
+        const now = Date.now()
+        if (!hooks.onState) return
+        if (now - lastPaint < 120) return
+        lastPaint = now
+        hooks.onState(EV)
+      }
+    })
+  } catch (e) {
+    res = { ok: false, error: (e && e.message) || '调用异常' }
+  }
+
+  if (EV._turn !== turn) return // 过期响应丢弃
+  if (EV._ctl === ctl) EV._ctl = null
+  EV.loading = false
+
+  if (!res.ok) {
+    EV.error = res.error || '调用失败'
+    EV.partial = ''
+    // 回滚最后一条 user，允许重试；并恢复上一轮叙事，避免半截残文
+    if (EV.history.length && EV.history[EV.history.length - 1].role === 'user') {
+      EV.history.pop()
+    }
+    const lastAsst = [...EV.history].reverse().find(h => h && h.role === 'assistant')
+    EV.resultText = (lastAsst && lastAsst.content) || ''
+    if (hooks.onState) hooks.onState(EV)
+    return
+  }
+
+  const text = normalizeText(res.text)
+  const json = extractGameJSON(text)
+  const narrative = stripJSONBlock(text)
+
+  // history 只存叙事，避免 JSON 撑爆 token
+  EV.history.push({ role: 'assistant', content: narrative || text.slice(0, 500) })
+  if (EV.history.length > MAX_HISTORY_MSGS) {
+    EV.history = EV.history.slice(-MAX_HISTORY_MSGS)
+  }
+  EV.count += 1
+
+  let changesBrief = null
+  if (json) {
+    if (Array.isArray(json.options) && json.options.length && !json.end) {
+      EV.options = json.options.slice(0, 4).map(o => String(o).slice(0, 40))
+    } else {
+      EV.options = null
+      EV.ended = true
+    }
+    if (json.end) EV.ended = true
+    if (json.changes) {
+      try {
+        syncGiftsWithNarrative(json.changes, narrative)
+        changesBrief = applyChanges(S, json.changes, hooks)
+        EV.changesBrief = changesBrief
+      } catch (e) {
+        EV.error = '数据写入失败'
+      }
+      S.lastEventText = narrative
+    } else if (giftMentioned(narrative)) {
+      try {
+        const ch = syncGiftsWithNarrative({}, narrative)
+        changesBrief = applyChanges(S, ch, hooks)
+        EV.changesBrief = changesBrief
+      } catch (e) { /* ignore */ }
+      S.lastEventText = narrative
+    }
+  } else {
+    // 无 json 时尽量从正文选项续写，不直接掐断
+    const opts = parseOptionsFromText(narrative)
+    if (opts.length) {
+      EV.options = opts
+      EV.ended = false
+      EV.error = '（本轮未附数据块，剧情继续；可能少了奖励写入）'
+      S.lastEventText = narrative
+    } else {
+      EV.options = null
+      EV.ended = true
+      EV.error = '（未解析到数据块，事件结束）'
+    }
+  }
+
+  EV.resultText = narrative
+  EV.loading = false
+
+  if (hooks.limitOn !== false && EV.count >= MAX_EVENT_CHOICES) {
+    EV.ended = true
+    EV.options = null
+  }
+
+  if (hooks.onDone) hooks.onDone(EV, changesBrief)
+  if (hooks.onState) hooks.onState(EV)
+}
+
+export function endEvent(EV) {
+  if (!EV) return
+  if (EV._ctl) {
+    try { EV._ctl.abort() } catch (e) { /* ignore */ }
+    EV._ctl = null
+  }
+  EV._turn = (EV._turn || 0) + 1
+  return null
+}
+
+function trimHistory(history) {
+  const arr = Array.isArray(history) ? history : []
+  return arr.slice(-MAX_HISTORY_MSGS)
+}
+
+function normalizeText(t) {
+  if (t == null) return ''
+  if (typeof t === 'string') return t
+  if (Array.isArray(t)) {
+    return t.map(p => (p && typeof p.text === 'string') ? p.text : (typeof p === 'string' ? p : '')).join('')
+  }
+  return String(t)
+}
+
+function stripJSONBlock(text) {
+  let s = String(text || '')
+    .replace(/```think[\s\S]*?```/gi, '')
+    .replace(/```json[\s\S]*?```/gi, '')
+    .replace(/```[\s\S]*?```/g, '')
+
+  const dropLine = (t) => {
+    if (/^(Let me|Keep it|I'll|I will|Actually|Maybe|Careful|Choice|Choices|Text|Wait|OK,|Sure,|Fine|Okay|First,|Then,|Based on|Start writing|Write a)\b/i.test(t)) return true
+    if (/\bdesc\s*[:：]/i.test(t)) return true
+    if (/^(我应|我述|我写|写吧|写完|根据|注意|不过|可以给|不需要|应该这样|玩家是|玩家要|玩家还|任务线索|选项[:：]|叙事|正文写|对话应该|规则说|不要随便|这把思考|给玩家|先给|让我|保持简洁|接近收束)/.test(t)) return true
+    if (/^(用户|玩家|委托人|数值|金额|物品|地图|任务|关系|新增|应该|需要|必须|可以|最好|记得|确保|对齐|一致).{0,40}(交谈|递送|加|写|给|标|进|在|完成|推进|选择|选项)/.test(t)) return true
+    if (/^(写|再写|补一).{0,20}(正文|一段|一百|100|字)/.test(t)) return true
+    if (/^写正文[：:]/.test(t)) return true
+    if (/也许.{0,30}(可以|引出)/.test(t) && !/[「」]/.test(t)) return true
+    if (/引出新委托/.test(t) && !/[「」]/.test(t)) return true
+    if (/^给个\s*[1-9]/.test(t)) return true
+    if (/^JSON\s*要|new_locations|add_items|remove_items|money_main|changes\s*里/i.test(t)) return true
+    if (/^\s*(数值|报酬|奖励|参数)\s*[:：]/.test(t)) return true
+    return false
+  }
+
+  // 句首旁白剥离：「开始写。米拉接过…」→「米拉接过…」
+  const stripPrefix = (t) => t
+    .replace(/^[（(]?(?:开始写|写正文|写正文约\d+字|写约\d+字|开始|下面开始)[）)]?[。.，,、:：\s]+/u, '')
+    .replace(/^JSON\s*要一致[。.，,、:：\s]+/u, '')
+
+  const rawLines = s.split(/\r?\n/)
+  const kept = []
+  for (const line of rawLines) {
+    let t = line.trim()
+    if (!t) {
+      if (kept.length) kept.push('')
+      continue
+    }
+    t = stripPrefix(t)
+    if (!t || dropLine(t)) continue
+    kept.push(t)
+  }
+
+  let out = kept.join('\n').trim()
+  const lines = out.split('\n')
+  while (lines.length) {
+    const head = lines[0].trim()
+    if (!head) { lines.shift(); continue }
+    if (/^[1-4][.．、)]\s*\S/.test(head)) break
+    const looksStory = /[。！？」"”]/.test(head) && head.length >= 12 && !dropLine(head)
+    if (looksStory) break
+    lines.shift()
+  }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function parseOptionsFromText(text) {
+  const s = String(text || '')
+  const out = []
+  const re = /(?:^|\n)\s*([1-4])\s*[.．、)\]]\s*([^\n]{1,30})/g
+  let m
+  while ((m = re.exec(s))) {
+    const t = m[2].trim()
+    if (t && !out.includes(t)) out.push(t)
+    if (out.length >= 4) break
+  }
+  return out
+}
+
+function resolveKey(S) {
+  const keys = Array.isArray(S.playerKeys) ? S.playerKeys : []
+  if (!keys.length) return null
+  const idx = (typeof S.selectedKey === 'number' && keys[S.selectedKey]) ? S.selectedKey : 0
+  return keys[idx] || keys[0] || null
+}
+
+function giftMentioned(text) {
+  return /[「“][^」”]{1,20}[」”]/.test(String(text || '')) && /(塞|递|交|送|给|赠)/.test(String(text || ''))
+}
