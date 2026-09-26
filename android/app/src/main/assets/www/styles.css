@@ -341,12 +341,13 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
 /* ---- mobile / WebView ---- */
 @media (max-width:720px){
   #welcome{
-    overflow-y:auto !important;
+    overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    display:block !important;
+    display:block;
     padding:12px 10px 28px;
     align-items:flex-start;
   }
+  #welcome[hidden],body.menu #welcome{display:none !important}
   #welcome .wbox{
     max-height:none !important;
     display:block !important;
