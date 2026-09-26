@@ -223,6 +223,13 @@ function normalizeContentText(v) {
 /** SSE 流式：chat 读 choices.delta.content；response 读 response.output_text.delta */
 async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const host = globalThis.awHost.http
+  // 先订阅 end，避免 stream 返回后 end 已错过
+  const endBox = { done: null, p: null }
+  endBox.p = new Promise((r) => { endBox.done = r })
+  const offEnd0 = host.onEnd((d) => {
+    if (d && d.id) endBox.done(d)
+    else if (d && d.id == null) { /* ignore */ }
+  })
   const started = await host.stream({
     url,
     method: 'POST',
@@ -234,9 +241,22 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     body: JSON.stringify(body),
     timeoutMs: DEFAULT_TIMEOUT_MS
   })
-  if (!started || !started.ok || !started.id) return null
-
+  if (!started || !started.ok || !started.id) {
+    try { offEnd0() } catch (e) { /* ignore */ }
+    return null
+  }
   const id = started.id
+  const endForId = new Promise((resolve) => {
+    endBox.p.then((d) => {
+      if (d && d.id === id) resolve(d)
+      else {
+        // wait for matching end via extra listener
+        const off = host.onEnd((dd) => {
+          if (dd && dd.id === id) { try { off() } catch (e) {} resolve(dd) }
+        })
+      }
+    })
+  })
   let buf = ''
   let text = ''
   let status = 200
@@ -281,8 +301,18 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     if (!d.ok) err = d.error || '流式失败'
     if (d.aborted) aborted = true
   })
+  const settled = { end: null }
+  const endPromise = endForId.then((d) => {
+    if (d) {
+      status = d.status || status
+      if (!d.ok) err = d.error || '流式失败'
+      if (d.aborted) aborted = true
+    }
+    settled.end = true
+    return true
+  })
 
-  await waitStreamEnd(host, id)
+  await Promise.race([endPromise, waitStreamEnd(host, id)])
   try { offChunk() } catch (e) { /* ignore */ }
   try { offEnd() } catch (e) { /* ignore */ }
   if (signal) signal.removeEventListener('abort', onAbort)

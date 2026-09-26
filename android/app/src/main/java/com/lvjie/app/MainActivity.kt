@@ -138,6 +138,17 @@ class MainActivity : AppCompatActivity() {
                 return !(url.scheme == "https" && url.host == "appassets.androidplatform.net")
             }
 
+
+        fun injectBridge(view: WebView?) {
+            val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostHttpCb=function(p){try{var o=JSON.parse(p);var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(){return Promise.resolve({ok:false})},abort:function(){return Promise.resolve({ok:true})},onChunk:function(){return function(){}},onEnd:function(){return function(){}},onHead:function(){return function(){}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){return Promise.resolve(null)},save:function(){return Promise.resolve({ok:true})},clear:function(){return Promise.resolve({ok:true})}}};})()"
+            view?.evaluateJavascript(js, null)
+        }
+
+        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+            super.onPageStarted(view, url, favicon)
+            injectBridge(view)
+        }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 // 注入与 Electron awHost 兼容的 HTTP 桥（绕过 CORS）

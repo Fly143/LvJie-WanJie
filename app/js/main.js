@@ -281,6 +281,8 @@ function renderWelcome() {
           <button class="btn btn-gold" id="w-start" type="button">进入世界</button>
           <button class="btn" id="w-new" type="button" hidden>新开一局</button>
           <button class="btn" id="w-author" type="button">🛠 自定义世界</button>
+          <button class="btn" id="w-key" type="button">🔑 API</button>
+          <button class="btn" id="w-help" type="button">📖 帮助</button>
         </div>
         <div class="hint">各世界观存档互不影响。卡片上可排序；顶栏「🌐 世界观」随时切换。</div>
       </div>
@@ -399,6 +401,10 @@ function renderWelcome() {
       }
     })
   }
+  const wk = document.getElementById('w-key')
+  if (wk) wk.onclick = () => openKeyModal(app, { save, refreshAll })
+  const wh = document.getElementById('w-help')
+  if (wh) wh.onclick = () => openHelp(app)
 
   syncActions()
   applyTheme(getPack(sel))

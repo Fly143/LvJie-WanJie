@@ -48,6 +48,12 @@ function draftFromForm() {
 
 export function openWorldAuthor(app, { onSaved } = {}) {
   const customs = loadCustomPackDrafts()
+  if (!activeKey(app) && !firstKeyFallback()) {
+    try {
+      toast('自定义世界生成需要 API Key，请先配置')
+      openKeyModal(app, { save: () => {}, refreshAll: () => {} })
+    } catch (e) { /* ignore */ }
+  }
   openModal(`
     <h2>自定义世界</h2>
     <p style="font-size:12px;color:var(--dim)">每个自定义世界会出现在欢迎页，拥有独立存档槽。内置六包不受影响。</p>

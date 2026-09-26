@@ -147,17 +147,18 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       S.lastEventText = narrative
     }
   } else {
-    // 无 json 时尽量从正文选项续写，不直接掐断
+    // 无 json：若正文像完整叙事则继续，不弹吓人提示
+
     const opts = parseOptionsFromText(narrative)
     if (opts.length) {
       EV.options = opts
       EV.ended = false
-      EV.error = '（本轮未附数据块，剧情继续；可能少了奖励写入）'
+      EV.error = ''
       S.lastEventText = narrative
     } else {
       EV.options = null
       EV.ended = true
-      EV.error = '（未解析到数据块，事件结束）'
+      EV.error = ''
     }
   }
 
