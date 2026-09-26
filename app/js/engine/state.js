@@ -480,3 +480,36 @@ export function applyGlobalPrefs(S) {
   if (p.dialogLimit != null) S.dialogLimit = !!p.dialogLimit
   return S
 }
+
+const PACK_ORDER_KEY = 'agentworlds_pack_order_v1'
+
+export function loadPackOrder() {
+  try {
+    const d = JSON.parse(localStorage.getItem(PACK_ORDER_KEY))
+    return Array.isArray(d) ? d.map(String) : []
+  } catch (e) { return [] }
+}
+
+export function savePackOrder(ids) {
+  try {
+    localStorage.setItem(PACK_ORDER_KEY, JSON.stringify((ids || []).map(String)))
+    return true
+  } catch (e) { return false }
+}
+
+export function movePackId(id, dir) {
+  const order = loadPackOrder()
+  const all = [...(order || [])]
+  if (!all.includes(id)) {
+    // seed from current registry later
+    all.push(id)
+  }
+  const i = all.indexOf(id)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= all.length) return all
+  const tmp = all[i]
+  all[i] = all[j]
+  all[j] = tmp
+  savePackOrder(all)
+  return all
+}

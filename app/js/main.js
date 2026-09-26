@@ -1,6 +1,6 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId } from './engine/state.js'
 import { esc, ageLabelShort, fmtNum } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -212,11 +212,22 @@ function renderWelcome() {
   const root = document.getElementById('welcome')
   root.hidden = false
   root.style.display = ''
-  // 自定义世界优先，内置在后
-  const packs = [...listPacks()].sort((a, b) => {
+  // 自定义优先，再按用户排序
+  const savedOrder = loadPackOrder()
+  const all = listPacks()
+  const byId = new Map(all.map(p => [p.id, p]))
+  const packs = [...all].sort((a, b) => {
     const ca = isBuiltinPack(a.id) ? 1 : 0
     const cb = isBuiltinPack(b.id) ? 1 : 0
-    return ca - cb
+    if (ca !== cb) return ca - cb
+    const ia = savedOrder.indexOf(a.id)
+    const ib = savedOrder.indexOf(b.id)
+    if (ia >= 0 || ib >= 0) {
+      if (ia < 0) return 1
+      if (ib < 0) return -1
+      return ia - ib
+    }
+    return 0
   })
   const sel = app.selectedPack
   const PRIMARY_N = 3
@@ -234,6 +245,10 @@ function renderWelcome() {
             <div class="psave">${slot
               ? `💾 ${esc(slot.name)} · ${esc(slot.levelText || '')}`
               : '新开旅程'}</div>
+            <div class="btn-row" style="margin-top:6px">
+              <button class="btn btn-sm" data-pack-up="${esc(p.id)}" type="button" title="上移">▲</button>
+              <button class="btn btn-sm" data-pack-down="${esc(p.id)}" type="button" title="下移">▼</button>
+            </div>
           </div>
         `
   }
@@ -248,7 +263,7 @@ function renderWelcome() {
       <div class="wactions" style="margin-top:10px">
         <button class="btn" id="w-more" type="button">展开其余 ${rest.length} 个世界 ▾</button>
       </div>
-      <div id="pack-grid-more" class="hide">
+      <div id="pack-grid-more" hidden>
         ${rest.map(cardHtml).join('')}
       </div>` : ''}
       <div class="wactions">
@@ -283,6 +298,29 @@ function renderWelcome() {
     }
   }
 
+  root.querySelectorAll('[data-pack-up]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation()
+      movePackId(b.dataset.packUp, -1)
+      // 同步完整顺序
+      const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
+      savePackOrder(ids)
+      renderWelcome()
+    }
+  })
+  root.querySelectorAll('[data-pack-down]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation()
+      const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
+      const id = b.dataset.packDown
+      const i = ids.indexOf(id)
+      if (i >= 0 && i < ids.length - 1) {
+        const tmp = ids[i]; ids[i] = ids[i + 1]; ids[i + 1] = tmp
+        savePackOrder(ids)
+        renderWelcome()
+      }
+    }
+  })
   root.querySelectorAll('.pack-card').forEach(card => {
     card.onclick = () => {
       app.selectedPack = card.dataset.id
@@ -302,8 +340,8 @@ function renderWelcome() {
   const moreGrid = document.getElementById('pack-grid-more')
   if (moreBtn && moreGrid) {
     moreBtn.onclick = () => {
-      const open = moreGrid.classList.toggle('hide')
-      moreBtn.textContent = open
+      moreGrid.hidden = !moreGrid.hidden
+      moreBtn.textContent = moreGrid.hidden
         ? `展开其余 ${rest.length} 个世界 ▾`
         : `收起部分世界 ▴`
     }
