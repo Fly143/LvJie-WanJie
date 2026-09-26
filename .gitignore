@@ -31,3 +31,9 @@ out/
 # 可选：若要提交打包产物再打开
 # release/
 
+
+# Android build
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
