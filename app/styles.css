@@ -206,6 +206,8 @@ body{
   text-shadow:0 0 30px var(--glow)}
 #welcome .wsub{color:var(--dim);margin-top:8px;font-size:15px}
 #pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:28px;text-align:left}
+#pack-grid-more{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:12px;text-align:left}
+#pack-grid-more[hidden]{display:none}
 .pack-card{
   background:var(--card-bg);border:1px solid var(--line2);border-radius:16px;padding:18px 18px 16px;
   cursor:pointer;transition:.18s;position:relative;overflow:hidden;

@@ -354,6 +354,8 @@ function renderWelcome() {
       moreBtn.textContent = moreGrid.hidden
         ? `展开其余 ${rest.length} 个世界 ▾`
         : `收起部分世界 ▴`
+      // 窗口模式下避免新内容把顶栏卡片顶出视野
+      try { moreBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) } catch (e) { /* ignore */ }
     }
   }
 
