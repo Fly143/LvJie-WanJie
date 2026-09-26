@@ -345,7 +345,7 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     display:block;
-    padding:12px 10px 28px;
+    padding:max(16px,calc(env(safe-area-inset-top,0px) + 10px)) 10px 28px;
     align-items:flex-start;
   }
   #welcome[hidden]{display:none !important}
@@ -393,3 +393,5 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
 }
 
 #hdr{padding-top:max(12px,env(safe-area-inset-top,0px))}
+
+#welcome{padding-top:max(16px,calc(env(safe-area-inset-top,0px) + 12px))}
