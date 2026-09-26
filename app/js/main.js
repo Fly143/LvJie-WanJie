@@ -343,9 +343,8 @@ function renderWelcome() {
   const moreBtn = document.getElementById('w-more')
   const moreGrid = document.getElementById('pack-grid-more')
   if (moreBtn && moreGrid) {
-    // 排序/重绘后保持展开；选中卡若在折叠区则自动展开
-    const selInRest = rest.some(p => p.id === app.selectedPack)
-    moreGrid.hidden = !(app.packMoreOpen || selInRest)
+    // 仅尊重用户点过的展开/收起；排序重绘不再自动展开
+    moreGrid.hidden = !app.packMoreOpen
     moreBtn.textContent = moreGrid.hidden
       ? `展开其余 ${rest.length} 个世界 ▾`
       : `收起部分世界 ▴`
