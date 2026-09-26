@@ -18,7 +18,7 @@ function relBlock(person) {
   if (!lines.length) return ''
   return '<div class="cdim">' + lines.map(l => esc(l)).join('<br>') + '</div>'
 }
-import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY } from '../engine/constants.js'
+import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY, LANGUAGE_OPTIONS } from '../engine/constants.js'
 import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal } from './modals.js'
@@ -651,6 +651,14 @@ export function renderSettings(app, api) {
   main.innerHTML = `
     <div class="panel">
       <h3>${esc(pack.lexicon.nav.settings)}</h3>
+      <h4>界面与叙事语言</h4>
+      <div class="btn-row">
+        ${LANGUAGE_OPTIONS.map(l => `
+          <button class="btn btn-sm ${(S.lang || 'zh-CN') === l.id ? 'btn-gold' : ''}" data-lang="${l.id}" type="button">${esc(l.name)}</button>
+        `).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--faint);margin-bottom:6px">剧情正文语言与此一致。</div>
+
       <h4>AI 风格</h4>
       <div class="btn-row">
         ${AI_STYLE_ORDER.map(k => `
@@ -714,6 +722,13 @@ export function renderSettings(app, api) {
     </div>
   `
 
+  main.querySelectorAll('[data-lang]').forEach(b => {
+    b.onclick = () => {
+      S.lang = b.dataset.lang
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-style]').forEach(b => {
     b.onclick = () => { S.aiStyle = b.dataset.style; api.save(); api.refreshAll() }
   })

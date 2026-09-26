@@ -68,3 +68,14 @@ export const BGM_DEFAULT = 'm027'
 
 /** 使用默认曲的界面 */
 export const BGM_DEFAULT_TABS = ['scene', 'map', 'profile', 'friends', 'quests', 'bag', 'settings']
+
+export const LANGUAGE_OPTIONS = [
+  { id: 'zh-CN', name: '简体中文', promptLang: '简体中文', storyHint: '中文小说句' },
+  { id: 'zh-TW', name: '繁體中文', promptLang: '繁體中文', storyHint: '繁體小說句' },
+  { id: 'en', name: 'English', promptLang: 'English', storyHint: 'English prose' },
+  { id: 'ja', name: '日本語', promptLang: '日本語', storyHint: '日本語の地の文' }
+]
+
+export function langPack(id) {
+  return LANGUAGE_OPTIONS.find(x => x.id === id) || LANGUAGE_OPTIONS[0]
+}

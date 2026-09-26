@@ -57,6 +57,7 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   const system = buildSystemPrompt(S, {
     limitOn: hooks.limitOn !== false,
     cheatUnlocked: !!hooks.cheatUnlocked,
+    lang: S.lang,
     focusText: userText,
     focusNames: EV.target ? [String(EV.target)] : []
   })
@@ -219,8 +220,7 @@ function stripJSONBlock(text) {
     if (/^(嗯|额|这个|其实|算了)[，,、]/.test(t) && t.length < 80) continue
     const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length
     const latin = (t.match(/[A-Za-z]/g) || []).length
-    if (latin > 8 && latin >= cjk) continue
-    if (cjk < 4 && latin > 4) continue
+    // 仅去掉明显旁白，不再按中英比丢弃（多语言正文）
     kept.push(line)
   }
   return kept.join('\n').trim()

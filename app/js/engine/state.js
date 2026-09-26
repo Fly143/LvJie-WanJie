@@ -381,6 +381,7 @@ export function newGame(name, packId) {
     lastEventText: '',
     talent: null,
     medY: 0, medM: 0, medD: 10,
+    lang: 'zh-CN',
     bgmTrack: (PACK_BGM && PACK_BGM[pack.id]) || BGM_DEFAULT || '',
     aiStyle: 'normal',
     playerGender: '',
@@ -463,6 +464,7 @@ export function loadGlobalPrefs() {
 export function saveGlobalPrefsFrom(S) {
   if (!S) return
   const pref = {
+    lang: S.lang || 'zh-CN',
     bgmTrack: S.bgmTrack == null ? '' : S.bgmTrack,
     aiStyle: S.aiStyle || 'normal',
     playerGender: S.playerGender || '',
@@ -474,6 +476,7 @@ export function saveGlobalPrefsFrom(S) {
 export function applyGlobalPrefs(S) {
   const p = loadGlobalPrefs()
   if (!S || !p) return S
+  if (p.lang) S.lang = p.lang
   if (Object.prototype.hasOwnProperty.call(p, 'bgmTrack')) S.bgmTrack = p.bgmTrack
   if (p.aiStyle) S.aiStyle = p.aiStyle
   if (p.playerGender != null) S.playerGender = p.playerGender

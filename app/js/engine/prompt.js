@@ -4,7 +4,7 @@ import { packOf, tierLabel, playerCultReq, isLifeExpired } from './progression.j
 import { totalPowerF } from './power.js'
 import { packUi, packFeatures } from './pack-ui.js'
 import { fmtNum, ageLabel } from './util.js'
-import { MAX_EVENT_CHOICES } from './constants.js'
+import { MAX_EVENT_CHOICES, langPack } from './constants.js'
 import { skillLabel } from './skills.js'
 import { npcFocusFromTexts } from './npc-memory.js'
 
@@ -160,6 +160,8 @@ export function buildSystemPrompt(S, opts = {}) {
     'special' + (tn.special || '特殊')
   ].join(' / ')
   const gradeHint = Object.keys(pack.pillPct || { 下品: 1 })[0] || '下品'
+  const lang = langPack(opts.lang || S.lang || 'zh-CN')
+  const L = lang.promptLang
 
   return `你是开放世界游戏《${pack.gameTitle || 'Agent万象'}》的叙事引擎。你只负责：写给玩家看的剧情、推进事件、用 JSON 声明数据变化。
 
@@ -168,11 +170,11 @@ export function buildSystemPrompt(S, opts = {}) {
 2. 正文末尾给 1~4 条选项：「1.xx 2.xx」；若事件结束则写 "end":true 且不写 options。
 3. 必须另起一段 \`\`\`json 代码块（除此外不要输出任何代码块）。没数值变化也要给空 "changes":{}。
 4. 可选 \`\`\`think\`\`\` 块写推演；游戏不展示。禁止把思考写进正文。
-5. 正文禁止：英文叙事、Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」。
+5. 正文禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」/ 任何语言的规划旁白。
 6. options 数组必须与正文末尾编号一一对应；json 必须能直接 JSON.parse。
 
 【叙事】
-- 约 100 字；对话可稍长。幽默可有，勿嘲讽玩家。
+- 用${lang.storyHint}写约 100 字；对话可稍长。幽默可有，勿嘲讽玩家。
 - 极速推进，砍掉过场；高光浓墨，琐碎一笔带过。
 - 尊重玩家合理意愿；荒诞操作用幽默驳回且数据不变。
 - 称呼随性别：男/女一致，未设定用「你/阁下」。
