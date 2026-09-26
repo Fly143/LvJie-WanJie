@@ -301,11 +301,14 @@ function renderWelcome() {
   root.querySelectorAll('[data-pack-up]').forEach(b => {
     b.onclick = (e) => {
       e.stopPropagation()
-      movePackId(b.dataset.packUp, -1)
-      // 同步完整顺序
       const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
-      savePackOrder(ids)
-      renderWelcome()
+      const id = b.dataset.packUp
+      const i = ids.indexOf(id)
+      if (i > 0) {
+        const tmp = ids[i]; ids[i] = ids[i - 1]; ids[i - 1] = tmp
+        savePackOrder(ids)
+        renderWelcome()
+      }
     }
   })
   root.querySelectorAll('[data-pack-down]').forEach(b => {
