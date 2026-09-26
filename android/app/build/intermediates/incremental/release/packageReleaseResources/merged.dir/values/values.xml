@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">旅界</string>
-    <style name="Theme.LvJie" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <item name="android:statusBarColor">#0C0818</item>
-        <item name="android:navigationBarColor">#12082C</item>
-        <item name="android:windowBackground">#0C0818</item>
-    </style>
-</resources>
