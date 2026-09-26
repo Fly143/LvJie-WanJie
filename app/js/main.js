@@ -213,10 +213,8 @@ function renderWelcome() {
   const root = document.getElementById('welcome')
   root.hidden = false
   root.style.display = ''
-  // 自定义优先，再按用户排序
   const savedOrder = loadPackOrder()
   const all = listPacks()
-  const byId = new Map(all.map(p => [p.id, p]))
   const packs = [...all].sort((a, b) => {
     const ca = isBuiltinPack(a.id) ? 1 : 0
     const cb = isBuiltinPack(b.id) ? 1 : 0
@@ -231,9 +229,11 @@ function renderWelcome() {
     return 0
   })
   const sel = app.selectedPack
-  const PRIMARY_N = 3
-  const primary = packs.slice(0, PRIMARY_N)
-  const rest = packs.slice(PRIMARY_N)
+  const q = (app.packFilter || '').trim().toLowerCase()
+  const filtered = q
+    ? packs.filter(p => ((p.name || '') + (p.tagline || '') + p.id).toLowerCase().includes(q))
+    : packs
+
   const cardHtml = (p) => {
     const slot = slotMeta(p.id)
     return `
@@ -253,20 +253,19 @@ function renderWelcome() {
           </div>
         `
   }
+
   root.innerHTML = `
     <div class="wbox">
       <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
       <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
-      <div id="pack-grid">
-        ${primary.map(cardHtml).join('')}
+      <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
+        <input id="w-filter" type="text" placeholder="搜索世界…" value="${esc(app.packFilter || '')}" style="max-width:240px">
       </div>
-      ${rest.length ? `
-      <div class="wactions" style="margin-top:10px">
-        <button class="btn" id="w-more" type="button">展开其余 ${rest.length} 个世界 ▾</button>
+      <div id="pack-scroll">
+        <div id="pack-grid">
+          ${filtered.map(cardHtml).join('') || '<div class="empty">无匹配世界</div>'}
+        </div>
       </div>
-      <div id="pack-grid-more" hidden>
-        ${rest.map(cardHtml).join('')}
-      </div>` : ''}
       <div class="wactions">
         <div class="name-row">
           <input id="w-name" type="text" maxlength="12" placeholder="新档角色名（继续旧档可留空）" value="">
@@ -276,10 +275,11 @@ function renderWelcome() {
           <button class="btn" id="w-new" type="button" hidden>新开一局</button>
           <button class="btn" id="w-author" type="button">🛠 自定义世界</button>
         </div>
-        <div class="hint">各世界观存档互不影响。顶栏「🌐 世界观」随时切换；设置里可删除当前世界存档。</div>
+        <div class="hint">各世界观存档互不影响。卡片上可排序；顶栏「🌐 世界观」随时切换。</div>
       </div>
     </div>
   `
+
   const startBtn = document.getElementById('w-start')
   const newBtn = document.getElementById('w-new')
   const nameEl = document.getElementById('w-name')
@@ -299,6 +299,20 @@ function renderWelcome() {
     }
   }
 
+  root.querySelectorAll('.pack-card').forEach(card => {
+    card.onclick = () => {
+      app.selectedPack = card.dataset.id
+      root.querySelectorAll('.pack-card').forEach(c => c.classList.toggle('on', c.dataset.id === app.selectedPack))
+      applyTheme(getPack(app.selectedPack))
+      syncActions()
+      const pp = getPack(app.selectedPack)
+      const tt = root.querySelector('.wtitle')
+      const ts = root.querySelector('.wsub')
+      if (tt) tt.textContent = pp.gameTitle || pp.name || 'Agent万象'
+      if (ts) ts.textContent = pp.welcomeSub || pp.tagline || ''
+    }
+  })
+
   root.querySelectorAll('[data-pack-up]').forEach(b => {
     b.onclick = (e) => {
       e.stopPropagation()
@@ -308,7 +322,11 @@ function renderWelcome() {
       if (i > 0) {
         const tmp = ids[i]; ids[i] = ids[i - 1]; ids[i - 1] = tmp
         savePackOrder(ids)
+        const sc = document.getElementById('pack-scroll')
+        const top = sc ? sc.scrollTop : 0
         renderWelcome()
+        const sc2 = document.getElementById('pack-scroll')
+        if (sc2) sc2.scrollTop = top
       }
     }
   })
@@ -321,41 +339,26 @@ function renderWelcome() {
       if (i >= 0 && i < ids.length - 1) {
         const tmp = ids[i]; ids[i] = ids[i + 1]; ids[i + 1] = tmp
         savePackOrder(ids)
+        const sc = document.getElementById('pack-scroll')
+        const top = sc ? sc.scrollTop : 0
         renderWelcome()
+        const sc2 = document.getElementById('pack-scroll')
+        if (sc2) sc2.scrollTop = top
       }
     }
   })
-  root.querySelectorAll('.pack-card').forEach(card => {
-    card.onclick = () => {
-      app.selectedPack = card.dataset.id
-      root.querySelectorAll('.pack-card').forEach(c => c.classList.toggle('on', c.dataset.id === app.selectedPack))
-      applyTheme(getPack(app.selectedPack))
-      syncActions()
-      // 标题随包刷新
-      const pp = getPack(app.selectedPack)
-      const tt = root.querySelector('.wtitle')
-      const ts = root.querySelector('.wsub')
-      if (tt) tt.textContent = pp.gameTitle || pp.name || 'Agent万象'
-      if (ts) ts.textContent = pp.welcomeSub || pp.tagline || ''
-    }
-  })
 
-  const moreBtn = document.getElementById('w-more')
-  const moreGrid = document.getElementById('pack-grid-more')
-  if (moreBtn && moreGrid) {
-    // 仅尊重用户点过的展开/收起；排序重绘不再自动展开
-    moreGrid.hidden = !app.packMoreOpen
-    moreBtn.textContent = moreGrid.hidden
-      ? `展开其余 ${rest.length} 个世界 ▾`
-      : `收起部分世界 ▴`
-    moreBtn.onclick = () => {
-      moreGrid.hidden = !moreGrid.hidden
-      app.packMoreOpen = !moreGrid.hidden
-      moreBtn.textContent = moreGrid.hidden
-        ? `展开其余 ${rest.length} 个世界 ▾`
-        : `收起部分世界 ▴`
-      // 窗口模式下避免新内容把顶栏卡片顶出视野
-      try { moreBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) } catch (e) { /* ignore */ }
+  const filterEl = document.getElementById('w-filter')
+  if (filterEl) {
+    filterEl.oninput = () => {
+      app.packFilter = filterEl.value || ''
+      renderWelcome()
+      const f2 = document.getElementById('w-filter')
+      if (f2) {
+        f2.focus()
+        const n = f2.value.length
+        try { f2.setSelectionRange(n, n) } catch (e) { /* ignore */ }
+      }
     }
   }
 
