@@ -40,7 +40,26 @@ export function canPropose(f, S, pack) {
   if (!f || !marriageEnabled(pack)) return false
   if (f.married) return false
   if (!haremEnabled(pack) && marriedList(S).length > 0) return false
+  if (!isSameLocation(S, f)) return false
   return (Number(f.favor) || 0) >= PROPOSE_MIN_FAVOR
+}
+
+export function isSameLocation(S, f) {
+  if (!S || !f) return false
+  const name = f.name
+  const loc = (S.map || []).find(l => l.id === S.currentLoc)
+  if (loc && (loc.people || []).some(p => p && p.name === name)) return true
+  // 同伴可能不在 people 列表，用 friendLoc 逻辑
+  for (const l of S.map || []) {
+    if ((l.people || []).some(p => p && p.name === name)) return l.id === S.currentLoc
+  }
+  return false
+}
+
+export function forceDivorce(S, friend, pack) {
+  if (!friend || !friend.married) return
+  friend.married = null
+  S.spouses = marriedList(S).map(x => x.name)
 }
 
 export function propose(S, friend, pack) {
@@ -48,6 +67,9 @@ export function propose(S, friend, pack) {
   const favor = Number(friend.favor) || 0
   if (favor < PROPOSE_MIN_FAVOR) {
     return { ok: false, msg: `好感不足（需 ${PROPOSE_MIN_FAVOR}）` }
+  }
+  if (pack && !isSameLocation(S, friend)) {
+    return { ok: false, msg: '需要在同一场景才能' + proposeWord(pack) }
   }
   if (friend.married) return { ok: false, msg: '对方已有' + spouseWord(pack) }
   if (!haremEnabled(pack) && marriedList(S).length > 0) {

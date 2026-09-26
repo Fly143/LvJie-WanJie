@@ -4,6 +4,8 @@ import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByNa
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
+import { forceDivorce } from './marriage.js'
+import { normalizeRelType } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
 
 /** 单轮熔断：防 AI 刷爆数值 */
@@ -177,6 +179,7 @@ export function applyChanges(S, ch, hooks = {}) {
           talkCount: 0,
           history: [],
           married: raw.married || null,
+          relType: normalizeRelType(raw.relType || raw.relation_type),
           relations: normRelList(raw.relations),
           grudges: normGList(raw.grudges)
         }
@@ -189,6 +192,7 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.mem) f.mem = String(raw.mem)
         if (raw.married !== undefined) f.married = raw.married
         if (raw.gender) f.gender = raw.gender
+        if (raw.relType || raw.relation_type) f.relType = normalizeRelType(raw.relType || raw.relation_type)
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
@@ -212,6 +216,8 @@ export function applyChanges(S, ch, hooks = {}) {
 
   if (Array.isArray(ch.remove_friends)) {
     for (const n of ch.remove_friends.slice(0, 8)) {
+      const gone = S.friends.filter(f => f.name === n)
+      gone.forEach(f => forceDivorce(S, f))
       S.friends = S.friends.filter(f => f.name !== n)
     }
   }
