@@ -198,17 +198,18 @@ body{
 
 /* ===== 欢迎 / 世界观选择 ===== */
 #welcome{
-  position:fixed;top:0;right:0;bottom:0;left:0;z-index:400;overflow:auto;
-  display:flex;align-items:center;justify-content:center;padding:28px 16px;
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:400;overflow:hidden;
+  display:flex;align-items:stretch;justify-content:center;padding:20px 16px;
 }
-#welcome .wbox{width:min(960px,100%);text-align:center}
-#welcome .wtitle{font-family:var(--font-display);font-size:42px;color:var(--accent);letter-spacing:10px;
+#welcome .wbox{width:min(960px,100%);text-align:center;display:flex;flex-direction:column;min-height:0;max-height:100%}
+#welcome .wtitle{font-family:var(--font-display);font-size:clamp(24px,4vw,42px);color:var(--accent);letter-spacing:8px;flex:0 0 auto;
   text-shadow:0 0 30px var(--glow)}
 #welcome .wsub{color:var(--dim);margin-top:8px;font-size:15px}
 #pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:8px;text-align:left}
 #pack-grid-more{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;text-align:left;padding-bottom:4px}
-#pack-scroll{max-height:min(48vh,520px);overflow-y:auto;overflow-x:hidden;margin-top:12px;padding:2px 4px;scrollbar-gutter:stable}
+#pack-scroll{flex:1 1 auto;min-height:140px;max-height:none;overflow-y:auto;overflow-x:hidden;margin-top:10px;padding:2px 4px;scrollbar-gutter:stable}
 #pack-scroll[hidden]{display:none}
+#welcome .wactions{flex:0 0 auto;margin-top:12px;padding-top:8px;background:linear-gradient(180deg,transparent,var(--bg) 28%)}
 #pack-scroll::-webkit-scrollbar{width:8px}
 #pack-scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
 .pack-card{
