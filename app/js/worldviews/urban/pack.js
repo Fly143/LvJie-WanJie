@@ -50,6 +50,9 @@ export const urbanPack = {
   subNames: ['起步', '进阶', '娴熟', '精通'],
   subPower: [1, 1.3, 1.7, 2.0],
   lexicon: {
+    spouse: '配偶',
+    propose: '求婚',
+    divorce: '解除关系',
     level: '社会段位',
     progress: '声望经验',
     money: { main: '现金', mid: '理财', high: '资产' },

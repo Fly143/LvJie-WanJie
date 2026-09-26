@@ -48,6 +48,9 @@ export const xuanhuanPack = {
   subNames: ['初期', '中期', '后期'],
   subPower: [1, 1.25, 1.6],
   lexicon: {
+    spouse: '道侣',
+    propose: '结为道侣',
+    divorce: '斩尘缘',
     level: '境界',
     progress: '灵力',
     money: { main: '金币', mid: '灵玉', high: '神晶' },

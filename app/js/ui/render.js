@@ -12,6 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
+import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord } from '../engine/marriage.js'
 
 function relBlock(person) {
   const lines = relationLines(person)
@@ -421,6 +422,9 @@ export function renderFriends(app, api) {
             ${relBlock(f)}
             <div class="cbtn">
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
+              ${marriageEnabled(pack) ? (f.married
+                ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
+                : (canPropose(f, S, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
               ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
             </div>
           </div>
@@ -431,6 +435,26 @@ export function renderFriends(app, api) {
   `
   const nb = document.getElementById('fr-new')
   if (nb) nb.onclick = () => api.startFlow('结识', `我想要结识一位新的${pack.lexicon.companion}。`)
+  main.querySelectorAll('[data-marry]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.marry)]
+      if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
+      const res = propose(S, f, pack)
+      api.toast(res.msg)
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-divorce]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.divorce)]
+      if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
+      const res = divorce(S, f, pack)
+      api.toast(res.msg)
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-chat]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.chat)]

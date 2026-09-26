@@ -48,6 +48,9 @@ export const wuxiaPack = {
   subNames: ['初期', '中期', '后期', '大成'],
   subPower: [1, 1.3, 1.7, 2.0],
   lexicon: {
+    spouse: '眷侣',
+    propose: '结为眷侣',
+    divorce: '斩断尘缘',
     level: '武功境界',
     progress: '内力',
     money: { main: '银两', mid: '金叶', high: '奇珍' },
