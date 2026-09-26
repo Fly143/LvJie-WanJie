@@ -192,6 +192,9 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
+      if (f && f.married) {
+        S.spouses = (S.friends || []).filter(x => x && x.married).map(x => x.name)
+      }
       // 双向关系回写
       try {
         syncReverseRelations(S, f.name, f.relations, f.grudges)

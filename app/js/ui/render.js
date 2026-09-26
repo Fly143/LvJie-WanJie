@@ -12,7 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
-import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord } from '../engine/marriage.js'
+import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR } from '../engine/marriage.js'
 
 function relBlock(person) {
   const lines = relationLines(person)
@@ -425,7 +425,7 @@ export function renderFriends(app, api) {
               ${marriageEnabled(pack) ? (f.married
                 ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
                 : (canPropose(f, S, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
-              ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
+              ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${esc(spouseLabel(f, pack))}</span>` : ''}
             </div>
           </div>
         `}).join('') || '<div class="empty">尚无同伴，去场景中结识吧</div>'}

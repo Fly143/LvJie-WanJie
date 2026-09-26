@@ -65,7 +65,7 @@ export function propose(S, friend, pack) {
 export function divorce(S, friend, pack) {
   if (!S || !friend || !friend.married) return { ok: false, msg: '未处于婚姻关系' }
   friend.married = null
-  friend.favor = (Number(friend.favor) || 0) - 20
+  friend.favor = Math.max(0, (Number(friend.favor) || 0) - 20)
   S.spouses = marriedList(S).map(x => x.name)
   return { ok: true, msg: `与${friend.name}${divorceWord(pack)}` }
 }
