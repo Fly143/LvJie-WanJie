@@ -103,6 +103,7 @@ function freqOf(note) {
 
 export class MidiPlayer {
   constructor() {
+    this._gen = 0
     this.ctx = null
     this.master = null
     this.source = null
@@ -192,6 +193,7 @@ export class MidiPlayer {
 
   async playArrayBuffer(buf, cacheKey) {
     this.stop()
+    const gen = this._gen
     this._ensureCtx()
     let audioBuf
     try {
@@ -200,6 +202,7 @@ export class MidiPlayer {
       this.playing = false
       return { ok: false, error: (e && e.message) || '渲染失败' }
     }
+    if (gen !== this._gen) return { ok: false, error: '已取消', aborted: true }
     if (!this.ctx) return { ok: false, error: '音频上下文不可用' }
     const src = this.ctx.createBufferSource()
     src.buffer = audioBuf
@@ -238,6 +241,7 @@ export class MidiPlayer {
   }
 
   stop() {
+    this._gen = (this._gen || 0) + 1
     this.playing = false
     if (this.source) {
       try {

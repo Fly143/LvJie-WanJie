@@ -254,6 +254,52 @@ function skillKeyFor(S, pack, k) {
   return hit ? hit.id : null
 }
 
+/** 从正文里抽「被赠予」的物品名（书名号/引号优先） */
+export function extractGiftNames(narrative) {
+  const s = String(narrative || '')
+  const names = []
+  const push = (n) => {
+    const name = String(n || '').trim().replace(/[，。！？…~]+$/, '')
+    if (!name || name.length < 2 || name.length > 20) return
+    if (!names.includes(name)) names.push(name)
+  }
+  // 「旧猎道草图」塞给你 / 递给你「x」
+  const re1 = /[「“]([^」”\n]{2,20})[」”]\s*(?:塞|递|交|给|塞进|扔|送)/g
+  let m
+  while ((m = re1.exec(s))) push(m[1])
+  const re2 = /(?:塞|递|交|送|给)你(?:一|半|块|张|把|瓶)?[一-鿿]{0,3}?[「“]([^」”\n]{2,20})[」”]/g
+  while ((m = re2.exec(s))) push(m[1])
+  // 交给你一只木剑 / 塞给你一块黑面包
+  const re3 = /(?:塞|递|交|送|给)你(?:一|半)?[个只块张把瓶副条瓶]([一-鿿]{2,12})/g
+  while ((m = re3.exec(s))) push(m[1])
+  return names.slice(0, 8)
+}
+
+/**
+ * 正文写了赠送但 json 漏了 → 自动补 add_items；json 有正文无的保留（以 json 为准）。
+ */
+export function syncGiftsWithNarrative(changes, narrative) {
+  if (!changes || typeof changes !== 'object') return changes
+  const gifts = extractGiftNames(narrative)
+  if (!gifts.length) return changes
+  const have = new Set(
+    (Array.isArray(changes.add_items) ? changes.add_items : [])
+      .map(x => x && x.name && String(x.name))
+      .filter(Boolean)
+  )
+  const add = gifts
+    .filter(g => ![...have].some(n => n.includes(g) || g.includes(n)))
+    .map(name => ({ name, count: 1, type: 'special', desc: '剧情赠与' }))
+  if (!add.length) return changes
+  const list = Array.isArray(changes.add_items) ? changes.add_items.slice() : []
+  for (const item of add) {
+    if (list.length >= 10) break
+    list.push(item)
+  }
+  changes.add_items = list
+  return changes
+}
+
 function normRelList(list) {
   if (!Array.isArray(list)) return []
   return list.slice(0, 12).map(r => {

@@ -674,17 +674,23 @@ export function renderSettings(app, api) {
       </div>
 
       <h4>背景音乐</h4>
+      <div class="bgm-group-label">内置</div>
       <div class="btn-row">
-        ${allBgmTracks().map(t => `
-          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}${(S.bgmTrack || '') === t.id ? ' ●' : ''}></button>
+        ${allBgmTracks().filter(t => !t.custom).map(t => `
+          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}${(S.bgmTrack || '') === t.id ? ' ●' : ''}</button>
         `).join('')}
       </div>
+      ${allBgmTracks().some(t => t.custom) ? `
+      <div class="bgm-group-label" style="margin-top:8px">自定义</div>
+      <div class="btn-row">
+        ${allBgmTracks().filter(t => t.custom).map(t => `
+          <button class="btn btn-sm ${(S.bgmTrack || '') === t.id ? 'btn-gold' : ''}" data-bgm="${t.id}" type="button">${esc(t.name)}${(S.bgmTrack || '') === t.id ? ' ●' : ''}</button>
+          <button class="btn btn-sm btn-danger" data-bgm-del="${esc(t.id)}" type="button">×</button>
+        `).join('')}
+      </div>` : ''}
       <div class="btn-row" style="margin-top:6px">
         <button class="btn btn-sm" id="bgm-add" type="button">➕ 本地音乐</button>
         <input id="bgm-file" type="file" accept=".mp3,.wav,.ogg,.m4a,.mid,.midi" multiple hidden>
-        ${allBgmTracks().filter(t => t.custom).map(t => `
-          <button class="btn btn-sm btn-danger" data-bgm-del="${esc(t.id)}" type="button">删 ${esc(t.name)}</button>
-        `).join('')}
       </div>
       <div style="font-size:12px;color:var(--faint);margin-top:4px">支持 mp3/wav/mid 等；自定义曲保存在本机浏览器库，不进游戏目录。</div>
 

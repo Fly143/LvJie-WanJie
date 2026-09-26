@@ -1,7 +1,7 @@
 // AI 事件状态机
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON } from './llm-bridge.js'
-import { applyChanges } from './changes.js'
+import { applyChanges, syncGiftsWithNarrative } from './changes.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
 const MAX_HISTORY_MSGS = 20
@@ -36,7 +36,11 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   if (!EV || EV.ended) return
   if (EV.loading && EV._ctl) return // 并发闸：上一轮未完成
 
-  const userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
+  let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
+  // 扩图提示：外出类行动在用户侧提醒模型补 new_locations
+  if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
+    userText += '\n（本轮为外出行动，请尽量在 json.changes.new_locations 添加 1 个新地点及 people/shop）'
+  }
   EV.loading = true
   EV.error = ''
   const turn = (EV._turn = (EV._turn || 0) + 1)
@@ -126,11 +130,19 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     if (json.end) EV.ended = true
     if (json.changes) {
       try {
+        syncGiftsWithNarrative(json.changes, narrative)
         changesBrief = applyChanges(S, json.changes, hooks)
         EV.changesBrief = changesBrief
       } catch (e) {
         EV.error = '数据写入失败'
       }
+      S.lastEventText = narrative
+    } else if (giftMentioned(narrative)) {
+      try {
+        const ch = syncGiftsWithNarrative({}, narrative)
+        changesBrief = applyChanges(S, ch, hooks)
+        EV.changesBrief = changesBrief
+      } catch (e) { /* ignore */ }
       S.lastEventText = narrative
     }
   } else {
@@ -232,4 +244,8 @@ function resolveKey(S) {
   if (!keys.length) return null
   const idx = (typeof S.selectedKey === 'number' && keys[S.selectedKey]) ? S.selectedKey : 0
   return keys[idx] || keys[0] || null
+}
+
+function giftMentioned(text) {
+  return /[「“][^」”]{1,20}[」”]/.test(String(text || '')) && /(塞|递|交|送|给|赠)/.test(String(text || ''))
 }
