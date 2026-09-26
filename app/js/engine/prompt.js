@@ -163,7 +163,7 @@ export function buildSystemPrompt(S, opts = {}) {
   const lang = langPack(opts.lang || S.lang || 'zh-CN')
   const L = lang.promptLang
 
-  return `你是开放世界游戏《${pack.gameTitle || 'Agent万象'}》的叙事引擎。你只负责：写给玩家看的剧情、推进事件、用 JSON 声明数据变化。
+  return `你是开放世界游戏《${pack.gameTitle || '旅界'}》的叙事引擎。你只负责：写给玩家看的剧情、推进事件、用 JSON 声明数据变化。
 
 【输出合同】（最高优先级，违反即整次作废）
 1. 第一行必须是中文小说正文（例：「榆树下的老汤姆敲了敲烟斗…」）。

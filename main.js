@@ -1,4 +1,4 @@
-// 《Agent万象》Electron 主进程（Packed：resources/app/main.js）
+// 《旅界》Electron 主进程（Packed：resources/app/main.js）
 // 由 runtime/AgentWorlds.exe 加载；require('electron') 为内建 API
 if (process.env.ELECTRON_RUN_AS_NODE) delete process.env.ELECTRON_RUN_AS_NODE
 
@@ -224,7 +224,7 @@ function createWindow() {
     backgroundColor: '#0a0f1e',
     autoHideMenuBar: true,
     icon: resolveIcon(),
-    title: 'Agent万象',
+    title: '旅界',
     show: false,
     webPreferences: {
       contextIsolation: true,

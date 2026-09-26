@@ -76,7 +76,7 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(RUNTIME, 'README.md'),
   [
-    '# Agent万象 · runtime',
+    '# 旅界 · runtime',
     '',
     '本目录是**官方 Electron 发行版**（见 `version` / `PROVENANCE.txt`）+ 同步后的游戏本体。',
     '',

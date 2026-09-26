@@ -1,4 +1,4 @@
-// 启动 Agent万象：使用本项目 runtime/ 下的完整 Electron 发行版
+// 启动 旅界：使用本项目 runtime/ 下的完整 Electron 发行版
 const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')

@@ -27,7 +27,7 @@ fs.writeFileSync(
   path.join(dest, 'package.json'),
   JSON.stringify({
     name: rootPkg.name || 'agent-worlds',
-    productName: rootPkg.productName || 'Agent万象',
+    productName: rootPkg.productName || '旅界',
     version: rootPkg.version || '0.0.0',
     main: 'main.js'
   }, null, 2)

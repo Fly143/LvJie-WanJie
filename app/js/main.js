@@ -81,8 +81,8 @@ function applyTheme(pack) {
   applyThemeTokens(pack)
   applyNavLabels(pack)
   const logo = document.getElementById('hdr-logo')
-  if (logo) logo.textContent = `${pack.icon} ${pack.name} · Agent万象`
-  document.title = (pack.gameTitle || pack.name) + ' · Agent万象'
+  if (logo) logo.textContent = `${pack.icon} ${pack.name} · 旅界`
+  document.title = (pack.gameTitle || pack.name) + ' · 旅界'
 }
 
 function renderHeader() {
@@ -258,7 +258,7 @@ function renderWelcome() {
 
   root.innerHTML = `
     <div class="wbox">
-      <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
+      <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || '旅界')}</div>
       <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
       <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
                 ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? '收起其余世界 ▴' : '展开其余 ' + rest.length + ' 个世界 ▾'}</button>` : ''}
@@ -314,7 +314,7 @@ function renderWelcome() {
       const pp = getPack(app.selectedPack)
       const tt = root.querySelector('.wtitle')
       const ts = root.querySelector('.wsub')
-      if (tt) tt.textContent = pp.gameTitle || pp.name || 'Agent万象'
+      if (tt) tt.textContent = pp.gameTitle || pp.name || '旅界'
       if (ts) ts.textContent = pp.welcomeSub || pp.tagline || ''
     }
   })
