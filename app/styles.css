@@ -348,7 +348,11 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
     padding:12px 10px 28px;
     align-items:flex-start;
   }
-  #welcome[hidden],body.menu #welcome{display:none !important}
+  #welcome[hidden]{display:none !important}
+  body.menu #welcome{display:block !important}
+  body.menu #app{display:none !important}
+  body:not(.menu) #welcome{display:none !important}
+  body:not(.menu) #app{display:flex !important}
   #welcome .wbox{
     max-height:none !important;
     display:block !important;
