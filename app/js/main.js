@@ -234,6 +234,11 @@ function renderWelcome() {
     ? packs.filter(p => ((p.name || '') + (p.tagline || '') + p.id).toLowerCase().includes(q))
     : packs
 
+  const PRIMARY_N = 3
+  const primary = filtered.slice(0, PRIMARY_N)
+  const rest = filtered.slice(PRIMARY_N)
+  const moreOpen = !!app.packMoreOpen
+
   const cardHtml = (p) => {
     const slot = slotMeta(p.id)
     return `
@@ -260,12 +265,17 @@ function renderWelcome() {
       <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
       <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
         <input id="w-filter" type="text" placeholder="搜索世界…" value="${esc(app.packFilter || '')}" style="max-width:240px">
+        ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? '收起其余世界 ▴' : '展开其余 ' + rest.length + ' 个世界 ▾'}</button>` : ''}
       </div>
-      <div id="pack-scroll">
-        <div id="pack-grid">
-          ${filtered.map(cardHtml).join('') || '<div class="empty">无匹配世界</div>'}
+      <div id="pack-grid">
+        ${primary.map(cardHtml).join('') || '<div class="empty">无匹配世界</div>'}
+      </div>
+      ${rest.length ? `
+      <div id="pack-scroll" ${moreOpen ? '' : 'hidden'}>
+        <div id="pack-grid-more">
+          ${rest.map(cardHtml).join('')}
         </div>
-      </div>
+      </div>` : ''}
       <div class="wactions">
         <div class="name-row">
           <input id="w-name" type="text" maxlength="12" placeholder="新档角色名（继续旧档可留空）" value="">
@@ -313,40 +323,41 @@ function renderWelcome() {
     }
   })
 
+  function reorderSwap(id, dir) {
+    const sc = document.getElementById('pack-scroll')
+    const top = sc ? sc.scrollTop : 0
+    const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
+    const i = ids.indexOf(id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= ids.length) return
+    const tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp
+    savePackOrder(ids)
+    renderWelcome()
+    const sc2 = document.getElementById('pack-scroll')
+    if (sc2) sc2.scrollTop = top
+  }
+
   root.querySelectorAll('[data-pack-up]').forEach(b => {
-    b.onclick = (e) => {
-      e.stopPropagation()
-      const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
-      const id = b.dataset.packUp
-      const i = ids.indexOf(id)
-      if (i > 0) {
-        const tmp = ids[i]; ids[i] = ids[i - 1]; ids[i - 1] = tmp
-        savePackOrder(ids)
-        const sc = document.getElementById('pack-scroll')
-        const top = sc ? sc.scrollTop : 0
-        renderWelcome()
-        const sc2 = document.getElementById('pack-scroll')
-        if (sc2) sc2.scrollTop = top
-      }
-    }
+    b.onclick = (e) => { e.stopPropagation(); reorderSwap(b.dataset.packUp, -1) }
   })
   root.querySelectorAll('[data-pack-down]').forEach(b => {
-    b.onclick = (e) => {
-      e.stopPropagation()
-      const ids = [...root.querySelectorAll('.pack-card')].map(c => c.dataset.id)
-      const id = b.dataset.packDown
-      const i = ids.indexOf(id)
-      if (i >= 0 && i < ids.length - 1) {
-        const tmp = ids[i]; ids[i] = ids[i + 1]; ids[i + 1] = tmp
-        savePackOrder(ids)
-        const sc = document.getElementById('pack-scroll')
-        const top = sc ? sc.scrollTop : 0
-        renderWelcome()
-        const sc2 = document.getElementById('pack-scroll')
-        if (sc2) sc2.scrollTop = top
-      }
-    }
+    b.onclick = (e) => { e.stopPropagation(); reorderSwap(b.dataset.packDown, 1) }
   })
+
+  const moreBtn = document.getElementById('w-more')
+  if (moreBtn) {
+    moreBtn.onclick = () => {
+      app.packMoreOpen = !app.packMoreOpen
+      renderWelcome()
+      const btn = document.getElementById('w-more')
+      if (btn) {
+        try { btn.scrollIntoView({ block: 'nearest' }) } catch (e) { /* ignore */ }
+      }
+      // 展开后滚动区从顶部开始，避免只看到中下部
+      const sc = document.getElementById('pack-scroll')
+      if (sc) sc.scrollTop = 0
+    }
+  }
 
   const filterEl = document.getElementById('w-filter')
   if (filterEl) {
