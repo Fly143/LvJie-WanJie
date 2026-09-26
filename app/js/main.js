@@ -1,5 +1,5 @@
 // 主入口：引导、欢迎页选世界观、全局状态
-import { listPacks, getPack, defaultPackId } from './worldviews/index.js'
+import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
 import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs } from './engine/state.js'
 import { esc, ageLabelShort, fmtNum } from './engine/util.js'
 import {
@@ -212,16 +212,19 @@ function renderWelcome() {
   const root = document.getElementById('welcome')
   root.hidden = false
   root.style.display = ''
-  const packs = listPacks()
+  // 自定义世界优先，内置在后
+  const packs = [...listPacks()].sort((a, b) => {
+    const ca = isBuiltinPack(a.id) ? 1 : 0
+    const cb = isBuiltinPack(b.id) ? 1 : 0
+    return ca - cb
+  })
   const sel = app.selectedPack
-  root.innerHTML = `
-    <div class="wbox">
-      <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
-      <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
-      <div id="pack-grid">
-        ${packs.map(p => {
-          const slot = slotMeta(p.id)
-          return `
+  const PRIMARY_N = 3
+  const primary = packs.slice(0, PRIMARY_N)
+  const rest = packs.slice(PRIMARY_N)
+  const cardHtml = (p) => {
+    const slot = slotMeta(p.id)
+    return `
           <div class="pack-card ${p.id === sel ? 'on' : ''}" data-id="${p.id}" style="--pk:${p.theme.accent};background:${p.theme.cardBg || p.theme.panel}">
             <div class="picon">${esc(p.icon)}</div>
             <div class="pname">${esc(p.name)}</div>
@@ -232,8 +235,22 @@ function renderWelcome() {
               ? `💾 ${esc(slot.name)} · ${esc(slot.levelText || '')}`
               : '新开旅程'}</div>
           </div>
-        `}).join('')}
+        `
+  }
+  root.innerHTML = `
+    <div class="wbox">
+      <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || 'Agent万象')}</div>
+      <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
+      <div id="pack-grid">
+        ${primary.map(cardHtml).join('')}
       </div>
+      ${rest.length ? `
+      <div class="wactions" style="margin-top:10px">
+        <button class="btn" id="w-more" type="button">展开其余 ${rest.length} 个世界 ▾</button>
+      </div>
+      <div id="pack-grid-more" class="hide">
+        ${rest.map(cardHtml).join('')}
+      </div>` : ''}
       <div class="wactions">
         <div class="name-row">
           <input id="w-name" type="text" maxlength="12" placeholder="新档角色名（继续旧档可留空）" value="">
@@ -272,8 +289,25 @@ function renderWelcome() {
       root.querySelectorAll('.pack-card').forEach(c => c.classList.toggle('on', c.dataset.id === app.selectedPack))
       applyTheme(getPack(app.selectedPack))
       syncActions()
+      // 标题随包刷新
+      const pp = getPack(app.selectedPack)
+      const tt = root.querySelector('.wtitle')
+      const ts = root.querySelector('.wsub')
+      if (tt) tt.textContent = pp.gameTitle || pp.name || 'Agent万象'
+      if (ts) ts.textContent = pp.welcomeSub || pp.tagline || ''
     }
   })
+
+  const moreBtn = document.getElementById('w-more')
+  const moreGrid = document.getElementById('pack-grid-more')
+  if (moreBtn && moreGrid) {
+    moreBtn.onclick = () => {
+      const open = moreGrid.classList.toggle('hide')
+      moreBtn.textContent = open
+        ? `展开其余 ${rest.length} 个世界 ▾`
+        : `收起部分世界 ▴`
+    }
+  }
 
   startBtn.onclick = () => {
     const id = app.selectedPack
