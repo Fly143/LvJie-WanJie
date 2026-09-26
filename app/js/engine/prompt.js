@@ -169,7 +169,7 @@ export function buildSystemPrompt(S, opts = {}) {
 1. 第一行必须是中文小说正文（例：「榆树下的老汤姆敲了敲烟斗…」）。
 2. 正文末尾给 1~4 条选项：「1.xx 2.xx」；若事件结束则写 "end":true 且不写 options。
 3. 必须另起一段 \`\`\`json 代码块（除此外不要输出任何代码块）。没数值变化也要给空 "changes":{}。
-4. 可选 \`\`\`think\`\`\` 块写推演；游戏不展示。禁止把思考写进正文。
+4. **允许写思考**，但必须放在 think 代码块或 json.thought；玩家界面只显示剧情正文。
 5. 正文禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」/ 任何语言的规划旁白。
 6. options 数组必须与正文末尾编号一一对应；json 必须能直接 JSON.parse。
 
@@ -204,7 +204,7 @@ ${worldviewBlock}
 - type：${typeList}；${techName}用 add_items(type=technique) 并带 realm_index、levels、level_costs、level_powers。
 - 货币字段 money_main/mid/high → ${moneyNames.main}/${moneyNames.mid}/${moneyNames.high}（兼容 ling_shi 等旧名）。
 
-【反例】（禁止出现于正文）
+【反例】（只许进 think，正文禁止）
 错误开头示例：「用户与米拉交谈…」「应该给奖励…」「写约100字…」「JSON 要一致…」「开始写。」
 这些只能出现在 think 块；玩家看到的只能是小说正文。
 
