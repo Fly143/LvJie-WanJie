@@ -32,28 +32,23 @@ AI 驱动的**多世界观**开放世界文字游戏。选择修仙 / 玄幻 / �
 
 ## 运行
 
-依赖清单在 **`package.json`**（Node 项目里它相当于 Python 的 `requirements.txt`）；锁定文件是 **`package-lock.json`**。二者都已入库。
+### Windows（免构建）
+从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-win-x64.zip`，解压后双击 **`AgentWorlds.exe`**。
 
+### Linux / 开发机（免打包）
 ```bash
-# 1）安装依赖（当前仅 devDependency：electron，可选）
 npm install
-
-# 2）启动（同步 app → runtime/resources/app 后拉起游戏）
-npm start
+npx electron .
 ```
+（`electron` 仅开发依赖；游戏本体为原生 ESM，无 bundler。）
 
-说明：
-- **游戏本体零 npm 运行时依赖**，浏览器侧是原生 ESM，不需要 bundler
-- `electron` 只是开发辅助；日常运行用本地 **`runtime/AgentWorlds.exe`**（见 `runtime/README.md`）
-- 若机器上没有 `runtime/`，执行 `npm run rebuild:runtime`（可用 `AW_ELECTRON_ZIP` 指定官方 Electron zip）
-
-`npm start` 会把 `app/`、`main.js`、`preload.js`、`assets/` 同步到 `runtime/resources/app/`，再启动 `runtime/AgentWorlds.exe`。
-
-开发改代码后重新 `npm start` 即可；也可只执行：
-
+### Windows 本地从源码启动
 ```bash
-npm run sync
+npm start    # 同步 app/ → runtime/resources/app/ 并拉起 AgentWorlds.exe
 ```
+若缺少 `runtime/`：`npm run rebuild:runtime`（可用 `AW_ELECTRON_ZIP` 指定官方 Electron zip）。
+
+开发中只更新资源：`npm run sync`
 
 ## API 配置
 
@@ -107,7 +102,6 @@ npm run smoke:stage
 - 游戏进度按世界观分槽存 localStorage，清站点/应用数据会丢档
 - API Key 单独加密保存；删某一世界档会保留 Key 与其它世界存档
 - 剧情由 AI 生成，可能包含虚构或错误内容
-- `runtime/`、`node_modules/`、日志与冒烟产物请勿提交到 git
 
 ## License
 
