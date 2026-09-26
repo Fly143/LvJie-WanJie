@@ -1,6 +1,9 @@
 package com.lvjie.app
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
+import android.webkit.ValueCallback
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -20,6 +23,7 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private val httpExecutor = Executors.newCachedThreadPool()
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     inner class Bridge {
         @JavascriptInterface
@@ -101,7 +105,21 @@ class MainActivity : AppCompatActivity() {
 
         webView.addJavascriptInterface(Bridge(), "AndroidHttp")
 
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(view: WebView?, cb: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = cb
+                val intent = params?.createIntent()
+                    ?: Intent(Intent.ACTION_GET_CONTENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*" + "/*")
+                return try {
+                    startActivityForResult(intent, 1001)
+                    true
+                } catch (e: Exception) {
+                    filePathCallback = null
+                    false
+                }
+            }
+        }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
@@ -179,6 +197,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001) {
+            val arr = if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null
+            filePathCallback?.onReceiveValue(arr)
+            filePathCallback = null
+        }
     }
 
     @Deprecated("Deprecated in Java")

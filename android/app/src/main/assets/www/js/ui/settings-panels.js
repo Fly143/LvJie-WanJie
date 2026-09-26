@@ -48,6 +48,12 @@ export function openKeyModal(app, { save, refreshAll }) {
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">Base URL</label>
     <input id="k-base" type="text" placeholder="例如 https://api.openai.com/v1 或 https://your-gateway/v1" value="${esc(cur ? (cur.baseUrl || '') : '')}">
 
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">API Key</label>
+    <input id="k-value" type="password" placeholder="sk-…" autocomplete="off" value="">
+
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">备注名（可选）</label>
+    <input id="k-name" type="text" placeholder="我的 OpenAI / 公司网关…" value="${esc(cur ? (cur.name || '') : '')}">
+
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">模型</label>
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
       <input id="k-model" type="text" style="margin-top:0;flex:1" placeholder="例如 gpt-4.1-mini / glm-4-flash / deepseek-chat" value="${esc(cur ? (cur.model || '') : '')}">
@@ -57,12 +63,6 @@ export function openKeyModal(app, { save, refreshAll }) {
       <option value="">— 从下方列表选择 —</option>
     </select>
     <div style="font-size:12px;color:var(--faint);margin-top:4px" id="k-model-hint">可手填模型名，或点「刷新模型列表」从接口拉取后选用。</div>
-
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">API Key</label>
-    <input id="k-value" type="password" placeholder="sk-…" autocomplete="off" value="">
-
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">备注名（可选）</label>
-    <input id="k-name" type="text" placeholder="我的 OpenAI / 公司网关…" value="${esc(cur ? (cur.name || '') : '')}">
 
     <div style="font-size:12px;color:var(--faint);margin-top:10px" id="k-preview"></div>
 
