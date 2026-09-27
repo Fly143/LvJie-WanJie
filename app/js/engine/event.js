@@ -27,7 +27,8 @@ export function startEvent(kind, user, target) {
     partial: '',
     _ctl: null,
     _turn: 0,
-    _busy: false
+    _busy: false,
+    _respId: null
   }
 }
 
@@ -63,6 +64,8 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
     if (hooks.onState) hooks.onState(EV)
     return
   }
+  // Responses API 链：优先用服务端 session，失败回退全量
+  let useChain = !!EV._respId
 
   const system = buildSystemPrompt(S, {
     limitOn: hooks.limitOn !== false,
@@ -87,7 +90,8 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
         keyObj,
         system,
         user: userText,
-        history: trimHistory(EV.history.slice(0, -1)),
+        history: useChain ? [] : trimHistory(EV.history.slice(0, -1)),
+        prevResponseId: useChain ? EV._respId : undefined,
         signal: ctl.signal,
         onDelta: (delta, acc) => {
           if (EV._turn !== turn) return
@@ -103,10 +107,17 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
     } catch (e) {
       res = { ok: false, error: (e && e.message) || '调用异常' }
     }
-    // 非网络类错误不重试；用户取消不重试
+    // 链断裂（previous_response_id 失效）→ 清链并回退全量重试
     const errText = String((res && res.error) || '')
+    if (useChain && res && !res.ok && !res.aborted && /previous_response|response_id|not found|invalid/i.test(errText)) {
+      EV._respId = null
+      useChain = false
+      res = null
+      continue
+    }
+    // 非网络类错误不重试；用户取消不重试
     const retriable = res && !res.ok && !res.aborted &&
-      /网络|超时|ECONN|ETIMEDOUT|fetch|Failed|timeout|aborted.*网络/i.test(errText + (res.error ? '' : ''))
+      /网络|超时|ECONN|ETIMEDOUT|fetch|Failed|timeout/i.test(errText)
     const plainNet = res && !res.ok && !res.aborted && !res.error
     if (res && res.ok) break
     if (res && res.aborted) break
@@ -164,6 +175,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
     EV.error = '（本轮输出不完整，剧情已保留，数据未写入）'
   }
 
+  if (res && res.responseId) EV._respId = res.responseId
   let changesBrief = null
   if (json && !incomplete) {
     if (Array.isArray(json.options) && json.options.length && !json.end) {

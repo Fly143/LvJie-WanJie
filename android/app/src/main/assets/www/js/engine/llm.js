@@ -114,7 +114,7 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
  * 调用一次 LLM。
  * @returns {Promise<{ok:boolean, text?:string, error?:string, aborted?:boolean}>}
  */
-export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens }) {
+export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -130,14 +130,26 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
-    // 不设 max_tokens 上限，由上游模型/网关决定
   const isChat = k.apiStyle !== 'response'
+  // Responses API：有 prevResponseId 时走服务端链（只发增量）
+  const useChain = !isChat && !!prevResponseId
   let body
   if (!isChat) {
-    body = {
-      model: k.model,
-      input: messagesToResponseInput(messages),
-      temperature: 0.9
+    if (useChain) {
+      body = {
+        model: k.model,
+        input: [{ role: 'user', content: user }],
+        previous_response_id: String(prevResponseId),
+        store: true,
+        temperature: 0.9
+      }
+    } else {
+      body = {
+        model: k.model,
+        input: messagesToResponseInput(messages),
+        store: true,
+        temperature: 0.9
+      }
     }
     if (maxTokens > 0) body.max_output_tokens = Number(maxTokens)
   } else {
@@ -197,7 +209,8 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
             : extractResponseText(data))
     )
     if (!text) return { ok: false, error: '模型返回空内容' }
-    return { ok: true, text }
+    const responseId = (!isChat && data && typeof data.id === 'string') ? data.id : undefined
+    return { ok: true, text, responseId }
   } catch (e) {
     if (e && e.name === 'AbortError') return { ok: false, error: '已取消', aborted: true }
     return { ok: false, error: (e && e.message) || '网络错误' }
@@ -232,6 +245,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   let status = 200
   let err = null
   let aborted = false
+  let streamRespId = null
 
   const pushDelta = (delta) => {
     if (!delta) return
@@ -311,6 +325,13 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     else signal.addEventListener('abort', onAbort, { once: true })
   }
 
+  const offHead = host.onHead((d) => {
+    try {
+      if (d && d.id === id && d.headers) {
+        // 不可靠，仅为兜底
+      }
+    } catch (e) { /* ignore */ }
+  })
   const offEnd = host.onEnd((d) => {
     if (!d || d.id !== id) return
     status = d.status || status
@@ -372,7 +393,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   if (aborted) return { ok: false, error: '已取消', aborted: true }
   if (err) return { ok: false, error: err }
   if (status < 200 || status >= 300) return { ok: false, error: 'HTTP ' + status }
-  return { ok: true, text, incomplete: incomplete || undefined }
+  return { ok: true, text, incomplete: incomplete || undefined, responseId: streamRespId || undefined }
 }
 
 /** 从 SSE JSON 里抠增量文本 */
