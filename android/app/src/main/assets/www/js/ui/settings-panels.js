@@ -251,7 +251,7 @@ export function openHelp(app) {
     <p>3. 攒够 <b>${esc(pack ? pack.lexicon.progress : '进度')}</b> 后点 <b>${esc(ui.advanceBtn)}</b> 提升${esc(pack ? pack.lexicon.level : '等级')}。</p>
     <p>4. <b>🌐 世界观</b> 切换世界；各世界存档独立，切换即读档。</p>
     <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 保存在本机，删档会保留。</p>
-    <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机。桌面版 Key 经系统加密存储；安卓版为应用内本机存储，请勿在共用设备上保存他人 Key。</p>
+    <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机。API Key 加密保存：桌面版走系统 safeStorage，安卓版走 Android Keystore，均不落明文。</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
   `)
 }
@@ -291,14 +291,15 @@ function selectKeyStandalone(idx) {
 let _keyStoreCache = null
 
 function writeKeyStore(data) {
-  // 内存缓存：host 保存成功后会清 localStorage，同步读取必须走这里
+  // 内存缓存：同步读取必须走这里
   _keyStoreCache = { keys: (data.keys || []).slice(), selected: data.selected }
   const host = window.awHost && window.awHost.secrets
   if (host && host.save) {
+    // 宿主加密仓可用时绝不写明文 localStorage（成功/失败都不写）
     host.save(data).then(() => {
       try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
     }).catch(() => {
-      try { localStorage.setItem('agentworlds_apikeys_v1', JSON.stringify(data)) } catch (e) { /* ignore */ }
+      try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
     })
     return
   }
@@ -307,13 +308,21 @@ function writeKeyStore(data) {
 
 function loadKeyStore() {
   if (_keyStoreCache && Array.isArray(_keyStoreCache.keys)) return _keyStoreCache
+  const host = window.awHost && window.awHost.secrets
   try {
     const raw = localStorage.getItem('agentworlds_apikeys_v1')
-    const d = raw ? JSON.parse(raw) : { keys: [], selected: 0 }
-    if (!Array.isArray(d.keys)) d.keys = []
-    _keyStoreCache = d
-    return d
-  } catch (e) {
-    return { keys: [], selected: 0 }
-  }
+    if (raw) {
+      const d = JSON.parse(raw)
+      if (!Array.isArray(d.keys)) d.keys = []
+      _keyStoreCache = d
+      // 宿主可用时把明文一次性迁入加密仓并删除
+      if (host && host.save) {
+        host.save(d).then(() => {
+          try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
+        }).catch(() => { /* ignore */ })
+      }
+      return d
+    }
+  } catch (e) { /* ignore */ }
+  return _keyStoreCache || { keys: [], selected: 0 }
 }

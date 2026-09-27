@@ -61,29 +61,39 @@ function persistPlayerKeysAsync(S) {
   _keysCache = { keys: payload.keys.slice(), selected: payload.selected }
   const host = secretsHost()
   if (host && host.save) {
+    // 宿主加密仓：成功/失败都不落明文 localStorage
     Promise.resolve(host.save(payload)).then(() => {
-      // 宿主加密仓可用时清掉明文副本
       try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
     }).catch(e => {
-      console.warn('密钥保存失败', e)
-      try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e2) { /* ignore */ }
+      console.warn('密钥保存失败（仅保留内存缓存）', e)
+      try { localStorage.removeItem(KEYS_KEY) } catch (e2) { /* ignore */ }
     })
     return
   }
-  // 无宿主：写 localStorage（WebView 场景），避免仅内存丢失
+  // 仅在完全没有宿主加密仓时才写 localStorage
   try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
 }
 
 export function loadPlayerKeys() {
   if (_keysCache && Array.isArray(_keysCache.keys)) return _keysCache
+  const host = secretsHost()
+  // 宿主加密仓可用时，localStorage 只作一次性迁移源，读后即删
   try {
-    const d = JSON.parse(localStorage.getItem(KEYS_KEY))
-    if (d && Array.isArray(d.keys)) {
-      _keysCache = d
-      return d
+    const raw = localStorage.getItem(KEYS_KEY)
+    if (raw) {
+      const d = JSON.parse(raw)
+      if (d && Array.isArray(d.keys)) {
+        _keysCache = d
+        if (host && host.save) {
+          Promise.resolve(host.save(d)).then(() => {
+            try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
+          }).catch(() => { /* ignore */ })
+        }
+        return d
+      }
     }
-    return null
-  } catch (e) { return null }
+  } catch (e) { /* ignore */ }
+  return _keysCache
 }
 
 /** 从宿主加密仓载入（异步）；写入内存缓存供同步读取 */
@@ -320,7 +330,7 @@ function migrateSave(s) {
         Promise.resolve(host.save(payload)).then(() => {
           try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
         }).catch(() => {
-          try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
+          try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
         })
       } else {
         try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
