@@ -155,9 +155,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
 
   // history 只存叙事，避免 JSON 撑爆 token
   EV.history.push({ role: 'assistant', content: narrative || text })
-  if (EV.history.length > MAX_HISTORY_MSGS) {
-    EV.history = EV.history.slice(-MAX_HISTORY_MSGS)
-  }
+  // 不裁剪 EV.history：完整对话回放给模型
   EV.count += 1
 
   // 流式半截：标记并跳过数据补写，避免残缺 JSON 误写
@@ -271,8 +269,10 @@ export function endEvent(EV) {
 }
 
 function trimHistory(history) {
+  // 传完整上下文：chat/completions 无状态，模型记忆全靠这里回放
+  // 若上游窗口不够，由模型/网关自行截断或报错
   const arr = Array.isArray(history) ? history : []
-  return arr.slice(-MAX_HISTORY_MSGS)
+  return arr
 }
 
 function normalizeText(t) {
