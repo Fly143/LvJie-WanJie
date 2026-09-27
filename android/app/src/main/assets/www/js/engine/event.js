@@ -5,7 +5,7 @@ import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './change
 import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
-const MAX_HISTORY_MSGS = 20
+const MAX_HISTORY_MSGS = 40
 const MAX_USER_LEN = 2000
 
 /**
@@ -154,7 +154,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   try {
 
   // history 只存叙事，避免 JSON 撑爆 token
-  EV.history.push({ role: 'assistant', content: narrative || text.slice(0, 500) })
+  EV.history.push({ role: 'assistant', content: narrative || text })
   if (EV.history.length > MAX_HISTORY_MSGS) {
     EV.history = EV.history.slice(-MAX_HISTORY_MSGS)
   }

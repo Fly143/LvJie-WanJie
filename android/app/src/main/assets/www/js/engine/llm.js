@@ -130,23 +130,23 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
-  const tokenCap = Math.max(256, Math.min(16000, Number(maxTokens) || MAX_TOKENS))
+    // 不设 max_tokens 上限，由上游模型/网关决定
   const isChat = k.apiStyle !== 'response'
   let body
   if (!isChat) {
     body = {
       model: k.model,
       input: messagesToResponseInput(messages),
-      temperature: 0.9,
-      max_output_tokens: tokenCap
+      temperature: 0.9
     }
+    if (maxTokens > 0) body.max_output_tokens = Number(maxTokens)
   } else {
     body = {
       model: k.model,
       messages,
-      temperature: 0.9,
-      max_tokens: tokenCap
+      temperature: 0.9
     }
+    if (maxTokens > 0) body.max_tokens = Number(maxTokens)
   }
 
   // 流式：chat / response 均支持；宿主 stream + 增量回调

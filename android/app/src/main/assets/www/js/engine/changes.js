@@ -251,6 +251,7 @@ export function applyChanges(S, ch, hooks = {}) {
     }
   }
 
+  const beforeLoc = S.currentLoc
   applyNewLocations(S, ch.new_locations)
   applyModifyLocations(S, ch.modify_locations)
   applyRemoveLocations(S, ch.remove_locations, pack)
@@ -260,6 +261,18 @@ export function applyChanges(S, ch, hooks = {}) {
     const gate = t ? gateReason(S, c || {}, t) : '没有这个地方'
     if (!gate) moveByName(S, String(ch.move_to))
     else if (String(gate) !== '没有这个地方') minor.push(String(gate))
+  } else {
+    // AI 未写 move_to 但正文已在新地点：自动落位
+    const narr = String(S.lastEventText || '')
+    for (const l of S.map) {
+      if (l.id === beforeLoc) continue
+      if (!narr.includes(l.name)) continue
+      if (/来到|到了|身处|走进|踏入|抵达|已在/.test(narr) && narr.indexOf(l.name) > narr.length * 0.4) {
+        const c = S.map.find(x => x.id === S.currentLoc) || S.map[0]
+        const gate = gateReason(S, c || {}, l)
+        if (!gate) { S.currentLoc = l.id; minor.push('已前往 ' + l.name); break }
+      }
+    }
   }
 
   if (ch.faction_rep != null) {

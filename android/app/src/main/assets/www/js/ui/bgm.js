@@ -81,7 +81,43 @@ function stopAllSources() {
   revokeUserUrl()
 }
 
+// 生命周期：后台暂停、回前台恢复；防止重复实例叠音
+let _bgmSuspended = false
+function suspendBgm() {
+  if (_bgmSuspended) return
+  _bgmSuspended = true
+  try { midiPlayer.stop() } catch (e) { /* ignore */ }
+  if (audioEl && !audioEl.paused) audioEl.pause()
+}
+function resumeBgm() {
+  if (!_bgmSuspended) return
+  _bgmSuspended = false
+  if (!currentId) return
+  try {
+    const t = trackOf(currentId)
+    if (!t) return
+    const midi = t.kind === 'midi' || (t.file && isMidiFile(t.file))
+    if (midi) {
+      if (!midiPlayer.playing) playBgm(currentId)
+    } else if (audioEl && audioEl.paused && audioEl.src) {
+      audioEl.play().catch(() => {})
+    }
+  } catch (e) { /* ignore */ }
+}
+if (typeof document !== 'undefined' && !initBgm._life) {
+  initBgm._life = true
+  const onHide = () => { if (document.hidden) suspendBgm() }
+  const onShow = () => { if (!document.hidden) resumeBgm() }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) onHide()
+    else onShow()
+  })
+  window.addEventListener('pagehide', suspendBgm)
+  window.addEventListener('pageshow', resumeBgm)
+}
+
 export function playBgm(id) {
+  if (_bgmSuspended) { currentId = id; return }
   initBgm()
   // 明确「无音乐」
   if (id === '' || id == null) {
@@ -93,13 +129,15 @@ export function playBgm(id) {
   const t = trackOf(id)
   const seq = ++playSeq
 
-  // 同一曲仍在响则不打断
+  // 同一曲仍在响则不打断（防回前台叠音）
   const samePlaying = t.id === currentId && (
     (t.kind === 'midi' || (t.file && isMidiFile(t.file)))
       ? midiPlayer.playing
       : (audioEl && !audioEl.paused && !!audioEl.src)
   )
   if (samePlaying) return
+  // 任何新播放先停旧源，杜绝双声道
+  stopAllSources()
 
   currentId = t.id
   stopAllSources()

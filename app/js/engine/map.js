@@ -39,18 +39,24 @@ export function travel(S, targetName) {
 }
 
 export function travelDays(S, c, t) {
+  if (!c || !t) return 0
+  if (c.id === t.id) return 0
   const pack = packOf(S)
   if (pack.travelDays) return pack.travelDays(S, c, t)
-  const speed = speedMult(S, S.tierIndex)
-  let raw = 5
-  if (c.world && t.world && c.world !== t.world) {
-    raw = pack.crossWorldDays ? pack.crossWorldDays(c.world, t.world) : 320
-  } else if (c.continent && t.continent && c.continent !== t.continent) {
-    raw = 20
-  } else {
-    raw = 5
+  const speed = Math.max(1, speedMult(S, S.tierIndex))
+  const nameNear = (a, b) => {
+    const x = String(a || ''), y = String(b || '')
+    return x.includes(y) || y.includes(x)
   }
-  return Math.max(0, Math.floor(raw / speed))
+  let raw = 2
+  if (c.world && t.world && c.world !== t.world) {
+    raw = pack.crossWorldDays ? pack.crossWorldDays(c.world, t.world) : 60
+  } else if (c.continent && t.continent && c.continent !== t.continent) {
+    raw = 8
+  } else if (nameNear(c.name, t.name)) {
+    raw = 1 // 同一据点内部（青云宗 ↔ 青云宗演武场）
+  }
+  return Math.max(0, Math.round(raw / speed))
 }
 
 /** AI 新增地点落库 */

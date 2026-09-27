@@ -106,7 +106,8 @@ export function yearlyCult(S, i) {
 export function speedMult(S, i) {
   const pack = packOf(S)
   if (pack.speedMult) return pack.speedMult(i)
-  return Math.pow(2, Math.max(0, i) - 1)
+  // 低阶不再放慢（原先 i=0 得 0.5，导致同图走 10 天）
+  return Math.pow(2, Math.max(0, i - 1))
 }
 
 export function basePower(S, i, s) {
