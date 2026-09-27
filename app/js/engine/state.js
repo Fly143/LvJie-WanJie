@@ -44,6 +44,9 @@ export function saveGame(S) {
   try {
     persistPlayerKeysAsync(S)
   } catch (e) { /* ignore */ }
+  try {
+    saveGlobalPrefsFrom(S)
+  } catch (e) { /* ignore */ }
   saveMeta({
     playerKeyReward: !!S.playerKeyReward
   })
@@ -388,6 +391,7 @@ export function newGame(name, packId) {
 
   const kd = loadPlayerKeys()
   const meta = loadMeta() || {}
+  const gp = loadGlobalPrefs() || {}
   const init = pack.createInitState ? pack.createInitState() : {}
 
   const S = Object.assign({
@@ -418,7 +422,7 @@ export function newGame(name, packId) {
     lastEventText: '',
     talent: null,
     medY: 0, medM: 0, medD: 10,
-    lang: 'zh-CN',
+    lang: gp.lang || 'zh-CN',
     bgmTrack: (PACK_BGM && PACK_BGM[pack.id]) || BGM_DEFAULT || '',
     aiStyle: 'normal',
     playerGender: '',
@@ -500,14 +504,26 @@ export function loadGlobalPrefs() {
 
 export function saveGlobalPrefsFrom(S) {
   if (!S) return
-  const pref = {
-    lang: S.lang || 'zh-CN',
-    bgmTrack: S.bgmTrack == null ? '' : S.bgmTrack,
-    aiStyle: S.aiStyle || 'normal',
-    playerGender: S.playerGender || '',
-    dialogLimit: S.dialogLimit !== false
-  }
+  const pref = loadGlobalPrefs() || {}
+  pref.lang = S.lang || pref.lang || 'zh-CN'
+  pref.bgmTrack = S.bgmTrack == null ? '' : S.bgmTrack
+  pref.aiStyle = S.aiStyle || 'normal'
+  pref.playerGender = S.playerGender || ''
+  pref.dialogLimit = S.dialogLimit !== false
   try { localStorage.setItem(GLOBAL_PREFS_KEY, JSON.stringify(pref)) } catch (e) { /* ignore */ }
+}
+
+/** 欢迎页/无存档时单独改语言 */
+export function saveGlobalLang(langId) {
+  const pref = loadGlobalPrefs() || {}
+  pref.lang = String(langId || 'zh-CN')
+  try { localStorage.setItem(GLOBAL_PREFS_KEY, JSON.stringify(pref)) } catch (e) { /* ignore */ }
+  return pref.lang
+}
+
+export function getGlobalLang() {
+  const p = loadGlobalPrefs()
+  return (p && p.lang) || 'zh-CN'
 }
 
 export function applyGlobalPrefs(S) {

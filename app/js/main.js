@@ -1,6 +1,7 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang } from './engine/state.js'
+import { LANGUAGE_OPTIONS, langPack } from './engine/constants.js'
 import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -210,6 +211,35 @@ function slotMeta(packId) {
   }
 }
 
+function openLangModal() {
+  const cur = getGlobalLang()
+  openModal(`
+    <h2>剧情语言</h2>
+    <div class="btn-row">
+      ${LANGUAGE_OPTIONS.map(l => `
+        <button class="btn btn-sm ${cur === l.id ? 'btn-gold' : ''}" data-wlang="${l.id}" type="button">${esc(l.name)}</button>
+      `).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--faint);margin-top:10px">
+      新开局与剧情正文使用此语言；已有存档可在游戏内「设置」单独改。界面文案暂为中文。
+    </div>
+    <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
+  `)
+  document.querySelectorAll('[data-wlang]').forEach(b => {
+    b.onclick = () => {
+      const id = b.dataset.wlang
+      saveGlobalLang(id)
+      // 若已在游戏里，同步当前存档
+      if (app.S) {
+        app.S.lang = id
+        try { save() } catch (e) { /* ignore */ }
+      }
+      closeModal()
+      toast('剧情语言已设为 ' + (langPack(id).name || id))
+    }
+  })
+}
+
 function renderWelcome() {
   const root = document.getElementById('welcome')
   root.hidden = false
@@ -282,9 +312,10 @@ function renderWelcome() {
           <button class="btn" id="w-new" type="button" hidden>新开一局</button>
           <button class="btn" id="w-author" type="button">🛠 自定义世界</button>
           <button class="btn" id="w-key" type="button">🔑 API</button>
+          <button class="btn" id="w-lang" type="button">🌐 语言</button>
           <button class="btn" id="w-help" type="button">📖 帮助</button>
         </div>
-        <div class="hint">各世界观存档互不影响。卡片上可排序；顶栏「🌐 世界观」随时切换。</div>
+        <div class="hint">各世界观存档互不影响。卡片上可排序；顶栏「🌐 世界观」随时切换。语言影响剧情正文（界面暂为中文）。</div>
       </div>
     </div>
   `
@@ -403,6 +434,8 @@ function renderWelcome() {
   }
   const wk = document.getElementById('w-key')
   if (wk) wk.onclick = () => openKeyModal(app, { save, refreshAll })
+  const wl = document.getElementById('w-lang')
+  if (wl) wl.onclick = () => openLangModal()
   const wh = document.getElementById('w-help')
   if (wh) wh.onclick = () => openHelp(app)
 

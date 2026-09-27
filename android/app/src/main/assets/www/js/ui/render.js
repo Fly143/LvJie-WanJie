@@ -780,13 +780,13 @@ export function renderSettings(app, api) {
   main.innerHTML = `
     <div class="panel">
       <h3>${esc(pack.lexicon.nav.settings)}</h3>
-      <h4>界面与叙事语言</h4>
+      <h4>剧情语言</h4>
       <div class="btn-row">
         ${LANGUAGE_OPTIONS.map(l => `
           <button class="btn btn-sm ${(S.lang || 'zh-CN') === l.id ? 'btn-gold' : ''}" data-lang="${l.id}" type="button">${esc(l.name)}</button>
         `).join('')}
       </div>
-      <div style="font-size:12px;color:var(--faint);margin-bottom:6px">剧情正文语言与此一致。</div>
+      <div style="font-size:12px;color:var(--faint);margin-bottom:6px">影响 AI 剧情正文；界面文案暂为中文。欢迎页「🌐 语言」可改默认值。</div>
 
       <h4>AI 风格</h4>
       <div class="btn-row">
