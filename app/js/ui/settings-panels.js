@@ -29,7 +29,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       <div class="key-row">
         <label>
           <input type="radio" name="selkey" value="${i}" ${selected === i ? 'checked' : ''}>
-          <b>${esc(n.name || '配置' + (i + 1))}</b>
+          <b>${esc(n.name || t('cfgN') + (i + 1))}</b>
           <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
           <span class="masktext">${esc(n.model || '')}</span>
           <span class="masktext">${(n.key || n.value) ? t('savedHidden') : t('unset')}</span>
@@ -117,7 +117,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     refreshBtn.disabled = false
     refreshBtn.textContent = old
     if (!r.ok) {
-      modelHint.innerHTML = `<span style="color:var(--red)">拉取失败：${esc(r.error || '')}</span>`
+      modelHint.innerHTML = `<span style="color:var(--red)">t('fetchFailPrefix')${esc(r.error || '')}</span>`
       toast(t('fetchFail'))
       return
     }
@@ -153,7 +153,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     const baseUrl = baseEl.value.trim().replace(/\/+$/, '')
     const model = modelEl.value.trim()
     const keyInput = valEl.value.trim()
-    const name = nameEl.value.trim() || model || '自定义'
+    const name = nameEl.value.trim() || model || t('selfDefault')
     const selNow = (S && typeof S.selectedKey === 'number') ? S.selectedKey : selected
     if (!baseUrl || !model) {
       toast(t('fillBaseModel'))
@@ -243,9 +243,9 @@ export function openKeyModal(app, { save, refreshAll }) {
 export function openHelp(app) {
   const S = app.S
   const pack = S ? (globalThis.__AW_PACKS__[S.worldview]) : null
-  const ui = pack && pack.ui ? pack.ui : { advanceBtn: '升级' }
+  const ui = pack && pack.ui ? pack.ui : { advanceBtn: t('advance') }
   openModal(`
-    <h2>帮助 · ${esc(pack ? pack.name : '旅界')}</h2>
+    <h2>${t('helpTitle')}${esc(pack ? pack.name : t('brand'))}</h2>
     <p>${esc(pack ? pack.tagline : '')}</p>
     <p>1. 在顶栏 <b>🔑 API</b> 配置自定义接口：Base URL + Key + 模型，协议选 <b>chat</b> 或 <b>response</b>。</p>
     <p>2. 在 <b>当前场景</b> 选择行动或输入自由行动，由 AI 实时生成剧情与数据变化。</p>
@@ -253,7 +253,7 @@ export function openHelp(app) {
     <p>4. <b>🌐 世界观</b> 切换世界；各世界存档独立，切换即读档。</p>
     <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 保存在本机，删档会保留。</p>
     <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机。API Key 加密保存：桌面版走系统 safeStorage，安卓版走 Android Keystore，均不落明文。</p>
-    <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
+    <div class="btn-row"><button class="btn btn-gold" data-close type="button">${t('ok')}</button></div>
   `)
 }
 

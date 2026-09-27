@@ -83,8 +83,8 @@ function applyTheme(pack) {
   applyThemeTokens(pack)
   applyNavLabels(pack)
   const logo = document.getElementById('hdr-logo')
-  if (logo) logo.textContent = `${pack.icon} ${pack.name} · 旅界`
-  document.title = (pack.gameTitle || pack.name) + ' · 旅界'
+  if (logo) logo.textContent = `${pack.icon} ${pack.name} · ${t('brand')}`
+  document.title = (pack.gameTitle || pack.name) +  + ' · ' + t('brand')
 }
 
 function renderHeader() {
@@ -114,11 +114,11 @@ function renderPlayerCard() {
     <div class="pname">${esc(S.name)}</div>
     <div style="margin-top:4px">
       <span class="realmchip" style="color:${tierColor(S, S.tierIndex)};border-color:${tierColor(S, S.tierIndex)}">${esc(tierLabel(S))}</span>
-      ${expired ? `<span class="lifestatus">${esc(ui.lifeWarn || '⚠ 寿限将尽')}</span>` : ''}
+      ${expired ? `<span class="lifestatus">${esc(ui.lifeWarn || t('lifeWarnDefault'))}</span>` : ''}
     </div>
     <div class="bar${full ? ' full' : ''}"><div style="width:${pct}%"></div></div>
     <div class="pgrid" style="margin-top:8px">
-      <div class="row"><span class="k">年龄</span><span class="v">${esc(ageLabelShort(S.ageDays))}</span></div>
+      <div class="row"><span class="k">${t('age')}</span><span class="v">${esc(ageLabelShort(S.ageDays))}</span></div>
       <div class="row"><span class="k">${esc(ui.powerLabel)}</span><span class="v">${fmtNum(totalPowerF(S))}</span></div>
       <div class="row"><span class="k">${esc(money.main)}</span><span class="v">${fmtNum(S.money.main)}</span></div>
       <div class="row"><span class="k">${esc(pack.lexicon.progress)}</span><span class="v">${fmtNum(S.progress)} / ${fmtNum(req)}</span></div>
@@ -202,7 +202,7 @@ function slotMeta(packId) {
   const pack = getPack(packId)
   try {
     // 用 progression 的展示需要 S；这里做轻量摘要
-    const names = (pack && pack.subNames) || ['初', '中', '高']
+    const names = (pack && pack.subNames) || [t('subI'), t('subMid'), t('subHi')]
     const tiers = (pack && pack.tiers) || []
     const t = tiers[hit.tierIndex] || { name: '' }
     const sn = names[Math.min(hit.sub, names.length - 1)] || ''
@@ -439,11 +439,11 @@ function renderWelcome() {
     const id = app.selectedPack
     const slot = slotMeta(id)
     openModal(`
-      <h2>新开一局？</h2>
+      <h2>${t('newGameTitle')}</h2>
       <p>将覆盖《${esc(getPack(id).name)}》的现有存档${slot ? `（${esc(slot.name)} · ${esc(slot.levelText || '')}）` : ''}。其它世界存档与 API Key 不受影响。</p>
       <div class="btn-row" style="justify-content:center">
-        <button class="btn" data-close type="button">取消</button>
-        <button class="btn btn-danger" id="w-do-new" type="button">覆盖并新开</button>
+        <button class="btn" data-close type="button">${t('cancel')}</button>
+        <button class="btn btn-danger" id="w-do-new" type="button">${t('overwriteNew')}</button>
       </div>
     `)
     document.getElementById('w-do-new').onclick = () => {

@@ -100,7 +100,7 @@ export function renderScene(app, api) {
             <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(p.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(p.name)}</button></div>
             <div class="crealm">${esc(p.realm || p.rank || '')}</div>
             <div class="cdesc">${esc(p.intro || '')}</div>
-            ${p.gender ? `<div class="cdim">性别：${esc(p.gender)}</div>` : ''}
+            ${p.gender ? `<div class="cdim">${t('genderPrefix')}${esc(p.gender)}</div>` : ''}
             ${relBlock(p)}
             <div class="cbtn"><button class="btn btn-sm" data-talk="${esc(p.name)}" type="button">${esc(pack.ui && pack.ui.talkBtn || '交谈')}</button></div>
           </div>
@@ -153,15 +153,15 @@ export function renderScene(app, api) {
     b.onclick = () => contEvent(app, api, ACT_PROMPTS[b.dataset.act] || b.textContent)
   })
   main.querySelectorAll('[data-talk]').forEach(b => {
-    b.onclick = () => contEvent(app, api, `我与「${b.dataset.talk}」交谈。`)
+    b.onclick = () => contEvent(app, api, t('youSaid') + b.dataset.talk + t('youSaidTalk'))
   })
   main.querySelectorAll('[data-hunt]').forEach(b => {
-    b.onclick = () => contEvent(app, api, `我挑战「${b.dataset.hunt}」！`)
+    b.onclick = () => contEvent(app, api, t('youChallenge') + b.dataset.hunt + t('youChallenge2'))
   })
   main.querySelectorAll('[data-inter]').forEach(b => {
     b.onclick = () => {
       const x = loc.interactables[Number(b.dataset.inter)]
-      contEvent(app, api, `我查看/互动「${x.name}」：${x.intro || ''}`)
+      contEvent(app, api, t('youView') + x.name + t('youView2') + (x.intro || ''))
     }
   })
   main.querySelectorAll('[data-buy]').forEach(b => {
@@ -205,7 +205,7 @@ export function renderScene(app, api) {
   if (closeB) closeB.onclick = finish
   if (retryB) retryB.onclick = () => {
     const last = [...(app.EV.history || [])].reverse().find(m => m.role === 'user')
-    const text = last ? last.content : '继续。'
+    const text = last ? last.content : t('contStory')
     app.EV.error = ''
     contEvent(app, api, text, true)
   }
@@ -275,9 +275,9 @@ export function renderMap(app, api) {
   const worlds = pack.worlds || []
   const byWorld = {}
   for (const l of S.map) {
-    const w = l.world || '主世界'
+    const w = l.world || t('mainWorld')
     byWorld[w] = byWorld[w] || {}
-    const c = l.continent || '未知'
+    const c = l.continent || t('unknownPlace')
     byWorld[w][c] = byWorld[w][c] || []
     byWorld[w][c].push(l)
   }
@@ -299,16 +299,16 @@ export function renderMap(app, api) {
                 return `
                   <div class="card loc-card ${cur ? 'cur' : ''}" style="margin-bottom:8px">
                     <div class="linfo">
-                      <div class="cname">${esc(l.name)} ${cur ? '· 当前' : ''}${markers.get(l.name) ? ' <span class="ctype">📜任务</span>' : ''}</div>
-                      <div class="cdim">${esc(l.type)} · ${cur ? '当前' : '约 ' + days + ' 天'}${markers.get(l.name) ? ' · ' + esc(markers.get(l.name).join('、')) : ''}</div>
+                      <div class="cname">${esc(l.name)} ${cur ? t('hereMark') : ''}${markers.get(l.name) ? ' <span class="ctype">' + t('questMark') + '</span>' : ''}</div>
+                      <div class="cdim">${esc(l.type)} · ${cur ? t('here') : t('aboutDays') + days + t('days')}${markers.get(l.name) ? ' · ' + esc(markers.get(l.name).join('、')) : ''}</div>
                       <div class="cdesc">${esc(l.desc || '')}</div>
                       ${gate ? `<div class="lock">🔒 ${esc(gate)}</div>` : ''}
                     </div>
-                    ${cur ? '' : `<button class="btn btn-sm" data-go="${esc(l.name)}" type="button" ${gate ? 'disabled' : ''}>前往</button>`}
+                    ${cur ? '' : `<button class="btn btn-sm" data-go="${esc(l.name)}" type="button" ${gate ? 'disabled' : ''}>${t('go')}</button>`}
                   </div>
                 `
               }).join('')}
-            `).join('') || '<div class="empty">无地点</div>'}
+            `).join('') || `<div class="empty">${t('noLocs')}</div>`}
           </div>
         </div>
       `).join('')}
@@ -390,7 +390,7 @@ export function renderProfile(app, api) {
       ${(S.techniques || []).length
         ? S.techniques.map(m => `<div class="skill-row"><span class="k">${esc(m.name)}</span><span class="v">${m.level}/${m.levels} · ${esc(m.grade || '')}</span></div>`).join('')
         : `<div class="empty">${t('learned')}</div>`}
-      <h4>等级一览</h4>
+      <h4>${t('tierList')}</h4>
       <div style="font-size:12px;color:var(--dim);line-height:1.8">
         ${pack.tiers.map((t, i) => `<span style="color:${i === S.tierIndex ? 'var(--accent)' : 'inherit'}">${i + 1}.${esc(t.name)}</span>`).join(' · ')}
       </div>
@@ -410,7 +410,7 @@ export function renderFriends(app, api) {
       const l = (S.map || []).find(x => (x.people || []).some(p => p && p.name === f.name))
       return { name: (l && l.name) || '', here: !!(l && l.id === S.currentLoc) }
     }
-    return { name: '行踪不明', here: false }
+    return { name: t('unknownLoc'), here: false }
   }
   main.innerHTML = `
     <div class="panel">
@@ -425,16 +425,16 @@ export function renderFriends(app, api) {
           <div class="card">
             <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
             <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">${t('favor')} ${fmtNum(f.favor || 0)}</span>${f.relType ? ' · ' + esc(f.relType) : ''}</div>
-            <div class="cdim">📍 ${esc(at.name)}${at.here ? ' · 当前场景' : ''}</div>
+            <div class="cdim">📍 ${esc(at.name)}${at.here ? t('curScene') : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
-            ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
+            ${f.mem ? `<div class="cdim">${t('mem')}${esc(f.mem)}</div>` : ''}
             ${relBlock(f)}
             ${true ? `<div class="btn-row" style="margin-top:4px">
               <button class="btn btn-sm" data-grudge="${i}" type="button">${t('grudgeAdd')}</button>
-              ${(f.grudges || []).length ? `<button class="btn btn-sm" data-ungudge="${i}" type="button">－恩怨</button>` : ''}
+              ${(f.grudges || []).length ? `<button class="btn btn-sm" data-ungudge="${i}" type="button">${t('grudgeDel')}</button>` : ''}
             </div>` : ''}
             <div class="cbtn">
-              <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
+              <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? t('faceTalk') : (feat.talkRemote ? t('msg') : t('needSameScene'))}">${at.here ? t('chat') : (feat.talkRemote ? t('msg') : t('notNearby'))}</button>
               ${marriageEnabled(pack) ? (f.married
                 ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
                 : (canPropose(f, S, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
@@ -443,11 +443,11 @@ export function renderFriends(app, api) {
           </div>
         `}).join('') || `<div class="empty">${t('noCompanions')}</div>`}
       </div>
-      <div class="ai-note">每天最多与同一位${esc(pack.lexicon.companion)}交谈 ${MAX_TALK_PER_DAY} 次${feat.talkRemote ? '；不在同一场景可「传讯」' : '；需在同一场景才能当面交谈'}</div>
+      <div class="ai-note">${t('talkDaily')}${esc(pack.lexicon.companion)}${t('talkTimes')} ${MAX_TALK_PER_DAY} ${t('times')}${feat.talkRemote ? t('talkRemoteHint') : t('needSameSceneLong')}</div>
     </div>
   `
   const nb = document.getElementById('fr-new')
-  if (nb) nb.onclick = () => api.startFlow('结识', `我想要结识一位新的${pack.lexicon.companion}。`)
+  if (nb) nb.onclick = () => api.startFlow(t('meetFlow'), t('youMeet') + pack.lexicon.companion + '。')
   main.querySelectorAll('[data-grudge]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.grudge)]
@@ -458,10 +458,10 @@ export function renderFriends(app, api) {
         <input id="gr-to" value="${t('player')}">
         <label style="color:var(--dim);font-size:12px">${t('kind')}</label>
         <select id="gr-kind">
-          <option value="怨">怨</option>
-          <option value="恩">恩</option>
-          <option value="仇">仇</option>
-          <option value="债">债</option>
+          <option value="怨">${t('grudgeKindYuan')}</option>
+          <option value="恩">${t('grudgeKindEn')}</option>
+          <option value="仇">${t('grudgeKindChou')}</option>
+          <option value="债">${t('grudgeKindZhai')}</option>
         </select>
         <label style="color:var(--dim);font-size:12px">${t('note')}</label>
         <input id="gr-note" placeholder="${t('notePh')}">
@@ -471,7 +471,7 @@ export function renderFriends(app, api) {
         </div>
       `)
       document.getElementById('gr-ok').onclick = () => {
-        addGrudge(f, document.getElementById('gr-to').value || '玩家', document.getElementById('gr-kind').value, document.getElementById('gr-note').value)
+        addGrudge(f, document.getElementById('gr-to').value || t('player'), document.getElementById('gr-kind').value, document.getElementById('gr-note').value)
         closeModal()
         api.toast(t('grudgeAdded'))
         api.save()
@@ -497,11 +497,11 @@ export function renderFriends(app, api) {
         <div class="cbox">
           ${list.map((g, gi) => `
             <button class="btn btn-sm" data-grm="${gi}" type="button" style="display:block;width:100%;text-align:left;margin:6px 0">
-              ${esc(g.kind || '怨')} · ${esc(g.to || '玩家')} ${g.note ? '— ' + esc(g.note) : ''}
+              ${esc(g.kind || t('grudgeKindYuan'))} · ${esc(g.to || t('player'))} ${g.note ? '— ' + esc(g.note) : ''}
             </button>
           `).join('')}
         </div>
-        <div class="btn-row"><button class="btn" data-close type="button">取消</button></div>
+        <div class="btn-row"><button class="btn" data-close type="button">${t('cancel')}</button></div>
       `)
       document.querySelectorAll('[data-grm]').forEach(btn => {
         btn.onclick = () => {
@@ -532,7 +532,7 @@ export function renderFriends(app, api) {
         ${src.relType ? `<div class="row"><span>${t('relation')}</span><span class="v">${esc(src.relType)}</span></div>` : ''}
         ${at ? `<div class="row"><span>${t('location')}</span><span class="v">${esc(at)}</span></div>` : ''}
         ${src.intro ? `<div class="cdesc" style="margin-top:8px">${esc(src.intro)}</div>` : ''}
-        ${src.mem ? `<div class="cdim">记忆：${esc(src.mem)}</div>` : ''}
+        ${src.mem ? `<div class="cdim">${t('mem')}${esc(src.mem)}</div>` : ''}
         ${relBlock(src)}
         <div class="btn-row"><button class="btn" data-close type="button">${t('close')}</button></div>
       `)
@@ -542,7 +542,7 @@ export function renderFriends(app, api) {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.marry)]
       if (!f) return
-      if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
+      if (!confirm(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'))) return
       const res = propose(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -553,7 +553,7 @@ export function renderFriends(app, api) {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.divorce)]
       if (!f) return
-      if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
+      if (!confirm(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'))) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -567,19 +567,19 @@ export function renderFriends(app, api) {
       const at = friendAt(f)
       if (!at.here) {
         if (!feat.talkRemote) {
-          api.toast(`对方不在当前场景「${cur.name || ''}」，对方行踪不明，需先在剧情中相遇或打听到位置`)
+          api.toast(t('notInScene') + (cur.name || '') + t('notInScene2'))
           return
         }
         const dayKey2 = String(Math.floor(S.ageDays / 30))
         if (f.lastDay !== dayKey2) { f.lastDay = dayKey2; f.talkCount = 0 }
         if ((f.talkCount || 0) >= MAX_TALK_PER_DAY) {
-          api.toast(`今天与${f.name}联络太多了，明天再来`)
+          api.toast(t('talkLimit1') + f.name + t('talkLimit2'))
           return
         }
         f.talkCount = (f.talkCount || 0) + 1
         api.save()
         api.startFlow(
-          '传讯',
+          t('msg'),
           `我通过现有联络方式联系「${f.name}」（对方在${at.name}）。背景：${f.intro || ''}。记忆：${f.mem || '无'}。注意这是远距离联络，当面才能做需要碰面的事。`,
           f.name
         )
@@ -588,13 +588,13 @@ export function renderFriends(app, api) {
       const dayKey = String(Math.floor(S.ageDays / 30))
       if (f.lastDay !== dayKey) { f.lastDay = dayKey; f.talkCount = 0 }
       if ((f.talkCount || 0) >= MAX_TALK_PER_DAY) {
-        api.toast(`今天与${f.name}聊太多了，明天再来`)
+        api.toast(t('talkLimit1') + f.name + t('chatLimit2'))
         return
       }
       f.talkCount = (f.talkCount || 0) + 1
       api.save()
       api.startFlow(
-        '交谈',
+        t('chat'),
         `我在${cur.name || '此处'}与「${f.name}」当面交谈。背景：${f.intro || ''}。记忆：${f.mem || '无'}`,
         f.name
       )
@@ -613,11 +613,11 @@ export function renderQuests(app, api) {
   const card = (q) => `
     <div class="card" style="margin-bottom:8px">
       <div class="cname">${esc(q.title)} <span class="ctype">${questStatusLabel(q.status)}</span></div>
-      ${q.from ? `<div class="crealm">委托人：${esc(q.from)}${q.loc ? ' · 📍' + esc(q.loc) : ''}</div>` : (q.loc ? `<div class="crealm">📍 ${esc(q.loc)}</div>` : '')}
+      ${q.from ? `<div class="crealm">${t('questGiver')}${esc(q.from)}${q.loc ? ' · 📍' + esc(q.loc) : ''}</div>` : (q.loc ? `<div class="crealm">📍 ${esc(q.loc)}</div>` : '')}
       ${q.desc ? `<div class="cdesc">${esc(q.desc)}</div>` : ''}
-      ${(q.objectives || []).length ? `<div class="cdim">目标：${q.objectives.map(o => esc(o)).join('；')}</div>` : ''}
-      ${q.reward ? `<div class="cdim">奖励：${esc(q.reward)}</div>` : ''}
-      ${q.notes ? `<div class="cdim">进度：${esc(q.notes)}</div>` : ''}
+      ${(q.objectives || []).length ? `<div class="cdim">${t('objectives')}${q.objectives.map(o => esc(o)).join('；')}</div>` : ''}
+      ${q.reward ? `<div class="cdim">${t('rewardLabel')}${esc(q.reward)}</div>` : ''}
+      ${q.notes ? `<div class="cdim">${t('progressLabel')}${esc(q.notes)}</div>` : ''}
     </div>
   `
   main.innerHTML = `
@@ -626,8 +626,8 @@ export function renderQuests(app, api) {
       ${active.length
         ? active.map(card).join('')
         : `<div class="empty">${t('noQuests')}</div>`}
-      ${done.length ? `<h4 style="margin-top:12px">已完成 ${done.length}</h4>` + done.map(card).join('') : ''}
-      ${failed.length ? `<h4 style="margin-top:12px">失败 ${failed.length}</h4>` + failed.map(card).join('') : ''}
+      ${done.length ? `<h4 style="margin-top:12px">${t('doneN2')} ${done.length}</h4>` + done.map(card).join('') : ''}
+      ${failed.length ? `<h4 style="margin-top:12px">${t('failedN2')} ${failed.length}</h4>` + failed.map(card).join('') : ''}
       <div class="ai-note" style="margin-top:10px">${t('questNote')}</div>
     </div>
   `
@@ -650,19 +650,19 @@ export function renderBag(app, api) {
             <div class="bmain">
               <div class="bname">${esc(it.name)} ${itemChip(S, it, pack)} <span class="bcount">×${it.count || 1}</span></div>
               <div class="bdesc">${esc(it.desc || '')}</div>
-              ${it.price != null ? `<div class="cdim">价值 ${fmtNum(it.price)} ${esc(pack.lexicon.money.main)}</div>` : ''}
+              ${it.price != null ? `<div class="cdim">${t('value')} ${fmtNum(it.price)} ${esc(pack.lexicon.money.main)}</div>` : ''}
             </div>
             <div class="bbtns">
-              ${it.usable === 'direct' ? `<button class="btn btn-sm btn-gold" data-use="${i}" type="button">使用</button>` : ''}
-              ${it.usable === 'ai' ? `<button class="btn btn-sm" data-useai="${i}" type="button">AI 互动</button>` : ''}
+              ${it.usable === 'direct' ? `<button class="btn btn-sm btn-gold" data-use="${i}" type="button">${t('useBtn')}</button>` : ''}
+              ${it.usable === 'ai' ? `<button class="btn btn-sm" data-useai="${i}" type="button">${t('aiBtn')}</button>` : ''}
               ${normalizeType(it.type) === 'equip' ? `<button class="btn btn-sm ${it.equipped ? 'btn-gold' : ''}" data-equip="${i}" type="button">${it.equipped ? '卸下' : '装备'}</button>` : ''}
               ${normalizeType(it.type) === 'equip' && it.equipped && (it.grade == null || it.realm_index == null) ? `<span class="ctype" title="无品级/档位，不计入战力">无加成</span>` : ''}
-              ${normalizeType(it.type) === 'technique' ? `<button class="btn btn-sm" data-learn="${i}" type="button">研习</button>` : ''}
-              <button class="btn btn-sm" data-sell="${i}" type="button">出售</button>
+              ${normalizeType(it.type) === 'technique' ? `<button class="btn btn-sm" data-learn="${i}" type="button">${t('learnBtn')}</button>` : ''}
+              <button class="btn btn-sm" data-sell="${i}" type="button">${t('sellBtn')}</button>
             </div>
           </div>
         `
-      }).join('') || '<div class="empty">背包空空如也</div>'}
+      }).join('') || `<div class="empty">${t('emptyBag')}</div>`}
     </div>
   `
   main.querySelectorAll('[data-equip]').forEach(b => {
@@ -694,7 +694,7 @@ export function renderBag(app, api) {
         api.toast(`${it.name}：${pack.lexicon.progress} +${fmtNum(eff)}`)
         handled = true
       }
-      if (!handled) { api.toast('使用后暂无效果'); return }
+      if (!handled) { api.toast(t('noEffect')); return }
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
       api.save()
@@ -729,7 +729,7 @@ export function renderBag(app, api) {
         })
       }
       if ((S.techniques || []).some(m => m.name === rec.name && m.realm_index === rec.realm_index)) {
-        api.toast('已经会了')
+        api.toast(t('alreadyKnown'))
         return
       }
       S.techniques = S.techniques || []
@@ -745,7 +745,7 @@ export function renderBag(app, api) {
   main.querySelectorAll('[data-useai]').forEach(b => {
     b.onclick = () => {
       const it = S.inventory[Number(b.dataset.useai)]
-      api.startFlow('使用物品', `我使用「${it.name}」：${it.desc || ''}`)
+      api.startFlow(t('useItemFlow'), `我使用「${it.name}」：${it.desc || ''}`)
     }
   })
   main.querySelectorAll('[data-sell]').forEach(b => {
@@ -887,10 +887,10 @@ export function renderSettings(app, api) {
       const added = await addLocalBgmFiles(e.target.files)
       e.target.value = ''
       if (added.length) {
-        api.toast('已添加 ' + added.length + ' 首本地音乐')
+        api.toast(t('addedMusic') + ' ' + added.length + t('songs'))
         api.refreshAll()
       } else {
-        api.toast('未添加（仅支持 mp3/wav/ogg/m4a/mid）')
+        api.toast(t('noMusicAdded'))
       }
     }
   }
@@ -917,7 +917,7 @@ export function renderSettings(app, api) {
       a.download = 'agentworlds-saves-' + Date.now() + '.json'
       a.click()
       setTimeout(() => URL.revokeObjectURL(a.href), 3000)
-      api.toast('已导出存档（不含 API Key）')
+      api.toast(t('exported'))
     })
   }
   document.getElementById('set-import').onclick = () => {
@@ -932,12 +932,12 @@ export function renderSettings(app, api) {
         const bundle = JSON.parse(String(reader.result || ''))
         import('../engine/state.js').then(m => {
           const r = m.importSaveBundle(bundle)
-          if (!r.ok) { api.toast(r.error || '导入失败'); return }
-          api.toast('已导入 ' + r.count + ' 个世界存档')
+          if (!r.ok) { api.toast(r.error || t('importFail')); return }
+          api.toast(t('imported') + ' ' + r.count + t('worldSaves'))
           location.reload()
         })
       } catch (err) {
-        api.toast('JSON 解析失败')
+        api.toast(t('jsonFail'))
       }
     }
     reader.readAsText(f, 'utf-8')
@@ -945,11 +945,11 @@ export function renderSettings(app, api) {
   }
   document.getElementById('set-reset').onclick = () => {
     openModal(`
-      <h2>重置存档？</h2>
+      <h2>${t('resetTitle')}</h2>
       <div class="warn">将删除《${esc(pack.name)}》这一世界的进度并回到选择页。其它世界存档与 API Key 保留。</div>
       <div class="btn-row">
         <button class="btn" data-close type="button">取消</button>
-        <button class="btn btn-danger" id="do-reset" type="button">确认重置</button>
+        <button class="btn btn-danger" id="do-reset" type="button">${t('confirmReset')}</button>
       </div>
     `)
     document.getElementById('do-reset').onclick = () => {
