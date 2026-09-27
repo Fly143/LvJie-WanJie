@@ -1,7 +1,7 @@
 {
   "name": "agent-worlds",
   "productName": "旅界",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "AI驱动的多世界观开放世界游戏",
   "main": "main.js",
   "author": "Fly143",
