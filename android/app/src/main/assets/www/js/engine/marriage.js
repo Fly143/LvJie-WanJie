@@ -78,7 +78,7 @@ export function propose(S, friend, pack) {
   if (!haremEnabled(pack) && marriedList(S).length > 0) {
     return { ok: false, msg: '此界仅可有一位' + spouseWord(pack) }
   }
-  const spouse = friend.gender === '男' ? 'husband' : friend.gender === '女' ? 'wife' : 'spouse'
+  const spouse = friend.gender === '男' ? 'husband' : 'wife'
   friend.married = spouse
   friend.favor = favor + 10
   friend.mem = friend.mem ? (friend.mem + '；与你结为' + spouseWord(pack) + '。') : ('与你结为' + spouseWord(pack) + '。')
