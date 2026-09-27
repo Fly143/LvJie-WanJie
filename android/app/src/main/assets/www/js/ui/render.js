@@ -52,7 +52,7 @@ export function renderScene(app, api) {
       evHtml = `
         <div class="ev-box">
           <div class="ev-head">
-            <span>${esc(EV.kind || '事件')} · ${t('roundN')} ${EV.count} ${t('round')}</span>
+            <span>${esc(EV.kind || t('evKind'))} · ${t('roundN')} ${EV.count} ${t('round')}</span>
             <span><button class="btn btn-sm" id="ev-end" type="button">${t('endEvent')}</button></span>
           </div>
           <div class="ev-text">${esc(EV.resultText)}</div>
@@ -102,7 +102,7 @@ export function renderScene(app, api) {
             <div class="cdesc">${esc(p.intro || '')}</div>
             ${p.gender ? `<div class="cdim">${t('genderPrefix')}${esc(p.gender)}</div>` : ''}
             ${relBlock(p)}
-            <div class="cbtn"><button class="btn btn-sm" data-talk="${esc(p.name)}" type="button">${esc(pack.ui && pack.ui.talkBtn || '交谈')}</button></div>
+            <div class="cbtn"><button class="btn btn-sm" data-talk="${esc(p.name)}" type="button">${esc(pack.ui && pack.ui.talkBtn || t('talkBtn'))}</button></div>
           </div>
         `).join('') || `<div class="empty">${t('noPeople')}</div>`}
       </div>
@@ -115,7 +115,7 @@ export function renderScene(app, api) {
             <div class="cname">${esc(b.name)}</div>
             <div class="crealm">${esc(b.realm || '')} · ${esc(ui.powerLabel)} ${fmtNum(b.power || 0)}</div>
             <div class="cdim">${t('drops')}${esc(b.drops || t('none'))}</div>
-            <div class="cbtn"><button class="btn btn-sm btn-danger" data-hunt="${esc(b.name)}" type="button">${esc(pack.ui && pack.ui.fightBtn || '挑战')}</button></div>
+            <div class="cbtn"><button class="btn btn-sm btn-danger" data-hunt="${esc(b.name)}" type="button">${esc(pack.ui && pack.ui.fightBtn || t('fightBtn'))}</button></div>
           </div>
         `).join('') || `<div class="empty">${t('noThreats')}</div>`}
       </div>
@@ -239,7 +239,7 @@ function contEvent(app, api, content, isRetry) {
       api.refreshAll()
       return
     }
-    api.startFlow('自由行动', content)
+    api.startFlow(t('freeActionFlow'), content)
     return
   }
   // 继续当前事件
@@ -580,7 +580,7 @@ export function renderFriends(app, api) {
         api.save()
         api.startFlow(
           t('msg'),
-          `我通过现有联络方式联系「${f.name}」（对方在${at.name}）。背景：${f.intro || ''}。记忆：${f.mem || '无'}。注意这是远距离联络，当面才能做需要碰面的事。`,
+          t('youMsgA') + f.name + t('youMsgB') + at.name + t('youMsgC') + (f.intro || '') + t('youMsgD') + (f.mem || t('memNone')) + t('youMsgE'),
           f.name
         )
         return
@@ -595,7 +595,7 @@ export function renderFriends(app, api) {
       api.save()
       api.startFlow(
         t('chat'),
-        `我在${cur.name || '此处'}与「${f.name}」当面交谈。背景：${f.intro || ''}。记忆：${f.mem || '无'}`,
+        t('youChatA') + (cur.name || t('herePlace')) + t('youChatB') + f.name + t('youChatC') + (f.intro || '') + t('youMsgD') + (f.mem || t('memNone')),
         f.name
       )
     }
@@ -641,7 +641,7 @@ export function renderBag(app, api) {
   const main = document.getElementById('main')
   main.innerHTML = `
     <div class="panel">
-      <h3>${esc(pack.lexicon.nav.bag)} <span class="tag">${S.inventory.length} 类</span></h3>
+      <h3>${esc(pack.lexicon.nav.bag)} <span class="tag">${S.inventory.length} ${t('typesN')}</span></h3>
       ${S.inventory.map((it, i) => {
         const type = normalizeType(it.type)
         return `
@@ -655,8 +655,8 @@ export function renderBag(app, api) {
             <div class="bbtns">
               ${it.usable === 'direct' ? `<button class="btn btn-sm btn-gold" data-use="${i}" type="button">${t('useBtn')}</button>` : ''}
               ${it.usable === 'ai' ? `<button class="btn btn-sm" data-useai="${i}" type="button">${t('aiBtn')}</button>` : ''}
-              ${normalizeType(it.type) === 'equip' ? `<button class="btn btn-sm ${it.equipped ? 'btn-gold' : ''}" data-equip="${i}" type="button">${it.equipped ? '卸下' : '装备'}</button>` : ''}
-              ${normalizeType(it.type) === 'equip' && it.equipped && (it.grade == null || it.realm_index == null) ? `<span class="ctype" title="无品级/档位，不计入战力">无加成</span>` : ''}
+              ${normalizeType(it.type) === 'equip' ? `<button class="btn btn-sm ${it.equipped ? 'btn-gold' : ''}" data-equip="${i}" type="button">${it.equipped ? t('unequipBtn') : t('equipBtn')}</button>` : ''}
+              ${normalizeType(it.type) === 'equip' && it.equipped && (it.grade == null || it.realm_index == null) ? `<span class="ctype" title="${t('noBonusHint')}">${t('noBonus')}</span>` : ''}
               ${normalizeType(it.type) === 'technique' ? `<button class="btn btn-sm" data-learn="${i}" type="button">${t('learnBtn')}</button>` : ''}
               <button class="btn btn-sm" data-sell="${i}" type="button">${t('sellBtn')}</button>
             </div>
@@ -737,7 +737,7 @@ export function renderBag(app, api) {
       forgetOldTechniques(S, t => api.toast(t))
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
-      api.toast(`研习《${rec.name}》成功`)
+      api.toast(t('learnOkA') + rec.name + t('learnOkB'))
       api.save()
       api.refreshAll()
     }
@@ -745,7 +745,7 @@ export function renderBag(app, api) {
   main.querySelectorAll('[data-useai]').forEach(b => {
     b.onclick = () => {
       const it = S.inventory[Number(b.dataset.useai)]
-      api.startFlow(t('useItemFlow'), `我使用「${it.name}」：${it.desc || ''}`)
+      api.startFlow(t('useItemFlow'), t('youUse') + it.name + t('youUse2') + (it.desc || ''))
     }
   })
   main.querySelectorAll('[data-sell]').forEach(b => {
@@ -757,17 +757,17 @@ export function renderBag(app, api) {
       if (!it) return
       const gain = Math.floor((Number(it.price) || 0) * 0.5)
       if (it.equipped) {
-        if (!confirm('「' + it.name + '」已装备，确认出售后将卸下？')) return
+        if (!confirm('「' + it.name + '」' + t('soldEq'))) return
       } else if (gain <= 0) {
-        if (!confirm('「' + it.name + '」卖不出价钱，确认直接丢弃？')) return
-      } else if (!confirm('出售 ' + it.name + '，约得 ' + gain + '？')) {
+        if (!confirm('「' + it.name + '」' + t('discardQ'))) return
+      } else if (!confirm(t('sellQ1') + ' ' + it.name + t('sellQ2') + ' ' + gain + t('sellQ3'))) {
         return
       }
       S.money.main += gain
       if (it.equipped) it.equipped = false
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
-      api.toast(`售出 ${it.name}，+${fmtNum(gain)} ${pack.lexicon.money.main}`)
+      api.toast(t('soldA') + ' ' + it.name + '，+' + fmtNum(gain) + ' ' + pack.lexicon.money.main)
       api.save()
       api.refreshAll()
     }
@@ -946,9 +946,9 @@ export function renderSettings(app, api) {
   document.getElementById('set-reset').onclick = () => {
     openModal(`
       <h2>${t('resetTitle')}</h2>
-      <div class="warn">将删除《${esc(pack.name)}》这一世界的进度并回到选择页。其它世界存档与 API Key 保留。</div>
+      <div class="warn">${t('resetWarnA')}${esc(pack.name)}${t('resetWarnB')}</div>
       <div class="btn-row">
-        <button class="btn" data-close type="button">取消</button>
+        <button class="btn" data-close type="button">${t('cancel')}</button>
         <button class="btn btn-danger" id="do-reset" type="button">${t('confirmReset')}</button>
       </div>
     `)

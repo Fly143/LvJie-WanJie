@@ -2,6 +2,7 @@
 import { openModal, closeModal, toast } from './modals.js'
 import { openKeyModal } from './settings-panels.js'
 import { esc } from '../engine/util.js'
+import { t } from '../engine/i18n.js'
 import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/worldpack.js'
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts, hasCustomPack } from '../engine/custom-packs.js'
 import { reloadPacks, getPack, isBuiltinPack } from '../worldviews/index.js'
@@ -33,7 +34,7 @@ function draftFromForm() {
   const author = (document.getElementById('cw-author').value || '').trim()
   const setting = (document.getElementById('cw-setting').value || '').trim()
   const levels = (document.getElementById('cw-levels').value || '').trim()
-  const style = (document.getElementById('cw-style').value || '奇幻冒险').trim()
+  const style = (document.getElementById('cw-style').value || t('waStyleDef')).trim()
   const bookText = (document.getElementById('cw-book') ? document.getElementById('cw-book').value : '') || ''
   const urlsRaw = (document.getElementById('cw-urls') ? document.getElementById('cw-urls').value : '') || ''
   const useWeb = document.getElementById('cw-web')
@@ -50,72 +51,72 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   const customs = loadCustomPackDrafts()
   if (!activeKey(app) && !firstKeyFallback()) {
     try {
-      toast('自定义世界生成需要 API Key，请先配置')
+      toast(t('waNeedKey'))
       openKeyModal(app, { save: () => {}, refreshAll: () => {} })
     } catch (e) { /* ignore */ }
   }
   openModal(`
-    <h2>自定义世界</h2>
-    <p style="font-size:12px;color:var(--dim)">每个自定义世界会出现在欢迎页，拥有独立存档槽。内置六包不受影响。</p>
+    <h2>${t('waTitle')}</h2>
+    <p style="font-size:12px;color:var(--dim)">${t('waHint')}</p>
 
-    <h3>① 从作品 / 整本小说生成</h3>
-    <label style="color:var(--dim);font-size:12px">书名 / 作品名</label>
-    <input id="cw-title" type="text" placeholder="例如 诡秘之主" style="width:100%;margin-top:6px">
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">作者（可选）</label>
-    <input id="cw-author" type="text" placeholder="例如 爱潜水的乌贼" style="width:100%;margin-top:6px">
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">设定摘要（没原文时必填；有原文可留空）</label>
-    <textarea id="cw-setting" rows="3" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px" placeholder="力量体系、地理、主要势力、主角开局处境…"></textarea>
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">等级体系（可选，逗号分隔从低到高）</label>
-    <input id="cw-levels" type="text" placeholder="序列九…序列零 / 学徒…半神" style="width:100%;margin-top:6px">
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">题材风格</label>
-    <input id="cw-style" type="text" value="奇幻冒险" style="width:100%;margin-top:6px">
+    <h3>${t('waStep1')}</h3>
+    <label style="color:var(--dim);font-size:12px">${t('waBookTitle')}</label>
+    <input id="cw-title" type="text" placeholder="${t('waBookPh')}" style="width:100%;margin-top:6px">
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waAuthor')}</label>
+    <input id="cw-author" type="text" placeholder="${t('waAuthorPh')}" style="width:100%;margin-top:6px">
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waSetting')}</label>
+    <textarea id="cw-setting" rows="3" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px" placeholder="${t('waSettingPh')}"></textarea>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waLevels')}</label>
+    <input id="cw-levels" type="text" placeholder="${t('waLevelsPh')}" style="width:100%;margin-top:6px">
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waStyle')}</label>
+    <input id="cw-style" type="text" value="${t('waStyleDef')}" style="width:100%;margin-top:6px">
     <label style="display:block;margin-top:10px;font-size:12px;color:var(--dim)">
-      <input id="cw-web" type="checkbox" checked> 联网补充设定（优先萌娘百科/百度百科；可补未抽到章节的硬设定）
+      <input id="cw-web" type="checkbox" checked> ${t('waWeb')}
     </label>
     <label style="display:block;margin-top:4px;font-size:12px;color:var(--dim)">
-      <input id="cw-wiki" type="checkbox"> 连不上百科时再试维基百科（大陆网络通常不可达）
+      <input id="cw-wiki" type="checkbox"> ${t('waWiki')}
     </label>
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:8px">设定页 URL（可选，空格/逗号分隔多个）</label>
-    <input id="cw-urls" type="text" placeholder="https://…wiki / 设定帖链接" style="width:100%;margin-top:6px">
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:8px">${t('waUrls')}</label>
+    <input id="cw-urls" type="text" placeholder="${t('waUrlsPh')}" style="width:100%;margin-top:6px">
     <div class="btn-row" style="margin-top:10px">
-      <button class="btn" id="cw-web-only" type="button">仅联网补设定并出草稿</button>
+      <button class="btn" id="cw-web-only" type="button">${t('waWebOnly')}</button>
     </div>
 
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">小说原文（.txt 整本 / 多章粘贴）</label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('waNovel')}</label>
     <input id="cw-file" type="file" accept=".txt,.md,text/plain" style="margin-top:6px;font-size:12px">
-    <div id="cw-file-info" style="font-size:12px;color:var(--faint);margin-top:4px">支持 TXT/MD。超长文本会自动抽样开头/中段/结尾章节做考据，不是全文直塞模型。</div>
-    <textarea id="cw-book" rows="4" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder="也可直接粘贴原文…"></textarea>
+    <div id="cw-file-info" style="font-size:12px;color:var(--faint);margin-top:4px">${t('waFileHint')}</div>
+    <textarea id="cw-book" rows="4" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder="${t('waBookPh2')}"></textarea>
 
     <div class="btn-row" style="margin-top:10px">
-      <button class="btn btn-gold" id="cw-gen" type="button">AI 提取并生成草稿</button>
-      <button class="btn" id="cw-gen-stop" type="button" hidden>取消</button>
+      <button class="btn btn-gold" id="cw-gen" type="button">${t('waGen')}</button>
+      <button class="btn" id="cw-gen-stop" type="button" hidden>${t('waCancel')}</button>
     </div>
-    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">需要先配置 API Key。流程：联网补充（可选）→ 原文抽样考据 → 合并设定 → 生成世界包。</div>
+    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">${t('waFlow')}</div>
 
-    <h3 style="margin-top:18px">② 粘贴 / 编辑 JSON</h3>
-    <textarea id="cw-json" rows="8" style="width:100%;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder='{"id":"my-world","name":"我的世界",…}'></textarea>
+    <h3 style="margin-top:18px">${t('waStep2')}</h3>
+    <textarea id="cw-json" rows="8" style="width:100%;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder='${t('waJsonPh')}'></textarea>
     <div class="btn-row">
-      <button class="btn" id="cw-validate" type="button">校验</button>
-      <button class="btn btn-gold" id="cw-save" type="button">保存世界包</button>
+      <button class="btn" id="cw-validate" type="button">${t('waValidate')}</button>
+      <button class="btn btn-gold" id="cw-save" type="button">${t('waSavePack')}</button>
     </div>
     <div id="cw-msg" style="font-size:12px;margin-top:6px;color:var(--faint)"></div>
 
-    <h3 style="margin-top:18px">③ 已保存的自定义世界</h3>
+    <h3 style="margin-top:18px">${t('waStep3')}</h3>
     <div id="cw-list">
       ${customs.length ? customs.map(d => `
         <div class="key-row">
           <label>
             <b>${esc(d.icon || '🌍')} ${esc(d.name || d.id)}</b>
             <span class="masktext">${esc(d.id || '')}</span>
-            <span class="masktext">${esc((d.tiers || []).length)} 阶 · ${(d.map || []).length} 地</span>
+            <span class="masktext">${esc((d.tiers || []).length)} ${t('waTiers')} · ${(d.map || []).length} ${t('waLands')}</span>
           </label>
-          <button class="btn btn-sm" data-export="${esc(d.id || '')}" type="button">导出</button>
-          <button class="btn btn-sm btn-danger" data-del="${esc(d.id || '')}" type="button">删除</button>
+          <button class="btn btn-sm" data-export="${esc(d.id || '')}" type="button">${t('waExport')}</button>
+          <button class="btn btn-sm btn-danger" data-del="${esc(d.id || '')}" type="button">${t('waDelete')}</button>
         </div>
-      `).join('') : '<div class="empty">暂无自定义世界</div>'}
+      `).join('') : `<div class="empty">${t('waNone')}</div>`}
     </div>
     <div class="btn-row" style="margin-top:12px">
-      <button class="btn" data-close type="button">关闭</button>
+      <button class="btn" data-close type="button">${t('waClose')}</button>
     </div>
   `)
 
@@ -130,7 +131,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     const f = e.target.files && e.target.files[0]
     if (!f) return
     if (f.size > 8 * 1024 * 1024) {
-      fileInfo.textContent = '文件过大（>8MB），请截取正文部分。'
+      fileInfo.textContent = t('waFileBig')
       return
     }
     const reader = new FileReader()
@@ -138,9 +139,9 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       const text = String(reader.result || '')
       bookEl.value = text.length > 400000 ? text.slice(0, 400000) : text
       const ch = sampleBookChunks(bookEl.value)
-      fileInfo.textContent = `已载入 ${f.name}（${text.length} 字）· 约 ${ch.chapters} 章/块 · 将抽样 ${ch.samples.length} 片考据`
+      fileInfo.textContent = `${t('waLoaded')} ${f.name}（${text.length} ${t('waChars')}）· ${t('waAbout')} ${ch.chapters} ${t('waChapters')} · ${t('waWillSample')} ${ch.samples.length} ${t('waPieces')}`
     }
-    reader.onerror = () => { fileInfo.textContent = '读取文件失败' }
+    reader.onerror = () => { fileInfo.textContent = t('waReadFail') }
     reader.readAsText(f, 'utf-8')
   }
 
@@ -149,12 +150,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 
   async function runGenerate({ webOnly }) {
     const f = draftFromForm()
-    if (!f.title && !f.bookText && !f.urls.length) { toast('请填写书名、原文或设定 URL'); return }
-    const title = f.title || '未命名作品'
+    if (!f.title && !f.bookText && !f.urls.length) { toast(t('waNeedFill')); return }
+    const title = f.title || t('waUntitled')
     const keyObj = activeKey(app)
     if (!keyObj) {
-      status.textContent = '未配置 API Key，先配置后才能 AI 生成；也可只粘贴 JSON 保存。'
-      toast('请先配置 API Key')
+      status.textContent = t('waNoKeyHint')
+      toast(t('waNeedKey2'))
       try {
         closeModal()
         openKeyModal(app, { save: () => {}, refreshAll: () => {} })
@@ -179,12 +180,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
           onProgress: (p) => { status.textContent = p.message || '' }
         })
         webNotes = g.ok ? g.notes : []
-        if (!webNotes.length) status.textContent = '联网无结果，继续本地材料…'
+        if (!webNotes.length) status.textContent = t('waWebEmpty')
       }
 
       const hasBook = f.bookText.length >= 800
       if (!hasBook && !webNotes.length && !f.setting) {
-        status.textContent = '请提供原文、设定 URL，或填写设定摘要。'
+        status.textContent = t('waNeedSrc')
         return
       }
 
@@ -192,8 +193,8 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       if (hasBook || webNotes.length) {
         const ch = hasBook ? sampleBookChunks(f.bookText) : { samples: [], chapters: 0, totalChars: 0 }
         status.textContent = hasBook
-          ? `原文 ${ch.totalChars} 字 · 抽样 ${ch.samples.length} 片考据…`
-          : '仅用联网/补充材料合并设定…'
+          ? `${ch.totalChars} ${t('waChars')} · ${t('waSample')} ${ch.samples.length} ${t('waSample2')}`
+          : t('waWebMerge')
         const ex = hasBook
           ? await extractBookFacts({
               keyObj,
@@ -213,7 +214,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
               onProgress: (p) => { status.textContent = p.message }
             })
         if (!ex.ok) {
-          status.textContent = '提取失败：' + (ex.error || '')
+          status.textContent = t('waExtractFail') + (ex.error || '')
           return
         }
         user = bibleToUserBrief(title, f.author, ex.bible)
@@ -223,7 +224,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 
         // 人物 → NPC 种子
         try {
-          status.textContent = '筛选人物并生成 NPC 种子…'
+          status.textContent = t('waNpcSeed')
           const chs = await buildCharacterSeeds({
             keyObj,
             title,
@@ -237,9 +238,9 @@ export function openWorldAuthor(app, { onSaved } = {}) {
           })
           if (chs.ok && chs.npc_seeds.length) {
             user += npcSeedsToBrief(chs.npc_seeds)
-            status.textContent = `已种子 ${chs.npc_seeds.length} 名 NPC，正在生成世界包…`
+            status.textContent = `${t('waNpcSeeded')} ${chs.npc_seeds.length} ${t('waNpcSeeded2')}`
           } else if (!chs.ok && chs.aborted) {
-            status.textContent = '已取消'
+            status.textContent = t('waCancelled')
             return
           }
         } catch (e) {
@@ -247,7 +248,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
           console.warn('npc seeds', e)
         }
 
-        status.textContent = '设定已合并，正在生成世界包…'
+        status.textContent = t('waMerged')
       } else {
         user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
 题材风格：${f.style}
@@ -255,7 +256,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
 
 请输出完整世界包 JSON。`
-        status.textContent = '正在生成世界包草稿…'
+        status.textContent = t('waGenDraft')
       }
 
       const res = await callLLM({
@@ -266,12 +267,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         maxTokens: MAX_TOKENS_DRAFT
       })
       if (!res.ok) {
-        status.textContent = '生成失败：' + (res.error || '')
+        status.textContent = t('waGenFail') + (res.error || '')
         return
       }
       const json = extractGameJSON(res.text)
       if (!json) {
-        status.textContent = '未解析到 JSON，已把输出放进编辑框，请手动整理。'
+        status.textContent = t('waNoJson')
         jsonEl.value = res.text.slice(0, 12000)
         return
       }
@@ -282,10 +283,10 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       jsonEl.value = JSON.stringify(json, null, 2)
       const v = validatePackDraft(json)
       if (v.ok) {
-        status.textContent = `草稿已生成：${v.pack.name}（${v.pack.tiers.length} 阶 · 地点 ${v.pack._decl.map.length}）。可编辑后保存。`
+        status.textContent = `${t('waDraftOk')}${v.pack.name}（${v.pack.tiers.length} ${t('waTiers')} · ${v.pack._decl.map.length} ${t('waLands')}）。${t('waEditable')}`
         msg.textContent = ''
       } else {
-        status.textContent = '草稿需修正：' + v.errors.join('；')
+        status.textContent = t('waDraftNeedFix') + v.errors.join('；')
       }
     } finally {
       btn.disabled = false
@@ -297,11 +298,11 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 
   document.getElementById('cw-validate').onclick = () => {
     const r = parseDraft(jsonEl.value)
-    if (!r) { msg.style.color = 'var(--red)'; msg.textContent = 'JSON 解析失败'; return }
+    if (!r) { msg.style.color = 'var(--red)'; msg.textContent = t('waJsonFail'); return }
     const v = validatePackDraft(r)
     if (v.ok) {
       msg.style.color = 'var(--jade)'
-      msg.textContent = `校验通过：${v.pack.name} · ${v.pack.tiers.length} 阶 · 地点 ${v.pack._decl.map.length} · 世界 ${v.pack.worlds.join('/')}`
+      msg.textContent = `${t('waValidateOk')}${v.pack.name} · ${v.pack.tiers.length} ${t('waTiers')} · ${v.pack._decl.map.length} ${t('waLands')} · ${v.pack.worlds.join('/')}`
     } else {
       msg.style.color = 'var(--red)'
       msg.textContent = v.errors.join('；')
@@ -310,19 +311,19 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 
   document.getElementById('cw-save').onclick = () => {
     const r = parseDraft(jsonEl.value)
-    if (!r) { msg.style.color = 'var(--red)'; msg.textContent = 'JSON 解析失败'; return }
+    if (!r) { msg.style.color = 'var(--red)'; msg.textContent = t('waJsonFail'); return }
     let saved = saveCustomPackDraft(r, { overwrite: false })
     if (saved.needConfirm) {
-      if (!confirm('已存在同 id 世界包，覆盖保存？')) return
+      if (!confirm(t('waOverwrite'))) return
       saved = saveCustomPackDraft(r, { overwrite: true })
     }
     if (!saved.ok) {
       msg.style.color = 'var(--red)'
-      msg.textContent = (saved.errors || []).join('；') || '保存失败'
+      msg.textContent = (saved.errors || []).join('；') || t('waSaveFail')
       return
     }
     reloadPacks()
-    toast('世界包已保存：' + saved.pack.name)
+    toast(t('waSaved') + saved.pack.name)
     closeModal()
     if (onSaved) onSaved(saved.pack)
   }
@@ -334,14 +335,14 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       if (!draft) return
       jsonEl.value = JSON.stringify(draft, null, 2)
       msg.style.color = 'var(--dim)'
-      msg.textContent = '已导出到下方文本框，可复制保存。'
+      msg.textContent = t('waExported')
     }
   })
 
   document.querySelectorAll('[data-del]').forEach(b => {
     b.onclick = () => {
       const id = b.dataset.del
-      if (!confirm(`删除自定义世界「${id}」？其存档槽会保留，仅移除世界包。`)) return
+      if (!confirm(t('waDelConfirm') + id + t('waDelConfirm2'))) return
       deleteCustomPack(id)
       reloadPacks()
       closeModal()

@@ -138,7 +138,7 @@ function doBreakthrough() {
   if (!r.ok) { toast(r.msg); return }
   app.S.bigEvents.push({ age: ageLabelShort(app.S.ageDays), text: r.msg })
   save()
-  centerToastHtml(esc(ui.advanceSuccessTitle || '成功') + '<br><span style="font-size:22px">' + esc(r.msg) + '</span>')
+  centerToastHtml(esc(ui.advanceSuccessTitle || t('successDef')) + '<br><span style="font-size:22px">' + esc(r.msg) + '</span>')
   refreshAll()
 }
 
@@ -320,7 +320,7 @@ function renderWelcome() {
   root.innerHTML = `
     <div class="wbox">
       <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || '旅界')}</div>
-      <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
+      <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || t('taglineDef'))}</div>
       <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
                 ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? t('collapseMore') + ' ▴' : t('expandMore') + ' ' + rest.length + t('worldsCount') + ' ▾'}</button>` : ''}
       </div>
@@ -378,7 +378,7 @@ function renderWelcome() {
       const pp = getPack(app.selectedPack)
       const tt = root.querySelector('.wtitle')
       const ts = root.querySelector('.wsub')
-      if (tt) tt.textContent = pp.gameTitle || pp.name || '旅界'
+      if (tt) tt.textContent = pp.gameTitle || pp.name || t('brand')
       if (ts) ts.textContent = pp.welcomeSub || pp.tagline || ''
     }
   })
@@ -440,7 +440,7 @@ function renderWelcome() {
     const slot = slotMeta(id)
     openModal(`
       <h2>${t('newGameTitle')}</h2>
-      <p>将覆盖《${esc(getPack(id).name)}》的现有存档${slot ? `（${esc(slot.name)} · ${esc(slot.levelText || '')}）` : ''}。其它世界存档与 API Key 不受影响。</p>
+      <p>${t('overwriteA')}${esc(getPack(id).name)}${t('overwriteB')}${slot ? `（${esc(slot.name)} · ${esc(slot.levelText || '')}）` : ''}${t('otherKeeps')}</p>
       <div class="btn-row" style="justify-content:center">
         <button class="btn" data-close type="button">${t('cancel')}</button>
         <button class="btn btn-danger" id="w-do-new" type="button">${t('overwriteNew')}</button>
@@ -534,7 +534,7 @@ function applyNavLabels(pack) {
     map: nav.map,
     profile: nav.profile,
     friends: nav.friends,
-    quests: (nav && nav.quests) || '任务',
+    quests: (nav && nav.quests) || t('questsNav'),
     bag: nav.bag,
     settings: nav.settings
   }

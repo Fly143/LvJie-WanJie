@@ -5,8 +5,8 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 
 const STYLE_HELP = {
-  chat: 'Chat Completions（OpenAI / 兼容网关常见）：POST …/chat/completions',
-  response: 'Responses API（OpenAI 新版）：POST …/responses'
+  chat: t('styleHelpChat'),
+  response: t('styleHelpResp')
 }
 
 export function openKeyModal(app, { save, refreshAll }) {
@@ -55,17 +55,17 @@ export function openKeyModal(app, { save, refreshAll }) {
     <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-style-help">${STYLE_HELP[curStyle]}</div>
 
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('baseUrl')}</label>
-    <input id="k-base" type="text" placeholder="例如 https://api.openai.com/v1 或 https://your-gateway/v1" value="${esc(cur ? (cur.baseUrl || '') : '')}">
+    <input id="k-base" type="text" placeholder="${t('kBasePh')}" value="${esc(cur ? (cur.baseUrl || '') : '')}">
 
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('apiKey')}</label>
     <input id="k-value" type="password" placeholder="sk-…" autocomplete="off" value="">
 
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('noteName')}</label>
-    <input id="k-name" type="text" placeholder="我的 OpenAI / 公司网关…" value="${esc(cur ? (cur.name || '') : '')}">
+    <input id="k-name" type="text" placeholder="${t('kNamePh')}" value="${esc(cur ? (cur.name || '') : '')}">
 
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('model')}</label>
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-      <input id="k-model" type="text" style="margin-top:0;flex:1" placeholder="例如 gpt-4.1-mini / glm-4-flash / deepseek-chat" value="${esc(cur ? (cur.model || '') : '')}">
+      <input id="k-model" type="text" style="margin-top:0;flex:1" placeholder="${t('kModelPh')}" value="${esc(cur ? (cur.model || '') : '')}">
       <button class="btn btn-sm" id="k-refresh" type="button" title="GET {Base URL}/models">${t('refreshModels')}</button>
     </div>
     <select id="k-model-list" style="width:100%;margin-top:8px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;display:none">
@@ -122,10 +122,10 @@ export function openKeyModal(app, { save, refreshAll }) {
       return
     }
     const models = r.models || []
-    modelList.innerHTML = `<option value="">— 共 ${models.length} 个，选择填入 —</option>` +
+    modelList.innerHTML = `<option value="">— ${t('modelListN')} ${models.length} ${t('modelListPick')} —</option>` +
       models.map(id => `<option value="${esc(id)}" ${id === modelEl.value ? 'selected' : ''}>${esc(id)}</option>`).join('')
     modelList.style.display = ''
-    modelHint.innerHTML = `已拉取 ${models.length} 个模型（${esc(r.url || '')}）。下拉选择或继续手填。`
+    modelHint.innerHTML = `${t('fetchedModels')} ${models.length} ${t('fetchedModels2')}（${esc(r.url || '')}）。${t('pickOrType')}`
     toast(`${t('fetchedN')} ${models.length}${t('modelsN')}`)
   }
 
@@ -247,12 +247,12 @@ export function openHelp(app) {
   openModal(`
     <h2>${t('helpTitle')}${esc(pack ? pack.name : t('brand'))}</h2>
     <p>${esc(pack ? pack.tagline : '')}</p>
-    <p>1. 在顶栏 <b>🔑 API</b> 配置自定义接口：Base URL + Key + 模型，协议选 <b>chat</b> 或 <b>response</b>。</p>
-    <p>2. 在 <b>当前场景</b> 选择行动或输入自由行动，由 AI 实时生成剧情与数据变化。</p>
-    <p>3. 攒够 <b>${esc(pack ? pack.lexicon.progress : '进度')}</b> 后点 <b>${esc(ui.advanceBtn)}</b> 提升${esc(pack ? pack.lexicon.level : '等级')}。</p>
-    <p>4. <b>🌐 世界观</b> 切换世界；各世界存档独立，切换即读档。</p>
-    <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 保存在本机，删档会保留。</p>
-    <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机。API Key 加密保存：桌面版走系统 safeStorage，安卓版走 Android Keystore，均不落明文。</p>
+    <p>1. ${t('helpP1')} <b>🔑 API</b> ${t('helpP1b')} <b>chat</b> ${t('helpP1c')} <b>response</b>。</p>
+    <p>2. ${t('helpP2')} <b>${t('navScene')}</b> ${t('helpP2b')}</p>
+    <p>3. ${t('helpP3')} <b>${esc(pack ? pack.lexicon.progress : t('progressWord'))}</b> ${t('helpP3b')} <b>${esc(ui.advanceBtn)}</b> ${t('helpP3c')}${esc(pack ? pack.lexicon.level : t('levelWord'))}。</p>
+    <p>4. <b>🌐 ${t('worlds')}</b> ${t('helpP4')}</p>
+    <p>5. ${t('api')} <b>🔑</b> ${t('helpP5')}</p>
+    <p style="color:var(--faint);font-size:12px">${t('helpProto')}</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">${t('ok')}</button></div>
   `)
 }
