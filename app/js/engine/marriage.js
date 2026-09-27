@@ -78,11 +78,8 @@ export function propose(S, friend, pack) {
   if (!haremEnabled(pack) && marriedList(S).length > 0) {
     return { ok: false, msg: '此界仅可有一位' + spouseWord(pack) }
   }
-  // 玩家性别未知 → 伴侣默认女性；否则看对方性别
-  const playerUnknown = !S.playerGender
-  const spouse = playerUnknown
-    ? 'wife'
-    : (friend.gender === '男' ? 'husband' : 'wife')
+  // 按对方性别记伴侣，允许同性；未知性别默认女
+  const spouse = friend.gender === '男' ? 'husband' : 'wife'
   friend.married = spouse
   friend.favor = favor + 10
   friend.mem = friend.mem ? (friend.mem + '；与你结为' + spouseWord(pack) + '。') : ('与你结为' + spouseWord(pack) + '。')

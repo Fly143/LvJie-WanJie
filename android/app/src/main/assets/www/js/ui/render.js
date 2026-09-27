@@ -99,6 +99,7 @@ export function renderScene(app, api) {
             <div class="cname">${esc(p.name)}</div>
             <div class="crealm">${esc(p.realm || p.rank || '')}</div>
             <div class="cdesc">${esc(p.intro || '')}</div>
+            ${p.gender ? `<div class="cdim">性别：${esc(p.gender)}</div>` : ''}
             ${relBlock(p)}
             <div class="cbtn"><button class="btn btn-sm" data-talk="${esc(p.name)}" type="button">${esc(pack.ui && pack.ui.talkBtn || '交谈')}</button></div>
           </div>
