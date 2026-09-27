@@ -11,7 +11,7 @@ import { totalPowerF } from './engine/power.js'
 import { curLoc } from './engine/map.js'
 import { startEvent, runEventTurn, endEvent } from './engine/event.js'
 import { applyThemeTokens } from './engine/theme.js'
-import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings, renderQuests } from './ui/render.js'
+import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings, renderQuests, renderMarriage } from './ui/render.js'
 import { openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
@@ -33,6 +33,7 @@ const RENDERS = {
   map: renderMap,
   profile: renderProfile,
   friends: renderFriends,
+  marriage: renderMarriage,
   quests: renderQuests,
   bag: renderBag,
   settings: renderSettings
@@ -348,6 +349,7 @@ function renderWelcome() {
       <div class="wactions">
         <div class="name-row">
           <input id="w-name" type="text" maxlength="12" placeholder="${t('namePlaceholder')}" value="">
+          <input id="w-age" type="number" min="1" max="200" placeholder="${t('agePlaceholder')}" style="width:110px">
         </div>
         <div class="btn-row" style="justify-content:center">
           <button class="btn btn-gold" id="w-start" type="button">${t('start')}</button>
@@ -444,7 +446,8 @@ function renderWelcome() {
       }
     }
     const name = (nameEl.value || '').trim()
-    startNewGame(name, id)
+    const ageEl0 = document.getElementById('w-age')
+    startNewGame(name, id, ageEl0 && ageEl0.value)
   }
 
   newBtn.onclick = () => {
@@ -462,7 +465,8 @@ function renderWelcome() {
       closeModal()
       deleteSave(id)
       const name = (nameEl.value || '').trim()
-      startNewGame(name, id)
+      const ageEl = document.getElementById('w-age')
+      startNewGame(name, id, ageEl && ageEl.value)
     }
   }
 
@@ -485,9 +489,12 @@ function renderWelcome() {
   applyTheme(getPack(sel))
 }
 
-function startNewGame(name, packId) {
+function startNewGame(name, packId, ageYears) {
   try {
-    app.S = newGame(name, packId)
+    const ageDays = (ageYears != null && ageYears !== '' && isFinite(Number(ageYears)) && Number(ageYears) > 0)
+      ? Math.round(Number(ageYears) * 360)
+      : undefined
+    app.S = newGame(name, packId, { ageDays })
     save()
     try { playBgm(app.S.bgmTrack) } catch (e) { /* music optional */ }
     setShell('game')
@@ -541,11 +548,13 @@ function bindHeader() {
 
 function applyNavLabels(pack) {
   const nav = (pack && pack.lexicon && pack.lexicon.nav) || {}
+  const spouseW = (pack && pack.lexicon && pack.lexicon.spouse) || t('navMarriage')
   const map = {
     scene: nav.scene,
     map: nav.map,
     profile: nav.profile,
     friends: nav.friends,
+    marriage: spouseW,
     quests: (nav && nav.quests) || t('questsNav'),
     bag: nav.bag,
     settings: nav.settings
@@ -553,7 +562,7 @@ function applyNavLabels(pack) {
   Object.keys(map).forEach(id => {
     const el = document.getElementById('nav-' + id)
     if (!el) return
-    const icon = { scene: '📍', map: '🗺️', profile: '👤', friends: '🤝', quests: '📜', bag: '🎒', settings: '⚙️' }[id]
+    const icon = { scene: '📍', map: '🗺️', profile: '👤', friends: '🤝', marriage: '💍', quests: '📜', bag: '🎒', settings: '⚙️' }[id]
     if (map[id]) el.textContent = `${icon} ${map[id]}`
   })
 }

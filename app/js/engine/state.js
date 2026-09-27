@@ -392,7 +392,7 @@ export function hasSave(worldview) {
  * 新开局。packId 必须是已注册世界观。
  * 通用字段 + 包提供的初始内容。
  */
-export function newGame(name, packId) {
+export function newGame(name, packId, opts = {}) {
   const pack = getPack(packId)
   if (!pack) throw new Error('未知世界观: ' + packId)
 
@@ -406,7 +406,7 @@ export function newGame(name, packId) {
     guideDone: false,
     version: SAVE_VERSION,
     worldview: pack.id,
-    ageDays: init.ageDays != null ? init.ageDays : 3600,
+    ageDays: (opts && opts.ageDays != null) ? opts.ageDays : (init.ageDays != null ? init.ageDays : 3600),
     // 中性三级货币：main / mid / high（包决定叫什么）
     money: Object.assign({ main: 0, mid: 0, high: 0 }, init.money || {}),
     // 等级进度（包决定叫什么）

@@ -191,6 +191,7 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
   const notes = []
   const attempts = []
 
+  // 国内信源优先；维基是独立可选源（勾选即查，不是失败回退）
   const sources = [
     { name: '萌娘百科', fn: () => fetchMoegirl(title) },
     { name: '百度百科', fn: () => fetchBaiduBaike(title) }
@@ -209,10 +210,9 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
         notes.push({ kind: 'wiki', source: r.source, title: r.title, text: r.text })
         report({ message: `已获取${s.name}《${r.title || title}》${r.text.length} 字` })
         // 国内源拿到两份即可；维基仅在勾选后作为补充
-        const wikiHits = notes.filter(n => n.source && /wikipedia/i.test(n.source)).length
+        // 任一源命中即可继续下一源；维基作为独立补充源照常收集，不做「失败才查」
         const cnHits = notes.filter(n => n.source && !/wikipedia/i.test(n.source)).length
         if (s.name !== '维基百科' && cnHits >= 2) break
-        if (s.name === '维基百科' && wikiHits >= 1 && cnHits >= 1) break
       } else {
         report({ message: `${s.name}：${r.error || '未命中'}` })
       }

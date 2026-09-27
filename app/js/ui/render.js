@@ -93,6 +93,13 @@ export function renderScene(app, api) {
       </div>
     </div>
     ${evHtml}
+    <div class="panel" id="free-act-panel">
+      <div class="ev-label-row"><span style="color:var(--dim);font-size:12px">${t('freeAction')}</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="ev-input" id="scene-free" type="text" placeholder="${t('freePlaceholder')}" style="flex:1">
+        <button class="btn btn-gold btn-sm" id="scene-free-send" type="button">${t('send')}</button>
+      </div>
+    </div>
     <div class="panel">
       <h3>${t('peopleHere')}</h3>
       <div class="grid">
@@ -197,6 +204,20 @@ export function renderScene(app, api) {
     }
     send.onclick = doSend
     free.onkeydown = e => { if (e.key === 'Enter') doSend() }
+  }
+  const sf = document.getElementById('scene-free')
+  const ss = document.getElementById('scene-free-send')
+  if (sf && ss) {
+    const doScene = () => {
+      const v = sf.value.trim()
+      if (!v) return
+      if (app.EV && app.EV.loading) return
+      sf.value = ''
+      contEvent(app, api, v)
+    }
+    ss.onclick = doScene
+    sf.onkeydown = e => { if (e.key === 'Enter') doScene() }
+    if (app.EV && app.EV.loading) sf.disabled = true
   }
   const endB = document.getElementById('ev-end')
   const closeB = document.getElementById('ev-close')
@@ -602,6 +623,92 @@ export function renderFriends(app, api) {
         t('youChatA') + (cur.name || t('herePlace')) + t('youChatB') + f.name + t('youChatC') + (f.intro || '') + t('youMsgD') + (f.mem || t('memNone')),
         f.name
       )
+    }
+  })
+}
+
+export function renderMarriage(app, api) {
+  const S = app.S
+  if (!S) return
+  const pack = globalThis.__AW_PACKS__[S.worldview]
+  const main = document.getElementById('main')
+  const enabled = marriageEnabled(pack)
+  const spouseW = spouseWord(pack)
+  const spouses = marriedList(S)
+  const candidates = (S.friends || []).filter(f => f && !f.married && (Number(f.favor) || 0) >= 10)
+    .sort((a, b) => (b.favor || 0) - (a.favor || 0))
+    .slice(0, 12)
+
+  main.innerHTML = `
+    <div class="panel">
+      <h3>💍 ${esc(spouseW)}</h3>
+      ${!enabled ? `<div class="empty">${t('marriageOff')}</div>` : ''}
+      ${enabled && !spouses.length ? `<div class="empty">${t('noSpouse')}</div>` : ''}
+      <div class="grid">
+        ${spouses.map((f, i) => `
+          <div class="card">
+            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> <span class="ctype">${esc(spouseLabel(f, pack))}</span></div>
+            <div class="crealm">${esc(f.realm || '')} · ${t('favor')} ${fmtNum(f.favor || 0)}</div>
+            ${f.mem ? `<div class="cdim">${t('mem')}${esc(f.mem)}</div>` : ''}
+            <div class="cbtn"><button class="btn btn-sm" data-mdiv="${i}" type="button">${esc(divorceWord(pack))}</button></div>
+          </div>
+        `).join('')}
+      </div>
+      ${enabled && candidates.length ? `
+        <h4 style="margin-top:14px">${t('canPropose')}</h4>
+        <div class="grid">
+          ${candidates.map(f => {
+            const idx = (S.friends || []).indexOf(f)
+            const ok = canPropose(f, S, pack)
+            return `
+              <div class="card">
+                <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button></div>
+                <div class="crealm">${esc(f.realm || '')} · ${t('favor')} ${fmtNum(f.favor || 0)}</div>
+                <div class="cbtn">
+                  ${ok ? `<button class="btn btn-sm btn-gold" data-mpropose="${idx}" type="button">💍 ${esc(proposeWord(pack))}</button>` : `<span class="ctype">${t('proposeNeed')}</span>`}
+                </div>
+              </div>
+            `
+          }).join('')}
+        </div>
+      ` : ''}
+      <div class="ai-note" style="margin-top:10px">${t('marriageNote')}</div>
+    </div>
+  `
+
+  main.querySelectorAll('[data-mpropose]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.mpropose)]
+      if (!f) return
+      if (!confirm(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'))) return
+      const res = propose(S, f, pack)
+      api.toast(res.msg)
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-mdiv]').forEach(b => {
+    b.onclick = () => {
+      const f = spouses[Number(b.dataset.mdiv)]
+      if (!f) return
+      if (!confirm(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'))) return
+      const res = divorce(S, f, pack)
+      api.toast(res.msg)
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-npcinfo]').forEach(b => {
+    b.onclick = () => {
+      const name = b.dataset.npcinfo
+      const friend = (S.friends || []).find(x => x.name === name)
+      if (!friend) return
+      openModal(`
+        <h2>${esc(friend.name)}</h2>
+        <div class="row"><span>${t('favor')}</span><span class="v">${fmtNum(friend.favor || 0)}</span></div>
+        ${friend.mem ? `<div class="cdim">${t('mem')}${esc(friend.mem)}</div>` : ''}
+        <div class="btn-row"><button class="btn" data-close type="button">${t('close')}</button></div>
+      `)
     }
   })
 }
