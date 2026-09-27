@@ -96,7 +96,7 @@ export function renderScene(app, api) {
       <div class="grid">
         ${(loc.people || []).map(p => `
           <div class="card">
-            <div class="cname">${esc(p.name)}</div>
+            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(p.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(p.name)}</button></div>
             <div class="crealm">${esc(p.realm || p.rank || '')}</div>
             <div class="cdesc">${esc(p.intro || '')}</div>
             ${p.gender ? `<div class="cdim">性别：${esc(p.gender)}</div>` : ''}
@@ -422,7 +422,7 @@ export function renderFriends(app, api) {
           const at = friendAt(f)
           return `
           <div class="card">
-            <div class="cname">${esc(f.name)} ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
+            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
             <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">好感 ${fmtNum(f.favor || 0)}</span>${f.relType ? ' · ' + esc(f.relType) : ''}</div>
             <div class="cdim">📍 ${esc(at.name)}${at.here ? ' · 当前场景' : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
@@ -484,6 +484,30 @@ export function renderFriends(app, api) {
       api.toast('已去掉一条恩怨')
       api.save()
       api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-npcinfo]').forEach(b => {
+    b.onclick = () => {
+      const name = b.dataset.npcinfo
+      const friend = (S.friends || []).find(x => x.name === name)
+      const loc = curLoc(S) || {}
+      const person = (loc.people || []).find(x => x.name === name)
+        || (S.map || []).flatMap(l => (l.people || []).map(p => ({ ...p, _at: l.name }))).find(x => x.name === name)
+      const src = friend || person || {}
+      const at = person && person._at ? person._at : (friend ? (friendAt(friend).name || '') : '')
+      openModal(`
+        <h2>${esc(name)}</h2>
+        <div class="row"><span>性别</span><span class="v">${esc(src.gender || '未设定')}</span></div>
+        <div class="row"><span>档位</span><span class="v">${esc(src.realm || src.rank || '')}</span></div>
+        <div class="row"><span>战力</span><span class="v">${fmtNum(src.power || 0)}</span></div>
+        ${src.favor != null ? `<div class="row"><span>好感</span><span class="v" style="color:${favorColor(src.favor)}">${fmtNum(src.favor)}</span></div>` : ''}
+        ${src.relType ? `<div class="row"><span>关系</span><span class="v">${esc(src.relType)}</span></div>` : ''}
+        ${at ? `<div class="row"><span>所在地</span><span class="v">${esc(at)}</span></div>` : ''}
+        ${src.intro ? `<div class="cdesc" style="margin-top:8px">${esc(src.intro)}</div>` : ''}
+        ${src.mem ? `<div class="cdim">记忆：${esc(src.mem)}</div>` : ''}
+        ${relBlock(src)}
+        <div class="btn-row"><button class="btn" data-close type="button">关闭</button></div>
+      `)
     }
   })
   main.querySelectorAll('[data-marry]').forEach(b => {
