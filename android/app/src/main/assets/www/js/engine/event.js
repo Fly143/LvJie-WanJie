@@ -79,27 +79,43 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   EV._ctl = ctl
   let lastPaint = 0
   let res
-  try {
-    res = await callLLM({
-      keyObj,
-      system,
-      user: userText,
-      history: trimHistory(EV.history.slice(0, -1)),
-      signal: ctl.signal,
-      onDelta: (delta, acc) => {
-        if (EV._turn !== turn) return
-        EV.partial = acc
-        EV.resultText = stripJSONBlock(acc)
-        // 流式每 token 全量重绘会卡，节流刷新
-        const now = Date.now()
-        if (!hooks.onState) return
-        if (now - lastPaint < 120) return
-        lastPaint = now
-        hooks.onState(EV)
-      }
-    })
-  } catch (e) {
-    res = { ok: false, error: (e && e.message) || '调用异常' }
+  const MAX_RETRY = 3
+  for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+    if (EV._turn !== turn) { EV.loading = false; return }
+    try {
+      res = await callLLM({
+        keyObj,
+        system,
+        user: userText,
+        history: trimHistory(EV.history.slice(0, -1)),
+        signal: ctl.signal,
+        onDelta: (delta, acc) => {
+          if (EV._turn !== turn) return
+          EV.partial = acc
+          EV.resultText = stripJSONBlock(acc)
+          const now = Date.now()
+          if (!hooks.onState) return
+          if (now - lastPaint < 120) return
+          lastPaint = now
+          hooks.onState(EV)
+        }
+      })
+    } catch (e) {
+      res = { ok: false, error: (e && e.message) || '调用异常' }
+    }
+    // 非网络类错误不重试；用户取消不重试
+    const errText = String((res && res.error) || '')
+    const retriable = res && !res.ok && !res.aborted &&
+      /网络|超时|ECONN|ETIMEDOUT|fetch|Failed|timeout|aborted.*网络/i.test(errText + (res.error ? '' : ''))
+    const plainNet = res && !res.ok && !res.aborted && !res.error
+    if (res && res.ok) break
+    if (res && res.aborted) break
+    if (!retriable && !plainNet) break
+    if (attempt < MAX_RETRY) {
+      EV.error = tRetry(attempt, MAX_RETRY)
+      if (hooks.onState) hooks.onState(EV)
+      await new Promise(r => setTimeout(r, 500 * attempt))
+    }
   }
 
   if (EV._turn !== turn) {
@@ -331,6 +347,10 @@ function parseOptionsFromText(text) {
     if (out.length >= 4) break
   }
   return out
+}
+
+function tRetry(attempt, max) {
+  return '（网络波动，重试 ' + attempt + '/' + max + '…）'
 }
 
 function resolveKey(S) {

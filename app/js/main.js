@@ -349,7 +349,6 @@ function renderWelcome() {
       <div class="wactions">
         <div class="name-row">
           <input id="w-name" type="text" maxlength="12" placeholder="${t('namePlaceholder')}" value="">
-          <input id="w-age" type="number" min="1" max="200" placeholder="${t('agePlaceholder')}" style="width:110px">
         </div>
         <div class="btn-row" style="justify-content:center">
           <button class="btn btn-gold" id="w-start" type="button">${t('start')}</button>
@@ -446,8 +445,7 @@ function renderWelcome() {
       }
     }
     const name = (nameEl.value || '').trim()
-    const ageEl0 = document.getElementById('w-age')
-    startNewGame(name, id, ageEl0 && ageEl0.value)
+    openStartDialog(id, name)
   }
 
   newBtn.onclick = () => {
@@ -465,8 +463,7 @@ function renderWelcome() {
       closeModal()
       deleteSave(id)
       const name = (nameEl.value || '').trim()
-      const ageEl = document.getElementById('w-age')
-      startNewGame(name, id, ageEl && ageEl.value)
+      openStartDialog(id, name)
     }
   }
 
@@ -487,6 +484,35 @@ function renderWelcome() {
 
   syncActions()
   applyTheme(getPack(sel))
+}
+
+function openStartDialog(packId, presetName) {
+  const pack = getPack(packId)
+  const defAge = (pack && pack.createInitState && (() => {
+    try {
+      const init = pack.createInitState()
+      return init && init.ageDays != null ? Math.round(init.ageDays / 360) : ''
+    } catch (e) { return '' }
+  })()) || ''
+  openModal(`
+    <h2>${t('startTitle')}${esc(pack ? pack.name : '')}</h2>
+    <label style="color:var(--dim);font-size:12px">${t('charName')}</label>
+    <input id="st-name" type="text" maxlength="12" style="width:100%;margin-top:6px" placeholder="${t('namePlaceholder2')}" value="${esc(presetName || '')}">
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('ageLabel')}</label>
+    <input id="st-age" type="number" min="1" max="200" style="width:100%;margin-top:6px" placeholder="${t('agePlaceholder')}" value="${defAge}">
+    <div style="font-size:12px;color:var(--faint);margin-top:6px">${t('ageHint')}</div>
+    <div class="btn-row">
+      <button class="btn btn-gold" id="st-go" type="button">${t('start')}</button>
+      <button class="btn" data-close type="button">${t('cancel')}</button>
+    </div>
+  `)
+  const go = document.getElementById('st-go')
+  if (go) go.onclick = () => {
+    const n = (document.getElementById('st-name').value || '').trim()
+    const a = document.getElementById('st-age').value
+    closeModal()
+    startNewGame(n, packId, a)
+  }
 }
 
 function startNewGame(name, packId, ageYears) {

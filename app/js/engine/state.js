@@ -406,6 +406,7 @@ export function newGame(name, packId, opts = {}) {
     guideDone: false,
     version: SAVE_VERSION,
     worldview: pack.id,
+    // 游戏历：1 岁 = 360 天（与各包 ageDays 约定一致）
     ageDays: (opts && opts.ageDays != null) ? opts.ageDays : (init.ageDays != null ? init.ageDays : 3600),
     // 中性三级货币：main / mid / high（包决定叫什么）
     money: Object.assign({ main: 0, mid: 0, high: 0 }, init.money || {}),
