@@ -227,6 +227,19 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const waiters = []
   const endBox = { done: null, p: null }
   endBox.p = new Promise((r) => { endBox.done = r })
+  let buf = ''
+  let text = ''
+  let status = 200
+  let err = null
+  let aborted = false
+
+  const pushDelta = (delta) => {
+    if (!delta) return
+    text += delta
+    try { onDelta(delta, text) } catch (e) { /* ignore */ }
+  }
+
+  // 必须先注册 chunk/end，再 stream，否则首批 chunk 丢失
   const offEnd0 = host.onEnd((d) => {
     if (!d) return
     if (!streamId) {
@@ -234,6 +247,23 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
       return
     }
     if (d.id === streamId) endBox.done(d)
+  })
+  const offChunk = host.onChunk((d) => {
+    if (!d || (streamId && d.id !== streamId)) return
+    buf += d.text || ''
+    let nl
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).replace(/\r$/, '')
+      buf = buf.slice(nl + 1)
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      try {
+        const j = JSON.parse(payload)
+        const delta = extractStreamDelta(j, apiStyle)
+        if (delta) pushDelta(delta)
+      } catch (e) { /* partial json */ }
+    }
   })
   const drainWaiters = () => {
     if (!streamId) return
@@ -267,16 +297,10 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
         const off = host.onEnd((dd) => {
           if (dd && dd.id === id) { try { off() } catch (e) {} resolve(dd) }
         })
-        // 防泄漏：流结束后兜底退订
         setTimeout(() => { try { off() } catch (e) {} }, 200000)
       }
     })
   })
-  let buf = ''
-  let text = ''
-  let status = 200
-  let err = null
-  let aborted = false
 
   const onAbort = () => {
     aborted = true
@@ -287,29 +311,6 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     else signal.addEventListener('abort', onAbort, { once: true })
   }
 
-  const pushDelta = (delta) => {
-    if (!delta) return
-    text += delta
-    try { onDelta(delta, text) } catch (e) { /* ignore */ }
-  }
-
-  const offChunk = host.onChunk((d) => {
-    if (!d || d.id !== id) return
-    buf += d.text || ''
-    let nl
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, nl).replace(/\r$/, '')
-      buf = buf.slice(nl + 1)
-      if (!line.startsWith('data:')) continue
-      const payload = line.slice(5).trim()
-      if (!payload || payload === '[DONE]') continue
-      try {
-        const j = JSON.parse(payload)
-        const delta = extractStreamDelta(j, apiStyle)
-        if (delta) pushDelta(delta)
-      } catch (e) { /* partial json */ }
-    }
-  })
   const offEnd = host.onEnd((d) => {
     if (!d || d.id !== id) return
     status = d.status || status

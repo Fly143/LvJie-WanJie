@@ -125,6 +125,7 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     if (hooks.onState) hooks.onState(EV)
     return
   }
+  try {
 
   // history 只存叙事，避免 JSON 撑爆 token
   EV.history.push({ role: 'assistant', content: narrative || text.slice(0, 500) })
@@ -212,16 +213,21 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     S.lastEventText = narrative
   }
 
-  EV.resultText = narrative
-  EV.loading = false
+    EV.resultText = narrative
+    EV.loading = false
 
-  if (hooks.limitOn !== false && EV.count >= MAX_EVENT_CHOICES) {
-    EV.ended = true
-    EV.options = null
+    if (hooks.limitOn !== false && EV.count >= MAX_EVENT_CHOICES) {
+      EV.ended = true
+      EV.options = null
+    }
+
+    if (hooks.onDone) hooks.onDone(EV, changesBrief)
+    if (hooks.onState) hooks.onState(EV)
+  } catch (e) {
+    EV.loading = false
+    EV.error = (e && e.message) || '处理失败'
+    if (hooks.onState) hooks.onState(EV)
   }
-
-  if (hooks.onDone) hooks.onDone(EV, changesBrief)
-  if (hooks.onState) hooks.onState(EV)
 }
 
 export function endEvent(EV) {

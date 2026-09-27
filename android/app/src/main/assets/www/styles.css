@@ -318,14 +318,16 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
   #hdr .hbadge{order:2;padding:3px 10px;font-size:12px}
   #hdr .who{order:3;flex-basis:100%;font-size:12px;overflow:hidden;text-overflow:ellipsis}
   #hdr button{order:4;flex:1;padding:6px 8px;font-size:12px;white-space:nowrap}
-  body.menu #app{display:none!important}
+  body.menu #app{display:flex!important;padding:8px;gap:8px}
+  body.menu #app #main{display:none!important}
+  body.menu #app #side{display:flex!important;width:100%!important;flex:1 1 auto!important;height:auto}
+  body.menu .navbtn{padding:14px 16px;font-size:16px}
   body:not(.menu) #app{display:flex!important;padding:8px;gap:8px}
   body:not(.menu) #app #main{display:block!important;flex:1;min-width:0;overflow-y:auto}
-  body:not(.menu) #app #side{width:120px!important;flex:0 0 120px!important;height:auto}
-  body.menu .navbtn{padding:12px 14px;font-size:15px}
   body:not(.menu) #app #side{display:none!important}
   body:not(.menu) #backbtn{display:flex!important}
   body:not(.menu) #main{padding-top:46px}
+  body.menu #backbtn{display:none!important}
   .panel{padding:12px}
   #pcard .pgrid{grid-template-columns:1fr;column-gap:0}
   .ev-text{font-size:15px}
@@ -349,9 +351,9 @@ body.theme-western .modal{border-radius:2px 16px 2px 16px}
     align-items:flex-start;
   }
   #welcome[hidden]{display:none !important}
-  body.menu #welcome{display:block !important}
-  body.menu #app{display:none !important}
-  body:not(.menu) #welcome{display:none !important}
+  body.menu #app{display:flex !important}
+  body.menu #app #main{display:none !important}
+  body.menu #app #side{display:flex !important;width:100%!important;flex:1 1 auto!important}
   body:not(.menu) #app{display:flex !important}
   #welcome .wbox{
     max-height:none !important;
