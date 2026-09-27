@@ -222,11 +222,12 @@ function normalizeContentText(v) {
 /** SSE 流式：chat 读 choices.delta.content；response 读 response.output_text.delta */
 async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const host = globalThis.awHost.http
-  // 先订阅 end，避免 stream 返回后 end 已错过
+  // 先订阅 end，且按 id 过滤，避免并发串扰与 handler 泄漏
   const endBox = { done: null, p: null }
   endBox.p = new Promise((r) => { endBox.done = r })
+  let streamId = null
   const offEnd0 = host.onEnd((d) => {
-    if (d) endBox.done(d)
+    if (!d || !streamId || d.id === streamId) endBox.done(d)
   })
   const started = await host.stream({
     url,
@@ -244,9 +245,11 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     return null
   }
   const id = started.id
+  streamId = id
   const endForId = new Promise((resolve) => {
     endBox.p.then((d) => {
       if (d && d.id === id) resolve(d)
+      else if (d && !d.id) resolve(d)
       else {
         // wait for matching end via extra listener
         const off = host.onEnd((dd) => {
@@ -298,6 +301,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     status = d.status || status
     if (!d.ok) err = d.error || '流式失败'
     if (d.aborted) aborted = true
+    endBox.done(d)
   })
   const settled = { end: null }
   const endPromise = endForId.then((d) => {
@@ -311,10 +315,19 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   })
 
   await Promise.race([endPromise, waitStreamEnd(host, id)])
-  if (!settled.end && !text) return null
-  if (!settled.end && text && err == null && !aborted) {
-    // 超时但已有正文：仍返回文本，但标记不完整
+  if (!settled.end && !text) {
+    try { offEnd0() } catch (e) { /* ignore */ }
+    try { offChunk() } catch (e) { /* ignore */ }
+    try { offEnd() } catch (e) { /* ignore */ }
+    if (signal) signal.removeEventListener('abort', onAbort)
+    return null
   }
+  let incomplete = false
+  if (!settled.end && text && err == null && !aborted) {
+    // 超时/半截：仍返回文本，但标记不完整
+    incomplete = true
+  }
+  try { offEnd0() } catch (e) { /* ignore */ }
   try { offChunk() } catch (e) { /* ignore */ }
   try { offEnd() } catch (e) { /* ignore */ }
   if (signal) signal.removeEventListener('abort', onAbort)
@@ -325,7 +338,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   if (aborted) return { ok: false, error: '已取消', aborted: true }
   if (err) return { ok: false, error: err }
   if (status < 200 || status >= 300) return { ok: false, error: 'HTTP ' + status }
-  return { ok: true, text }
+  return { ok: true, text, incomplete: incomplete || undefined }
 }
 
 /** 从 SSE JSON 里抠增量文本 */

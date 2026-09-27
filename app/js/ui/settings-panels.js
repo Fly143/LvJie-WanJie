@@ -195,6 +195,14 @@ export function openKeyModal(app, { save, refreshAll }) {
   document.querySelectorAll('[data-del]').forEach(b => {
     b.onclick = () => {
       const i = Number(b.dataset.del)
+      if (!S) {
+        deleteKeyStandalone(i)
+        save()
+        closeModal()
+        openKeyModal(app, { save, refreshAll })
+        return
+      }
+      S.playerKeys = S.playerKeys || []
       S.playerKeys.splice(i, 1)
       if (S.selectedKey === i) S.selectedKey = 0
       else if (typeof S.selectedKey === 'number' && S.selectedKey > i) S.selectedKey -= 1
@@ -208,8 +216,16 @@ export function openKeyModal(app, { save, refreshAll }) {
   document.querySelectorAll('input[name=selkey]').forEach(r => {
     r.onchange = () => {
       if (!r.checked) return
-      S.selectedKey = Number(r.value)
-      selected = Number(r.value)
+      const idx = Number(r.value)
+      if (!S) {
+        selectKeyStandalone(idx)
+        selected = idx
+        save()
+        refreshAll()
+        return
+      }
+      S.selectedKey = idx
+      selected = idx
       save()
       refreshAll()
     }
@@ -227,29 +243,55 @@ export function openHelp(app) {
     <p>2. 在 <b>当前场景</b> 选择行动或输入自由行动，由 AI 实时生成剧情与数据变化。</p>
     <p>3. 攒够 <b>${esc(pack ? pack.lexicon.progress : '进度')}</b> 后点 <b>${esc(ui.advanceBtn)}</b> 提升${esc(pack ? pack.lexicon.level : '等级')}。</p>
     <p>4. <b>🌐 世界观</b> 切换世界；各世界存档独立，切换即读档。</p>
-    <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 加密保存在本机，删档会保留。</p>
-    <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机，API Key 加密保存。</p>
+    <p>5. 顶栏 <b>🔑 API</b> 可配置/切换多组接口；Key 保存在本机，删档会保留。</p>
+    <p style="color:var(--faint);font-size:12px">协议说明：chat → /chat/completions；response → /responses。内容由 AI 生成；存档在本机。桌面版 Key 经系统加密存储；安卓版为应用内本机存储，请勿在共用设备上保存他人 Key。</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
   `)
 }
 
 function persistKeysStandalone(rec, selNow, keyInput) {
   try {
-    const raw = localStorage.getItem('agentworlds_apikeys_v1')
-    const data = raw ? JSON.parse(raw) : { keys: [], selected: 0 }
-    if (!Array.isArray(data.keys)) data.keys = []
+    const data = loadKeyStore()
     const exists = data.keys[selNow]
-    if (exists && !keyInput) data.keys[selNow] = rec
-    else if (exists && keyInput) data.keys[selNow] = rec
+    if (exists) data.keys[selNow] = rec
     else {
       data.keys.push(rec)
       data.selected = data.keys.length - 1
     }
-    localStorage.setItem('agentworlds_apikeys_v1', JSON.stringify(data))
-    if (window.awHost && window.awHost.secrets && window.awHost.secrets.save) {
-      window.awHost.secrets.save(data).catch(function () {})
-    }
+    writeKeyStore(data)
   } catch (e) { /* ignore */ }
+}
+
+function deleteKeyStandalone(i) {
+  try {
+    const data = loadKeyStore()
+    data.keys.splice(i, 1)
+    if (data.selected === i) data.selected = 0
+    else if (typeof data.selected === 'number' && data.selected > i) data.selected -= 1
+    if (!data.keys.length) data.selected = 0
+    writeKeyStore(data)
+  } catch (e) { /* ignore */ }
+}
+
+function selectKeyStandalone(idx) {
+  try {
+    const data = loadKeyStore()
+    if (data.keys[idx]) data.selected = idx
+    writeKeyStore(data)
+  } catch (e) { /* ignore */ }
+}
+
+function writeKeyStore(data) {
+  const host = window.awHost && window.awHost.secrets
+  if (host && host.save) {
+    host.save(data).then(() => {
+      try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
+    }).catch(() => {
+      try { localStorage.setItem('agentworlds_apikeys_v1', JSON.stringify(data)) } catch (e) { /* ignore */ }
+    })
+    return
+  }
+  try { localStorage.setItem('agentworlds_apikeys_v1', JSON.stringify(data)) } catch (e) { /* ignore */ }
 }
 
 function loadKeyStore() {

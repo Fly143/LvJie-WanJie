@@ -29,7 +29,7 @@ function relBlock(person) {
 import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY, LANGUAGE_OPTIONS } from '../engine/constants.js'
 import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
-import { openModal } from './modals.js'
+import { openModal, closeModal } from './modals.js'
 import { openHelp } from './settings-panels.js'
 
 export function renderScene(app, api) {
@@ -173,7 +173,7 @@ export function renderScene(app, api) {
       S.money.main -= it.price || 0
       addItem(S, it, 1)
       api.save()
-      api.toast(`购得 ${esc(it.name)}`)
+      api.toast(`购得 ${it.name}`)
       api.refreshAll()
     }
   })
@@ -231,7 +231,7 @@ function contEvent(app, api, content, isRetry) {
         },
         onDone: (e, brief) => {
           api.save()
-          if (brief && brief.major && brief.major.length) api.toast(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))
+          if (brief && brief.major && brief.major.length) api.toastHtml(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))
           api.refreshAll()
         }
       })
@@ -257,8 +257,8 @@ function contEvent(app, api, content, isRetry) {
     },
     onDone: (e, brief) => {
       api.save()
-      if (brief && brief.major && brief.major.length) api.toast(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))
-      else if (brief && brief.minor && brief.minor.length) api.toast(brief.minor.slice(0, 4).map(esc).join(' · '))
+      if (brief && brief.major && brief.major.length) api.toastHtml(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'))
+      else if (brief && brief.minor && brief.minor.length) api.toastHtml(brief.minor.slice(0, 4).map(esc).join(' · '))
       api.refreshAll()
     }
   })
@@ -327,10 +327,10 @@ export function renderMap(app, api) {
   main.querySelectorAll('[data-go]').forEach(b => {
     b.onclick = () => {
       const r = travel(S, b.dataset.go)
-      if (!r.ok) { api.toast(esc(r.msg)); return }
+      if (!r.ok) { api.toast(r.msg); return }
       if (app.EV) { endEvent(app.EV); app.EV = null }
       api.save()
-      api.centerToast(esc(r.msg))
+      api.centerToast(r.msg)
       api.refreshAll()
       api.setTab('scene')
     }
@@ -480,10 +480,36 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-ungudge]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.ungudge)]
-      removeGrudge(f, 0)
-      api.toast('已去掉一条恩怨')
-      api.save()
-      api.refreshAll()
+      if (!f) return
+      const list = f.grudges || []
+      if (!list.length) return
+      if (list.length === 1) {
+        removeGrudge(f, 0)
+        api.toast('已去掉一条恩怨')
+        api.save()
+        api.refreshAll()
+        return
+      }
+      openModal(`
+        <h2>去掉哪条恩怨？</h2>
+        <div class="cbox">
+          ${list.map((g, gi) => `
+            <button class="btn btn-sm" data-grm="${gi}" type="button" style="display:block;width:100%;text-align:left;margin:6px 0">
+              ${esc(g.kind || '怨')} · ${esc(g.to || '玩家')} ${g.note ? '— ' + esc(g.note) : ''}
+            </button>
+          `).join('')}
+        </div>
+        <div class="btn-row"><button class="btn" data-close type="button">取消</button></div>
+      `)
+      document.querySelectorAll('[data-grm]').forEach(btn => {
+        btn.onclick = () => {
+          removeGrudge(f, Number(btn.dataset.grm))
+          closeModal()
+          api.toast('已去掉一条恩怨')
+          api.save()
+          api.refreshAll()
+        }
+      })
     }
   })
   main.querySelectorAll('[data-npcinfo]').forEach(b => {
@@ -515,7 +541,7 @@ export function renderFriends(app, api) {
       const f = S.friends[Number(b.dataset.marry)]
       if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
       const res = propose(S, f, pack)
-      api.toast(esc(res.msg))
+      api.toast(res.msg)
       api.save()
       api.refreshAll()
     }
@@ -525,7 +551,7 @@ export function renderFriends(app, api) {
       const f = S.friends[Number(b.dataset.divorce)]
       if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
       const res = divorce(S, f, pack)
-      api.toast(esc(res.msg))
+      api.toast(res.msg)
       api.save()
       api.refreshAll()
     }
@@ -641,7 +667,7 @@ export function renderBag(app, api) {
       if (!it) return
       ensureEquipFlags(S)
       const res = toggleEquip(S, it)
-      if (res.msg) api.toast(esc(res.msg))
+      if (res.msg) api.toast(res.msg)
       api.save()
       api.refreshAll()
     }
@@ -655,12 +681,12 @@ export function renderBag(app, api) {
       let handled = false
       if (it.use_effect) {
         const r = useDirectItem(S, it)
-        if (r.ok) { api.toast(esc(r.msg)); handled = true }
+        if (r.ok) { api.toast(r.msg); handled = true }
       }
       if (!handled && normalizeType(it.type) === 'consumable' && it.realm_index != null) {
         const eff = consumableEffect(S, it)
         S.progress += eff
-        api.toast(`${esc(it.name)}：${esc(pack.lexicon.progress)} +${fmtNum(eff)}`)
+        api.toast(`${it.name}：${pack.lexicon.progress} +${fmtNum(eff)}`)
         handled = true
       }
       if (!handled) { api.toast('使用后暂无效果'); return }
@@ -703,10 +729,10 @@ export function renderBag(app, api) {
       }
       S.techniques = S.techniques || []
       S.techniques.push(rec)
-      forgetOldTechniques(S, t => api.toast(esc(t)))
+      forgetOldTechniques(S, t => api.toast(t))
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
-      api.toast(`研习《${esc(rec.name)}》成功`)
+      api.toast(`研习《${rec.name}》成功`)
       api.save()
       api.refreshAll()
     }
@@ -736,7 +762,7 @@ export function renderBag(app, api) {
       if (it.equipped) it.equipped = false
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)
-      api.toast(`售出 ${esc(it.name)}，+${fmtNum(gain)} ${esc(pack.lexicon.money.main)}`)
+      api.toast(`售出 ${it.name}，+${fmtNum(gain)} ${pack.lexicon.money.main}`)
       api.save()
       api.refreshAll()
     }

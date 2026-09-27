@@ -293,6 +293,58 @@ function giftMentioned(text) {
   return /[「“][^」”]{1,20}[」”]/.test(String(text || '')) && /(塞|递|交|送|给|赠)/.test(String(text || ''))
 }
 
+/**
+ * 无 json 补写：再问模型抽一次数据块；失败返回 null，上层回退 inferLite。
+ * 必须自己实现，避免 ReferenceError 被 catch 吞掉后恒走 inferLite。
+ */
+export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
+  if (!keyObj || !narrative || String(narrative).trim().length < 20) return null
+  const money = (S && S.pack && S.pack.lexicon && S.pack.lexicon.money && S.pack.lexicon.money.main)
+    || (S && S.lexicon && S.lexicon.money && S.lexicon.money.main)
+    || '货币'
+  const system = [
+    '你是游戏数据抽取器。只输出一个 JSON 对象，不要任何解释或代码块围栏。',
+    '根据用户给出的剧情正文，抽取确实发生的数据变化。',
+    '字段约定（无则省略）：',
+    '{"money_main":数字(正数表示获得),"add_items":[{"name":"物品名","count":1,"type":"special","desc":"来源"}],"progress":数字,"favor_delta":[{"name":"NPC","delta":1}], "options":["短选项"]}',
+    '不确定的不要编造。没有变化就输出 {}。'
+  ].join('\n')
+  const user = `货币单位是「${money}」。剧情正文：\n${String(narrative).slice(0, 3500)}`
+  try {
+    const res = await callLLM({
+      keyObj,
+      system,
+      user,
+      history: [],
+      signal,
+      maxTokens: 400
+    })
+    if (!res || !res.ok) return null
+    const json = extractGameJSON(res.text)
+    if (!json || typeof json !== 'object') return null
+    const ch = json.changes && typeof json.changes === 'object' ? json.changes : json
+    if (!ch || typeof ch !== 'object' || Array.isArray(ch)) return null
+    // 只接受白名单字段，防止模型塞垃圾
+    const out = {}
+    if (Number(ch.money_main) > 0) out.money_main = Math.min(5000, Math.round(Number(ch.money_main)))
+    if (Number(ch.progress) !== 0) out.progress = Math.round(Number(ch.progress) || 0)
+    if (Array.isArray(ch.add_items) && ch.add_items.length) {
+      out.add_items = ch.add_items.slice(0, 8).map(it => ({
+        name: String((it && it.name) || '').slice(0, 20),
+        count: Math.max(1, Math.min(9, Number(it && it.count) || 1)),
+        type: String((it && it.type) || 'special'),
+        desc: String((it && it.desc) || '剧情所得').slice(0, 40)
+      })).filter(it => it.name)
+    }
+    if (Array.isArray(ch.options) && ch.options.length) {
+      out.options = ch.options.slice(0, 4).map(o => String(o).slice(0, 40)).filter(Boolean)
+    }
+    return Object.keys(out).length ? out : null
+  } catch (e) {
+    return null
+  }
+}
+
 function inferLite(narrative) {
   const cnNum = (raw) => {
     if (/^\d+$/.test(raw)) return Number(raw)

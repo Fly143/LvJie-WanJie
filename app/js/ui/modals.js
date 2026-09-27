@@ -24,11 +24,16 @@ export function closeModal() {
   }
 }
 
+// toast 默认按纯文本渲染，防 LLM/存档字段 XSS；需要 HTML 时用 toastHtml（调用方必须先 esc）
 export function toast(msg, ms) {
+  toastHtml(escapeText(msg), ms)
+}
+
+export function toastHtml(html, ms) {
   const box = document.getElementById('toasts')
   const t = document.createElement('div')
   t.className = 'toast'
-  t.innerHTML = msg
+  t.innerHTML = html
   box.appendChild(t)
   setTimeout(() => {
     t.classList.add('fade')
@@ -37,6 +42,10 @@ export function toast(msg, ms) {
 }
 
 export function centerToast(msg, ms) {
+  centerToastHtml(escapeText(msg), ms)
+}
+
+export function centerToastHtml(html, ms) {
   let el = document.getElementById('center-msg')
   if (!el) {
     el = document.createElement('div')
@@ -44,10 +53,18 @@ export function centerToast(msg, ms) {
     document.body.appendChild(el)
   }
   el.classList.remove('fade')
-  el.innerHTML = msg
+  el.innerHTML = html
   clearTimeout(el._t)
   el._t = setTimeout(() => {
     el.classList.add('fade')
     setTimeout(() => el.remove(), 700)
   }, ms || 2600)
+}
+
+function escapeText(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }

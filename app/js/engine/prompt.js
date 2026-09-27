@@ -107,7 +107,7 @@ export function buildSystemPrompt(S, opts = {}) {
   const recentEvents = [...S.bigEvents.slice(-3), ...S.smallEvents.slice(-5)]
   const friendsInfo = (S.friends || []).map(f => ({
     name: f.name, rank: f.realm, gender: f.gender,
-    关系: f.married === 'wife' ? '伴侣' : f.married === 'concubine' ? '次要伴侣' : '熟人',
+    关系: f.married === 'wife' ? '女伴侣' : f.married === 'husband' ? '男伴侣' : f.married === 'concubine' ? '次要伴侣' : '熟人',
     好感度: f.favor,
     人设: f.intro || '',
     长期记忆: f.mem || '',

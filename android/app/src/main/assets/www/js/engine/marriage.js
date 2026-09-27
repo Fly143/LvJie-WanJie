@@ -49,9 +49,17 @@ export function isSameLocation(S, f) {
   const name = f.name
   const loc = (S.map || []).find(l => l.id === S.currentLoc)
   if (loc && (loc.people || []).some(p => p && p.name === name)) return true
-  // 同伴可能不在 people 列表，用 friendLoc 逻辑
+  // 同伴可能不在 people 列表：有位置则必须同图；无明确位置（同行/档案 NPC）视为可交互
+  let found = false
   for (const l of S.map || []) {
-    if ((l.people || []).some(p => p && p.name === name)) return l.id === S.currentLoc
+    if ((l.people || []).some(p => p && p.name === name)) {
+      found = true
+      return l.id === S.currentLoc
+    }
+  }
+  if (!found) {
+    // 不在任何 map.people：已结识 NPC 视为同行/可遇到，避免求婚恒失败
+    return true
   }
   return false
 }
@@ -79,7 +87,7 @@ export function propose(S, friend, pack) {
     return { ok: false, msg: '此界仅可有一位' + spouseWord(pack) }
   }
   // 按对方性别记伴侣，允许同性；未知性别默认女
-  const spouse = friend.gender === '男' ? 'husband' : 'wife'
+  const spouse = friend.gender === '男' ? 'husband' : friend.gender === '女' ? 'wife' : 'wife'
   friend.married = spouse
   friend.favor = favor + 10
   friend.mem = friend.mem ? (friend.mem + '；与你结为' + spouseWord(pack) + '。') : ('与你结为' + spouseWord(pack) + '。')

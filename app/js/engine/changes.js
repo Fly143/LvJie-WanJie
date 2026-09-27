@@ -178,11 +178,10 @@ export function applyChanges(S, ch, hooks = {}) {
           lastDay: '',
           talkCount: 0,
           history: [],
-          married: raw.married || null,
+          married: null,
           relType: normalizeRelType(raw.relType || raw.relation_type),
           grudges: normGList(raw.grudges),
-          relations: normRelList(raw.relations),
-          grudges: normGList(raw.grudges)
+          relations: normRelList(raw.relations)
         }
         S.friends.push(f)
         major.push(`结识 ${f.name}`)
@@ -191,7 +190,6 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.power != null) f.power = Math.abs(Math.round(capAbs(Number(raw.power) || f.power, CHANGE_CAPS.power_abs)))
         if (raw.intro) f.intro = String(raw.intro)
         if (raw.mem) f.mem = String(raw.mem)
-        if (raw.married !== undefined) f.married = raw.married
         if (raw.gender) f.gender = raw.gender
         if (raw.relType || raw.relation_type) {
           f.relType = normalizeRelType(raw.relType || raw.relation_type)
@@ -203,9 +201,24 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
-      if (f && f.married) {
-        S.spouses = (S.friends || []).filter(x => x && x.married).map(x => x.name)
+      // AI 不得直写 married 绕过求婚规则；只走 propose/divorce
+      if (raw.married !== undefined) {
+        const want = raw.married === 'wife' || raw.married === 'husband' || raw.married === 'concubine' ? raw.married : null
+        if (want && !f.married) {
+          // 剧情已写婚姻时强制结为伴侣（放宽好感/同图，避免叙事与状态脱节）
+          f.married = want === 'concubine' ? 'wife' : want
+          f.favor = Math.max(Number(f.favor) || 0, 50)
+          if (!f.mem || !/结为|伴侣|道侣|眷侣/.test(f.mem)) {
+            f.mem = f.mem ? (f.mem + '；与你结为伴侣。') : '与你结为伴侣。'
+          }
+          minor.push(`${f.name} 成为伴侣`)
+        } else if (!want && f.married) {
+          forceDivorce(S, f)
+          minor.push(`与${f.name}解除关系`)
+        }
       }
+      // 同步配偶列表（含清空）
+      S.spouses = (S.friends || []).filter(x => x && x.married).map(x => x.name)
       // 双向关系回写
       try {
         syncReverseRelations(S, f.name, f.relations, f.grudges)
@@ -391,6 +404,9 @@ export function inferChangesFromNarrative(narrative) {
   if (moneyAdd > 0) changes.money_main = moneyAdd
 
   // 赠品
-  const gifts = extractGiftNames ? [] : []
+  const gifts = extractGiftNames(s)
+  if (gifts.length) {
+    changes.add_items = gifts.map(name => ({ name, count: 1, type: 'special', desc: '剧情所得' }))
+  }
   return changes
 }

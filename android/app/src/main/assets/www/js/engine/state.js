@@ -47,7 +47,13 @@ function persistPlayerKeysAsync(S) {
   const payload = { keys: S.playerKeys || [], selected: S.selectedKey }
   const host = secretsHost()
   if (host && host.save) {
-    Promise.resolve(host.save(payload)).catch(e => console.warn('密钥保存失败', e))
+    Promise.resolve(host.save(payload)).then(() => {
+      // 宿主加密仓可用时清掉明文副本
+      try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
+    }).catch(e => {
+      console.warn('密钥保存失败', e)
+      try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e2) { /* ignore */ }
+    })
     return
   }
   // 无宿主：写 localStorage（WebView 场景），避免仅内存丢失
@@ -229,7 +235,11 @@ export function importSaveBundle(bundle, { overwrite = true } = {}) {
     const key = slotKey(raw.worldview || id)
     if (!overwrite && loadSlotRaw(key)) continue
     try {
-      localStorage.setItem(key, JSON.stringify(raw))
+      // 备份不得回写明文 Key
+      const dump = Object.assign({}, raw)
+      delete dump.playerKeys
+      delete dump.selectedKey
+      localStorage.setItem(key, JSON.stringify(dump))
       n++
     } catch (e) { /* skip */ }
   }
@@ -280,17 +290,22 @@ function migrateSave(s) {
   }
   // 旧档内嵌 Key → 迁入独立密钥仓，并从存档剥离
   if (Array.isArray(s.playerKeys) && s.playerKeys.length) {
-    const kd = loadPlayerKeys()
     const merged = normalizeKeysList(s.playerKeys)
     if (merged.length) {
       const payload = {
         keys: merged,
         selected: (typeof s.selectedKey === 'number' ? s.selectedKey : 0)
       }
-      try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
-      persistPlayerKeysAsync({ playerKeys: payload.keys, selectedKey: payload.selected })
-    } else if (kd) {
-      // keep existing
+      const host = secretsHost()
+      if (host && host.save) {
+        Promise.resolve(host.save(payload)).then(() => {
+          try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
+        }).catch(() => {
+          try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
+        })
+      } else {
+        try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
+      }
     }
   }
   delete s.playerKeys

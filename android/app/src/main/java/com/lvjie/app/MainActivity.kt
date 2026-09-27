@@ -37,13 +37,22 @@ class MainActivity : AppCompatActivity() {
             httpExecutor.execute {
                 var conn: HttpURLConnection? = null
                 try {
+                    if (!isAllowedApiUrl(url)) {
+                        postResult(id, false, 0, "", "地址不被允许")
+                        return@execute
+                    }
                     val methodU = method.uppercase()
+                    if (methodU !in setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD")) {
+                        postResult(id, false, 0, "", "不允许的 HTTP 方法")
+                        return@execute
+                    }
                     val u = URL(url)
                     conn = u.openConnection() as HttpURLConnection
                     conn.requestMethod = methodU
                     conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
                     conn.readTimeout = conn.connectTimeout
-                    conn.instanceFollowRedirects = true
+                    // 重定向逐跳校验，防 30x 绕过
+                    conn.instanceFollowRedirects = false
                     try {
                         val headers = JSONObject(headersJson ?: "{}")
                         val keys = headers.keys()
@@ -56,7 +65,42 @@ class MainActivity : AppCompatActivity() {
                         conn.doOutput = true
                         conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     }
-                    val code = conn.responseCode
+                    var code = conn.responseCode
+                    var hop = 0
+                    while (code in 301..308 && hop < 5) {
+                        val loc = conn.getHeaderField("Location") ?: break
+                        val next = try {
+                            URL(u, loc).toString()
+                        } catch (_: Exception) {
+                            postResult(id, false, 0, "", "非法重定向地址")
+                            return@execute
+                        }
+                        if (!isAllowedApiUrl(next)) {
+                            postResult(id, false, 0, "", "重定向目标不被允许")
+                            return@execute
+                        }
+                        conn.disconnect()
+                        val nu = URL(next)
+                        conn = nu.openConnection() as HttpURLConnection
+                        conn.requestMethod = if (code == 303) "GET" else methodU
+                        conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
+                        conn.readTimeout = conn.connectTimeout
+                        conn.instanceFollowRedirects = false
+                        try {
+                            val headers = JSONObject(headersJson ?: "{}")
+                            val keys = headers.keys()
+                            while (keys.hasNext()) {
+                                val k = keys.next()
+                                conn.setRequestProperty(k, headers.optString(k))
+                            }
+                        } catch (_: Exception) {}
+                        if (conn.requestMethod != "GET" && conn.requestMethod != "HEAD" && body != null) {
+                            conn.doOutput = true
+                            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                        }
+                        code = conn.responseCode
+                        hop++
+                    }
                     val stream = if (code >= 400) conn.errorStream else conn.inputStream
                     val text = stream?.readBytes()?.toString(Charsets.UTF_8) ?: ""
                     postResult(id, true, code, text, null)
@@ -66,6 +110,23 @@ class MainActivity : AppCompatActivity() {
                     conn?.disconnect()
                 }
             }
+        }
+    }
+
+    /** 仅允许 http(s)；拒绝云元数据/链路本地；默认 https，http 仅本机 */
+    private fun isAllowedApiUrl(raw: String): Boolean {
+        return try {
+            val u = URL(raw)
+            val scheme = u.protocol.lowercase()
+            if (scheme != "http" && scheme != "https") return false
+            val h = (u.host ?: "").lowercase()
+            if (h.isEmpty()) return false
+            if (h in setOf("0.0.0.0", "169.254.169.254", "metadata.google.internal")) return false
+            if (h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "[::1]") return true
+            // 对外只允许 https
+            scheme == "https"
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -215,7 +276,8 @@ class MainActivity : AppCompatActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url ?: return false
-                return !(url.host == "127.0.0.1" || url.scheme == "http" && url.host == "127.0.0.1")
+                val isLocal = (url.scheme == "http" || url.scheme == "https") && url.host == "127.0.0.1"
+                return !isLocal
             }
         }
 

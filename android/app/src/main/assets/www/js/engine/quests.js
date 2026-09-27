@@ -23,7 +23,7 @@ function normQuest(raw, S) {
   if (status === 'completed' || status === 'complete' || status === '完成') status = 'done'
   else if (status === '失败' || status === 'abandoned') status = 'failed'
   else if (status === '接受' || status === 'accepted' || status === '进行中' || status === 'in_progress') status = 'active'
-  else if (!QUEST_STATUS.includes(status)) status = ''
+  else if (!QUEST_STATUS.includes(status)) status = 'active'
 
   return {
     id: String(raw.id || ('q_' + Math.abs(hash(title + (raw.from || '') + (raw.loc || ''))) + '_' + Date.now().toString(36).slice(-3))).slice(0, 40),

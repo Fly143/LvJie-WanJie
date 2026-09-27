@@ -10,7 +10,7 @@ import { curLoc } from './engine/map.js'
 import { startEvent, runEventTurn, endEvent } from './engine/event.js'
 import { applyThemeTokens } from './engine/theme.js'
 import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings, renderQuests } from './ui/render.js'
-import { openModal, closeModal, toast, centerToast } from './ui/modals.js'
+import { openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml } from './ui/modals.js'
 import { openKeyModal, openHelp } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm, hydrateCustomBgm, showGamePlay } from './ui/bgm.js'
@@ -67,7 +67,7 @@ export function backToMenu() {
 
 export function renderMain() {
   const fn = RENDERS[app.TAB] || renderScene
-  fn(app, { save, setTab, refreshAll, openModal, closeModal, toast, centerToast, startFlow })
+  fn(app, { save, setTab, refreshAll, openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml, startFlow })
 }
 
 export function refreshAll() {
@@ -133,10 +133,10 @@ function doBreakthrough() {
   const pack = getPackNow()
   const ui = packUi(pack)
   const r = tryBreakthrough(app.S)
-  if (!r.ok) { toast(esc(r.msg)); return }
+  if (!r.ok) { toast(r.msg); return }
   app.S.bigEvents.push({ age: ageLabelShort(app.S.ageDays), text: r.msg })
   save()
-  centerToast(esc(ui.advanceSuccessTitle || '成功') + '<br><span style="font-size:22px">' + esc(r.msg) + '</span>')
+  centerToastHtml(esc(ui.advanceSuccessTitle || '成功') + '<br><span style="font-size:22px">' + esc(r.msg) + '</span>')
   refreshAll()
 }
 
@@ -160,9 +160,9 @@ export function startFlow(kind, content, target) {
     onDone: (e, brief) => {
       save()
       if (brief && brief.major && brief.major.length) {
-        toast(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'), 4500)
+        toastHtml(brief.major.map(m => '⭐ ' + esc(m)).join('<br>'), 4500)
       } else if (brief && brief.minor && brief.minor.length) {
-        toast(brief.minor.slice(0, 4).map(m => esc(m)).join(' · '))
+        toastHtml(brief.minor.slice(0, 4).map(m => esc(m)).join(' · '))
       }
       renderHeader()
       renderPlayerCard()
@@ -366,7 +366,7 @@ function renderWelcome() {
       if (S) {
         setActiveWorld(id)
         showGame(S)
-        toast(`已载入《${esc(getPack(id).name)}》存档`)
+        toast(`已载入《${getPack(id).name}》存档`)
         return
       }
     }
@@ -421,7 +421,7 @@ function startNewGame(name, packId) {
     firstGuide(app.S)
   } catch (e) {
     console.error(e)
-    toast('进入世界失败：' + esc(e && e.message || e))
+    toast('进入世界失败：' + (e && e.message || e))
   }
 }
 
@@ -441,7 +441,7 @@ function showGame(S) {
 
 function firstGuide(S) {
   if (S.guideDone) return
-  toast(`欢迎来到《${esc(getPack(S.worldview).name)}》世界。左侧选择功能，场景内点行动与 AI 互动。`, 6000)
+  toast(`欢迎来到《${getPack(S.worldview).name}》世界。左侧选择功能，场景内点行动与 AI 互动。`, 6000)
   S.guideDone = true
   save()
 }

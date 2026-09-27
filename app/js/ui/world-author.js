@@ -322,7 +322,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       return
     }
     reloadPacks()
-    toast('世界包已保存：' + esc(saved.pack.name))
+    toast('世界包已保存：' + saved.pack.name)
     closeModal()
     if (onSaved) onSaved(saved.pack)
   }

@@ -113,12 +113,13 @@ ipcMain.handle('aw:http', async (_e, req) => {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
   try {
-    const res = await fetch(url, {
+    const res = await fetchChecked(url, {
       method,
       headers: (req && req.headers) || {},
       body: method === 'GET' || method === 'HEAD' ? undefined : (req && req.body),
       signal: ctl.signal
     })
+    if (res && res.ok === false) return res
     const text = await res.text()
     return {
       ok: true,
@@ -135,12 +136,39 @@ ipcMain.handle('aw:http', async (_e, req) => {
   }
 })
 
+/** 逐跳校验 redirect，防 30x 绕过 deny 名单 */
+async function fetchChecked(url, opts, hop = 0) {
+  if (hop > 5) return { ok: false, error: '重定向过多' }
+  if (!allowedHttpUrl(url)) return { ok: false, error: '地址不被允许' }
+  const res = await fetch(url, Object.assign({}, opts, { redirect: 'manual' }))
+  if ([301, 302, 303, 307, 308].includes(res.status)) {
+    const loc = res.headers.get('location')
+    if (!loc) return res
+    let next = loc
+    try {
+      next = new URL(loc, url).toString()
+    } catch (e) {
+      return { ok: false, error: '非法重定向地址' }
+    }
+    if (!allowedHttpUrl(next)) return { ok: false, error: '重定向目标不被允许' }
+    const method = (opts && opts.method) || 'GET'
+    const m = res.status === 303 || ((res.status === 301 || res.status === 302) && method === 'POST')
+      ? 'GET' : method
+    return fetchChecked(next, Object.assign({}, opts, {
+      method: m,
+      body: m === 'GET' || m === 'HEAD' ? undefined : (opts && opts.body)
+    }), hop + 1)
+  }
+  return res
+}
+
 /** 流式：启动后按 chunk 回传，end/error 收尾 */
 ipcMain.handle('aw:http:stream', (event, req) => {
   const url = String((req && req.url) || '')
   const method = String((req && req.method) || 'GET').toUpperCase()
   const bad = rejectHttp(url, method)
   if (bad) return bad
+  if (!allowedHttpUrl(url)) return { ok: false, error: '地址不被允许' }
   const id = 's' + (++streamSeq)
   const ctl = new AbortController()
   streamCtl.set(id, ctl)
@@ -150,12 +178,16 @@ ipcMain.handle('aw:http:stream', (event, req) => {
 
   ;(async () => {
     try {
-      const res = await fetch(url, {
+      const res = await fetchChecked(url, {
         method,
         headers: (req && req.headers) || {},
         body: method === 'GET' || method === 'HEAD' ? undefined : (req && req.body),
         signal: ctl.signal
       })
+      if (res && res.ok === false) {
+        sender.send('aw:http:end', { id, ok: false, error: res.error || '地址不被允许' })
+        return
+      }
       if (sender.isDestroyed()) return; sender.send('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
       if (!res.body) {
         const text = await res.text()
