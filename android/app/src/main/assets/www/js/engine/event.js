@@ -92,7 +92,10 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     res = { ok: false, error: (e && e.message) || '调用异常' }
   }
 
-  if (EV._turn !== turn) return // 过期响应丢弃
+  if (EV._turn !== turn) {
+    EV.loading = false
+    return // 过期响应丢弃
+  }
   if (EV._ctl === ctl) EV._ctl = null
 
   if (!res.ok) {
@@ -109,9 +112,19 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     return
   }
 
-  const text = normalizeText(res.text)
-  const json = extractGameJSON(text)
-  const narrative = stripJSONBlock(text)
+  let text = ''
+  let json = null
+  let narrative = ''
+  try {
+    text = normalizeText(res.text)
+    json = extractGameJSON(text)
+    narrative = stripJSONBlock(text)
+  } catch (e) {
+    EV.loading = false
+    EV.error = (e && e.message) || '解析失败'
+    if (hooks.onState) hooks.onState(EV)
+    return
+  }
 
   // history 只存叙事，避免 JSON 撑爆 token
   EV.history.push({ role: 'assistant', content: narrative || text.slice(0, 500) })
@@ -158,7 +171,10 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
     try {
       recovered = await recoverChangesFromLLM({ keyObj, narrative, S, signal: ctl.signal })
     } catch (e) { recovered = null }
-    if (EV._turn !== turn) return // recover 期间被 endEvent/新回合作废
+    if (EV._turn !== turn) {
+      EV.loading = false
+      return // recover 期间被 endEvent/新回合作废
+    }
     if (EV.ended && EV._endedByUser) {
       EV.loading = false
       return

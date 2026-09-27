@@ -4,7 +4,7 @@
   "version": "0.0.3",
   "description": "AI驱动的多世界观开放世界游戏",
   "main": "main.js",
-  "author": "Yucheng",
+  "author": "Fly143",
   "license": "MIT",
   "scripts": {
     "start": "node scripts/sync-runtime.js && node scripts/run-electron.js",

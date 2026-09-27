@@ -35,6 +35,7 @@ import { openHelp } from './settings-panels.js'
 
 export function renderScene(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   const loc = curLoc(S) || { name: t('unknown'), world: '', continent: '', type: '', desc: '', people: [], shop: [], beasts: [], interactables: [], notes: [] }
@@ -269,6 +270,7 @@ function contEvent(app, api, content, isRetry) {
 
 export function renderMap(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   const markers = questMarkers(S)
@@ -340,6 +342,7 @@ export function renderMap(app, api) {
 
 export function renderProfile(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   const bd = powerBreakdown(S)
@@ -400,6 +403,7 @@ export function renderProfile(app, api) {
 
 export function renderFriends(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   const cur = curLoc(S) || {}
@@ -604,6 +608,7 @@ export function renderFriends(app, api) {
 
 export function renderQuests(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   const quests = S.quests || []
@@ -637,6 +642,7 @@ export function renderQuests(app, api) {
 
 export function renderBag(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   main.innerHTML = `
@@ -776,6 +782,7 @@ export function renderBag(app, api) {
 
 export function renderSettings(app, api) {
   const S = app.S
+  if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
   const main = document.getElementById('main')
   main.innerHTML = `

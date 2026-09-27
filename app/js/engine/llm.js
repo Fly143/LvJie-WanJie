@@ -150,7 +150,7 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   }
 
   // 流式：chat / response 均支持；宿主 stream + 增量回调
-  const canStream = typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream
+  const canStream = typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream && globalThis.awHost.http.onChunk && globalThis.awHost.http.onEnd
   if (canStream) {
     body.stream = true
     let streamed = null

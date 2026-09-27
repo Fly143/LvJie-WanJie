@@ -151,6 +151,6 @@ npm run smoke:stage
 
 ## 许可
 
-[MIT](LICENSE) © Fly143 / Yucheng
+[MIT](LICENSE) © Fly143
 
 变更记录见 [CHANGELOG.md](CHANGELOG.md)。

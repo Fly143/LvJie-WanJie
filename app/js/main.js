@@ -68,6 +68,7 @@ export function backToMenu() {
 }
 
 export function renderMain() {
+  if (!app.S) return
   const fn = RENDERS[app.TAB] || renderScene
   fn(app, { save, setTab, refreshAll, openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml, startFlow })
 }
