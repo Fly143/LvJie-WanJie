@@ -4,7 +4,7 @@
 // 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
 
 const DEFAULT_TIMEOUT_MS = 120000
-const MAX_TOKENS = 2000
+const MAX_TOKENS = 4000
 export const MAX_TOKENS_DRAFT = 8000
 
 /** 归一化玩家 Key 对象 */
@@ -484,11 +484,22 @@ export function extractGameJSON(text) {
   if (text == null) return null
   const s = typeof text === 'string' ? text : String(text)
   if (!s) return null
+  // 1) 标准围栏（可能被截断，safeParse 会尝试补全）
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence) {
     const j = safeParse(fence[1].trim())
     if (j) return sanitizeGameJSON(j)
   }
+  // 2) 末尾未闭合围栏：截断场景常见
+  const open = s.lastIndexOf('```json')
+  const open2 = s.lastIndexOf('```')
+  const cut = open >= 0 ? open : (open2 >= 0 ? open2 : -1)
+  if (cut >= 0) {
+    let body = s.slice(cut).replace(/^```(?:json)?/i, '')
+    const j = safeParse(body.trim())
+    if (j) return sanitizeGameJSON(j)
+  }
+  // 3) 正文里第一段花括号
   const scanned = scanFirstJSON(s)
   if (scanned) {
     const j = safeParse(scanned)
@@ -526,8 +537,41 @@ export function scanFirstJSON(text) {
   return null
 }
 
+/** 尾部被 max_tokens 截断时，补上未闭合的 } ] 与字符串 */
+export function autoCloseJSON(s) {
+  let inStr = false
+  let escCh = false
+  const stack = []
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (escCh) escCh = false
+      else if (c === '\\') escCh = true
+      else if (c === '"') inStr = false
+      continue
+    }
+    if (c === '"') { inStr = true; continue }
+    if (c === '{') stack.push('}')
+    else if (c === '[') stack.push(']')
+    else if (c === '}' || c === ']') {
+      if (stack.length && stack[stack.length - 1] === c) stack.pop()
+    }
+  }
+  let out = s.replace(/,\s*$/, '')
+  if (inStr) out += '"'
+  while (stack.length) out += stack.pop()
+  return out
+}
+
 function safeParse(s) {
   try { return JSON.parse(s) } catch (e) { /* try trailing commas */ }
+  // 尾部截断的 JSON：补右括号再试
+  try {
+    const closed = autoCloseJSON(String(s || ''))
+    if (closed && closed !== s) {
+      try { return JSON.parse(closed) } catch (e) { /* fallthrough */ }
+    }
+  } catch (e) { /* fallthrough */ }
   try {
     // 仅剥离结构层尾逗号：, 后跟 } 或 ] 且不在字符串内
     let out = ''
