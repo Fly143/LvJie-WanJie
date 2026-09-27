@@ -329,17 +329,17 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     return true
   })
 
-  // 无增量时快速失败：8 秒内没 chunk 就放弃流式，避免干等 185s
-  const noChunkTimer = new Promise((resolve) => {
-    const iv = setInterval(() => {
-      if (text) { clearInterval(iv); resolve('has'); return }
-    }, 200)
-    setTimeout(() => { clearInterval(iv); resolve('empty') }, 8000)
+  // 仅当 8 秒内完全无增量才放弃流式；一旦有字，必须等 end
+  const noChunkFail = new Promise((resolve) => {
+    setTimeout(() => {
+      if (!text) resolve('empty')
+      // 有字则不 resolve，交给 endPromise / waitStreamEnd
+    }, 8000)
   })
   const raceResult = await Promise.race([
     endPromise.then(() => 'end'),
     waitStreamEnd(host, id).then(() => 'timeout'),
-    noChunkTimer
+    noChunkFail
   ])
   if (raceResult === 'empty' && !text) {
     try { host.abort(id) } catch (e) { /* ignore */ }
