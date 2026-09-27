@@ -2,6 +2,7 @@
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
 import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang } from './engine/state.js'
 import { LANGUAGE_OPTIONS, langPack } from './engine/constants.js'
+import { t, setUiLang, getUiLang, uiLangName } from './engine/i18n.js'
 import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
@@ -211,31 +212,60 @@ function slotMeta(packId) {
   }
 }
 
+function applyUiLang(id) {
+  setUiLang(id)
+  applyStaticChrome()
+  if (app.S) {
+    app.S.lang = id
+    try { save() } catch (e) { /* ignore */ }
+    refreshAll()
+  } else {
+    renderWelcome()
+  }
+}
+
+function applyStaticChrome() {
+  try {
+    document.documentElement.lang = getUiLang()
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt }
+    set('hdr-money-label', t('money'))
+    // 顶栏按钮
+    const bk = document.getElementById('btn-key'); if (bk) bk.textContent = '🔑 ' + t('api')
+    const bh = document.getElementById('btn-help'); if (bh) bh.textContent = '📖 ' + t('help')
+    const bw = document.getElementById('btn-worlds'); if (bw) bw.textContent = '🌐 ' + t('worlds')
+    // 侧栏
+    set('nav-scene', '📍 ' + t('navScene'))
+    set('nav-map', '🗺️ ' + t('navMap'))
+    set('nav-profile', '👤 ' + t('navProfile'))
+    set('nav-friends', '🤝 ' + t('navFriends'))
+    set('nav-quests', '📜 ' + t('navQuests'))
+    set('nav-bag', '🎒 ' + t('navBag'))
+    set('nav-settings', '⚙️ ' + t('navSettings'))
+    const bb = document.getElementById('backbtn'); if (bb) bb.title = t('back')
+  } catch (e) { /* ignore */ }
+}
+
 function openLangModal() {
   const cur = getGlobalLang()
   openModal(`
-    <h2>剧情语言</h2>
+    <h2>${t('storyLang')}</h2>
     <div class="btn-row">
       ${LANGUAGE_OPTIONS.map(l => `
-        <button class="btn btn-sm ${cur === l.id ? 'btn-gold' : ''}" data-wlang="${l.id}" type="button">${esc(l.name)}</button>
+        <button class="btn btn-sm ${cur === l.id ? 'btn-gold' : ''}" data-wlang="${l.id}" type="button">${esc(uiLangName(l.id))}</button>
       `).join('')}
     </div>
     <div style="font-size:12px;color:var(--faint);margin-top:10px">
-      新开局与剧情正文使用此语言；已有存档可在游戏内「设置」单独改。界面文案暂为中文。
+      ${t('langModalHint')}
     </div>
-    <div class="btn-row"><button class="btn btn-gold" data-close type="button">知道了</button></div>
+    <div class="btn-row"><button class="btn btn-gold" data-close type="button">${t('ok')}</button></div>
   `)
   document.querySelectorAll('[data-wlang]').forEach(b => {
     b.onclick = () => {
       const id = b.dataset.wlang
       saveGlobalLang(id)
-      // 若已在游戏里，同步当前存档
-      if (app.S) {
-        app.S.lang = id
-        try { save() } catch (e) { /* ignore */ }
-      }
       closeModal()
-      toast('剧情语言已设为 ' + (langPack(id).name || id))
+      applyUiLang(id)
+      toast(t('langSet') + ' ' + uiLangName(id))
     }
   })
 }
@@ -275,13 +305,13 @@ function renderWelcome() {
             <div class="pname">${esc(p.name)}</div>
             <div class="ptag">${esc(p.tagline)}</div>
             <div class="pchip">${esc(p.lexicon.level)} · ${esc(p.lexicon.progress)}</div>
-            <div class="pmeta">${esc((p.worlds || []).join(' / '))} · ${(p.tiers || []).length} 阶</div>
+            <div class="pmeta">${esc((p.worlds || []).join(' / '))} · ${(p.tiers || []).length}${t('tiersN')}</div>
             <div class="psave">${slot
               ? `💾 ${esc(slot.name)} · ${esc(slot.levelText || '')}`
-              : '新开旅程'}</div>
+              : t('newJourney')}</div>
             <div class="btn-row" style="margin-top:6px">
-              <button class="btn btn-sm" data-pack-up="${esc(p.id)}" type="button" title="上移">▲</button>
-              <button class="btn btn-sm" data-pack-down="${esc(p.id)}" type="button" title="下移">▼</button>
+              <button class="btn btn-sm" data-pack-up="${esc(p.id)}" type="button" title="↑">▲</button>
+              <button class="btn btn-sm" data-pack-down="${esc(p.id)}" type="button" title="↓">▼</button>
             </div>
           </div>
         `
@@ -292,10 +322,10 @@ function renderWelcome() {
       <div class="wtitle">${esc(getPack(sel).gameTitle || getPack(sel).name || '旅界')}</div>
       <div class="wsub">${esc(getPack(sel).welcomeSub || getPack(sel).tagline || 'AI 驱动的多世界观开放世界')}</div>
       <div class="wactions" style="margin-top:12px;margin-bottom:8px;flex-direction:row;justify-content:center;gap:8px">
-                ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? '收起其余世界 ▴' : '展开其余 ' + rest.length + ' 个世界 ▾'}</button>` : ''}
+                ${rest.length ? `<button class="btn" id="w-more" type="button">${moreOpen ? t('collapseMore') + ' ▴' : t('expandMore') + ' ' + rest.length + t('worldsCount') + ' ▾'}</button>` : ''}
       </div>
       <div id="pack-grid">
-        ${primary.map(cardHtml).join('') || '<div class="empty">无匹配世界</div>'}
+        ${primary.map(cardHtml).join('') || `<div class="empty">${t('noWorlds')}</div>`}
       </div>
       ${rest.length ? `
       <div id="pack-scroll" ${moreOpen ? '' : 'hidden'}>
@@ -305,17 +335,17 @@ function renderWelcome() {
       </div>` : ''}
       <div class="wactions">
         <div class="name-row">
-          <input id="w-name" type="text" maxlength="12" placeholder="新档角色名（继续旧档可留空）" value="">
+          <input id="w-name" type="text" maxlength="12" placeholder="${t('namePlaceholder')}" value="">
         </div>
         <div class="btn-row" style="justify-content:center">
-          <button class="btn btn-gold" id="w-start" type="button">进入世界</button>
-          <button class="btn" id="w-new" type="button" hidden>新开一局</button>
-          <button class="btn" id="w-author" type="button">🛠 自定义世界</button>
-          <button class="btn" id="w-key" type="button">🔑 API</button>
-          <button class="btn" id="w-lang" type="button">🌐 语言</button>
-          <button class="btn" id="w-help" type="button">📖 帮助</button>
+          <button class="btn btn-gold" id="w-start" type="button">${t('start')}</button>
+          <button class="btn" id="w-new" type="button" hidden>${t('newGame')}</button>
+          <button class="btn" id="w-author" type="button">🛠 ${t('customWorld')}</button>
+          <button class="btn" id="w-key" type="button">🔑 ${t('api')}</button>
+          <button class="btn" id="w-lang" type="button">🌐 ${t('lang')}</button>
+          <button class="btn" id="w-help" type="button">📖 ${t('help')}</button>
         </div>
-        <div class="hint">各世界观存档互不影响。卡片上可排序；顶栏「🌐 世界观」随时切换。语言影响剧情正文（界面暂为中文）。</div>
+        <div class="hint">${t('welcomeHint')}</div>
       </div>
     </div>
   `
@@ -328,14 +358,14 @@ function renderWelcome() {
     const p = getPack(app.selectedPack)
     const slot = slotMeta(app.selectedPack)
     if (slot) {
-      startBtn.textContent = `继续 · ${slot.name}（${slot.levelText || ''}）`
+      startBtn.textContent = `${t('continue')} · ${slot.name}（${slot.levelText || ''}）`
       newBtn.hidden = false
-      newBtn.textContent = '新开一局'
-      nameEl.placeholder = '新档角色名（继续旧档可留空）'
+      newBtn.textContent = t('newGame')
+      nameEl.placeholder = t('namePlaceholder')
     } else {
-      startBtn.textContent = (p && p.lexicon && p.lexicon.startBtn) || '进入所选世界'
+      startBtn.textContent = (p && p.lexicon && p.lexicon.startBtn) || t('enterWorld')
       newBtn.hidden = true
-      nameEl.placeholder = '角色名（可留空）'
+      nameEl.placeholder = t('namePlaceholder2')
     }
   }
 
@@ -397,7 +427,7 @@ function renderWelcome() {
       if (S) {
         setActiveWorld(id)
         showGame(S)
-        toast(`已载入《${getPack(id).name}》存档`)
+        toast(`${t('loadedSave')}《${getPack(id).name}》${t('saveWord')}`)
         return
       }
     }
@@ -454,7 +484,7 @@ function startNewGame(name, packId) {
     firstGuide(app.S)
   } catch (e) {
     console.error(e)
-    toast('进入世界失败：' + (e && e.message || e))
+    toast(t('enterFail') + (e && e.message || e))
   }
 }
 
@@ -474,7 +504,7 @@ function showGame(S) {
 
 function firstGuide(S) {
   if (S.guideDone) return
-  toast(`欢迎来到《${getPack(S.worldview).name}》世界。左侧选择功能，场景内点行动与 AI 互动。`, 6000)
+  toast(`${t('welcomeToast')}《${getPack(S.worldview).name}》${t('welcomeToast2')}`, 6000)
   S.guideDone = true
   save()
 }
@@ -536,6 +566,8 @@ function boot() {
 }
 
 function startApp() {
+  try { setUiLang(getGlobalLang()) } catch (e) { /* ignore */ }
+  applyStaticChrome()
   const existing = loadSave()
   if (existing) {
     showGame(existing)
@@ -553,3 +585,4 @@ window.addEventListener('beforeunload', () => {
 
 boot()
 window.__AW_APP__ = app
+window.__AW_LANG__ = applyUiLang

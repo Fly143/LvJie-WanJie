@@ -2,6 +2,7 @@
 import { openModal, closeModal, toast } from './modals.js'
 import { normalizeApiKey, endpointOf, maskKey, listModels } from '../engine/llm.js'
 import { esc } from '../engine/util.js'
+import { t } from '../engine/i18n.js'
 
 const STYLE_HELP = {
   chat: 'Chat Completions（OpenAI / 兼容网关常见）：POST …/chat/completions',
@@ -31,9 +32,9 @@ export function openKeyModal(app, { save, refreshAll }) {
           <b>${esc(n.name || '配置' + (i + 1))}</b>
           <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
           <span class="masktext">${esc(n.model || '')}</span>
-          <span class="masktext">${(n.key || n.value) ? '已保存 · 不显示' : '未设置'}</span>
+          <span class="masktext">${(n.key || n.value) ? t('savedHidden') : t('unset')}</span>
         </label>
-        <button class="btn btn-sm btn-danger" data-del="${i}" type="button">删除</button>
+        <button class="btn btn-sm btn-danger" data-del="${i}" type="button">${t('delete')}</button>
       </div>
     `
   }).join('')
@@ -42,41 +43,41 @@ export function openKeyModal(app, { save, refreshAll }) {
   const curStyle = (cur && cur.apiStyle === 'response') ? 'response' : 'chat'
 
   openModal(`
-    <h2>API 设置</h2>
-    ${rows || '<div class="empty">尚未配置 API</div>'}
+    <h2>${t('apiSettings')}</h2>
+    ${rows || `<div class="empty">${t('noApi')}</div>`}
 
-    <h3 style="margin-top:16px">添加 / 更新</h3>
-    <label style="color:var(--dim);font-size:12px">协议</label>
+    <h3 style="margin-top:16px">${t('addUpdate')}</h3>
+    <label style="color:var(--dim);font-size:12px">${t('proto')}</label>
     <select id="k-style" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">
       <option value="chat" ${curStyle === 'chat' ? 'selected' : ''}>chat — Chat Completions</option>
       <option value="response" ${curStyle === 'response' ? 'selected' : ''}>response — Responses API</option>
     </select>
     <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-style-help">${STYLE_HELP[curStyle]}</div>
 
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">Base URL</label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('baseUrl')}</label>
     <input id="k-base" type="text" placeholder="例如 https://api.openai.com/v1 或 https://your-gateway/v1" value="${esc(cur ? (cur.baseUrl || '') : '')}">
 
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">API Key</label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('apiKey')}</label>
     <input id="k-value" type="password" placeholder="sk-…" autocomplete="off" value="">
 
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">备注名（可选）</label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('noteName')}</label>
     <input id="k-name" type="text" placeholder="我的 OpenAI / 公司网关…" value="${esc(cur ? (cur.name || '') : '')}">
 
-    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">模型</label>
+    <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('model')}</label>
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
       <input id="k-model" type="text" style="margin-top:0;flex:1" placeholder="例如 gpt-4.1-mini / glm-4-flash / deepseek-chat" value="${esc(cur ? (cur.model || '') : '')}">
-      <button class="btn btn-sm" id="k-refresh" type="button" title="GET {Base URL}/models">刷新模型列表</button>
+      <button class="btn btn-sm" id="k-refresh" type="button" title="GET {Base URL}/models">${t('refreshModels')}</button>
     </div>
     <select id="k-model-list" style="width:100%;margin-top:8px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;display:none">
-      <option value="">— 从下方列表选择 —</option>
+      <option value="">${t('pickFromList')}</option>
     </select>
-    <div style="font-size:12px;color:var(--faint);margin-top:4px" id="k-model-hint">可手填模型名，或点「刷新模型列表」从接口拉取后选用。</div>
+    <div style="font-size:12px;color:var(--faint);margin-top:4px" id="k-model-hint">${t('modelHint')}</div>
 
     <div style="font-size:12px;color:var(--faint);margin-top:10px" id="k-preview"></div>
 
     <div class="btn-row">
-      <button class="btn btn-gold" id="k-add" type="button">保存并选用</button>
-      <button class="btn" data-close type="button">关闭</button>
+      <button class="btn btn-gold" id="k-add" type="button">${t('saveUse')}</button>
+      <button class="btn" data-close type="button">${t('close')}</button>
     </div>
   `)
 
@@ -106,18 +107,18 @@ export function openKeyModal(app, { save, refreshAll }) {
   refreshBtn.onclick = async () => {
     const baseUrl = baseEl.value.trim()
     const key = currentKey()
-    if (!baseUrl) { toast('请先填写 Base URL'); return }
-    if (!key) { toast('请先填写 API Key'); return }
+    if (!baseUrl) { toast(t('fillBaseUrlKey')); return }
+    if (!key) { toast(t('fillApiKey')); return }
     refreshBtn.disabled = true
     const old = refreshBtn.textContent
-    refreshBtn.textContent = '拉取中…'
-    modelHint.textContent = '正在请求模型列表…'
+    refreshBtn.textContent = t('pulling')
+    modelHint.textContent = t('requestingModels')
     const r = await listModels({ baseUrl, key })
     refreshBtn.disabled = false
     refreshBtn.textContent = old
     if (!r.ok) {
       modelHint.innerHTML = `<span style="color:var(--red)">拉取失败：${esc(r.error || '')}</span>`
-      toast('模型列表拉取失败')
+      toast(t('fetchFail'))
       return
     }
     const models = r.models || []
@@ -125,7 +126,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       models.map(id => `<option value="${esc(id)}" ${id === modelEl.value ? 'selected' : ''}>${esc(id)}</option>`).join('')
     modelList.style.display = ''
     modelHint.innerHTML = `已拉取 ${models.length} 个模型（${esc(r.url || '')}）。下拉选择或继续手填。`
-    toast(`模型列表：${models.length} 个`)
+    toast(`${t('fetchedN')} ${models.length}${t('modelsN')}`)
   }
 
   function refreshPreview() {
@@ -138,8 +139,8 @@ export function openKeyModal(app, { save, refreshAll }) {
     }
     const n = normalizeApiKey(fake)
     preview.textContent = n
-      ? '请求地址：' + endpointOf(n)
-      : '请填写 Base URL、模型；Key 为空时若已有配置则沿用原 Key。'
+      ? t('reqAddr') + endpointOf(n)
+      : t('reuseKeyHint')
   }
   selStyle.onchange = refreshPreview
   baseEl.oninput = refreshPreview
@@ -155,7 +156,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     const name = nameEl.value.trim() || model || '自定义'
     const selNow = (S && typeof S.selectedKey === 'number') ? S.selectedKey : selected
     if (!baseUrl || !model) {
-      toast('请填写 Base URL 与模型')
+      toast(t('fillBaseModel'))
       return
     }
     let key = keyInput
@@ -165,7 +166,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       key = (old && (old.key || old.value)) || ''
     }
     if (!key) {
-      toast('请填写 API Key')
+      toast(t('fillApiKey'))
       return
     }
     const rec = { name, baseUrl, key, model, apiStyle }
@@ -175,7 +176,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       save()
       refreshAll()
       closeModal()
-      toast('API 已保存')
+      toast(t('apiSaved'))
       return
     }
     S.playerKeys = S.playerKeys || []
@@ -196,7 +197,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     save()
     refreshAll()
     closeModal()
-    toast('API 已保存')
+    toast(t('apiSaved'))
   }
 
   document.querySelectorAll('[data-del]').forEach(b => {
