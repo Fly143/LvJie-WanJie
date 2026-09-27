@@ -58,10 +58,11 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   openModal(`
     <h2>${t('waTitle')}</h2>
     <p style="font-size:12px;color:var(--dim)">${t('waHint')}</p>
+    <p style="font-size:12px;color:var(--gold);background:rgba(212,175,55,.10);border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:8px 10px;margin:8px 0">💡 ${t('waAnyWork')}</p>
 
     <h3>${t('waStep1')}</h3>
     <label style="color:var(--dim);font-size:12px">${t('waBookTitle')}</label>
-    <input id="cw-title" type="text" placeholder="${t('waBookPh')}" style="width:100%;margin-top:6px">
+    <input id="cw-title" type="text" placeholder="${t('waAnyWorkPh')}" style="width:100%;margin-top:6px">
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waAuthor')}</label>
     <input id="cw-author" type="text" placeholder="${t('waAuthorPh')}" style="width:100%;margin-top:6px">
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:10px">${t('waSetting')}</label>

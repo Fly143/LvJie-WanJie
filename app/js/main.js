@@ -246,6 +246,15 @@ function applyStaticChrome() {
   } catch (e) { /* ignore */ }
 }
 
+
+function startBtnLabel(pack) {
+  if (!pack) return t('enterWorld')
+  const key = 'startBtn_' + (pack.id || '')
+  const s = t(key)
+  if (s && s !== key) return s
+  return (pack.lexicon && pack.lexicon.startBtn) || t('enterWorld')
+}
+
 function openLangModal() {
   const cur = getGlobalLang()
   openModal(`
@@ -364,7 +373,7 @@ function renderWelcome() {
       newBtn.textContent = t('newGame')
       nameEl.placeholder = t('namePlaceholder')
     } else {
-      startBtn.textContent = (p && p.lexicon && p.lexicon.startBtn) || t('enterWorld')
+      startBtn.textContent = startBtnLabel(p)
       newBtn.hidden = true
       nameEl.placeholder = t('namePlaceholder2')
     }
