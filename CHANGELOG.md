@@ -8,13 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.3] - 2025-07
+
 ### Added
 - 完整界面 UI 多语言：简体中文 / 繁體中文 / English / 日本語
 - 欢迎页「🌐 语言」入口，新开局继承全局语言偏好
+- 双语 README、LICENSE（MIT）、CHANGELOG
 
 ### Security
 - API Key 安卓端改为 Android Keystore AES-256-GCM 加密；堵死明文 localStorage 回退
 - HTTP 桥 SSRF 防护、跨 origin 重定向剥离认证头、toast XSS 转义
+- 三审批修：Key 空写覆盖、recover 竞态、progress 白名单、流式串扰
 
 ## [0.0.2.1] - 2025-06
 
@@ -44,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.2.1...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.2.1...v0.0.3
 [0.0.2.1]: https://github.com/Fly143/LvJie-WanJie/releases/tag/v0.0.2.1
 [0.0.2]: https://github.com/Fly143/LvJie-WanJie/releases/tag/v0.0.2
 [0.0.1]: https://github.com/Fly143/LvJie-WanJie/releases/tag/v0.0.1

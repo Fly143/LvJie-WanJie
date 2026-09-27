@@ -94,30 +94,30 @@ class MainActivity : AppCompatActivity() {
                     }
                     val u = URL(url)
                     conn = u.openConnection() as HttpURLConnection
-                    conn.requestMethod = methodU
-                    conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
-                    conn.readTimeout = conn.connectTimeout
+                    conn!!.requestMethod = methodU
+                    conn!!.connectTimeout = timeoutMs.coerceIn(1000, 180000)
+                    conn!!.readTimeout = conn!!.connectTimeout
                     // 重定向逐跳校验，防 30x 绕过
-                    conn.instanceFollowRedirects = false
+                    conn!!.instanceFollowRedirects = false
                     try {
                         val headers = JSONObject(headersJson ?: "{}")
                         val keys = headers.keys()
                         while (keys.hasNext()) {
                             val k = keys.next()
-                            conn.setRequestProperty(k, headers.optString(k))
+                            conn!!.setRequestProperty(k, headers.optString(k))
                         }
                     } catch (_: Exception) {}
                     if (methodU != "GET" && methodU != "HEAD" && body != null) {
-                        conn.doOutput = true
-                        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                        conn!!.doOutput = true
+                        conn!!.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     }
-                    var code = conn.responseCode
+                    var code = conn!!.responseCode
                     var hop = 0
                     var curUrl = url
                     var curMethod = methodU
                     var curBody = body
                     while (code in setOf(301, 302, 303, 307, 308) && hop < 5) {
-                        val loc = conn.getHeaderField("Location") ?: break
+                        val loc = conn?.getHeaderField("Location") ?: break
                         val next = try {
                             URL(URL(curUrl), loc).toString()
                         } catch (_: Exception) {
@@ -134,13 +134,13 @@ class MainActivity : AppCompatActivity() {
                             curMethod = "GET"
                             curBody = null
                         }
-                        conn.disconnect()
+                        conn?.disconnect()
                         val nu = URL(next)
                         conn = nu.openConnection() as HttpURLConnection
-                        conn.requestMethod = curMethod
-                        conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
-                        conn.readTimeout = conn.connectTimeout
-                        conn.instanceFollowRedirects = false
+                        conn!!.requestMethod = curMethod
+                        conn!!.connectTimeout = timeoutMs.coerceIn(1000, 180000)
+                        conn!!.readTimeout = conn!!.connectTimeout
+                        conn!!.instanceFollowRedirects = false
                         try {
                             val headers = JSONObject(headersJson ?: "{}")
                             val keys = headers.keys()
@@ -152,18 +152,18 @@ class MainActivity : AppCompatActivity() {
                                 val lk = k.lowercase()
                                 // 跨 origin 剥掉认证头，防 Bearer Key 外带
                                 if (!sameOrigin && (lk == "authorization" || lk == "cookie" || lk == "proxy-authorization")) continue
-                                conn.setRequestProperty(k, headers.optString(k))
+                                conn?.setRequestProperty(k, headers.optString(k))
                             }
                         } catch (_: Exception) {}
-                        if (conn.requestMethod != "GET" && conn.requestMethod != "HEAD" && curBody != null) {
-                            conn.doOutput = true
-                            conn.outputStream.use { it.write(curBody.toByteArray(Charsets.UTF_8)) }
+                        if (conn?.requestMethod != "GET" && conn?.requestMethod != "HEAD" && curBody != null) {
+                            conn?.doOutput = true
+                            conn?.outputStream?.use { it.write(curBody.toByteArray(Charsets.UTF_8)) }
                         }
                         curUrl = next
-                        code = conn.responseCode
+                        code = conn?.responseCode ?: break
                         hop++
                     }
-                    val stream = if (code >= 400) conn.errorStream else conn.inputStream
+                    val stream = if (code >= 400) conn?.errorStream else conn?.inputStream
                     val text = stream?.readBytes()?.toString(Charsets.UTF_8) ?: ""
                     postResult(id, true, code, text, null)
                 } catch (e: Exception) {
