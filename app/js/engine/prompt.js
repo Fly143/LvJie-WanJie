@@ -79,7 +79,7 @@ export function buildSystemPrompt(S, opts = {}) {
       usable: x.usable, use_effect: x.use_effect
     })),
     亲密关系: (S.friends || []).filter(f => f.married).map(f => ({
-      name: f.name, rank: f.realm, 关系: f.married === 'wife' ? '伴侣' : '次要伴侣'
+      name: f.name, rank: f.realm, 关系: f.married === 'wife' ? '女'+((pack.lexicon&&pack.lexicon.spouse)||'伴侣') : '男'+((pack.lexicon&&pack.lexicon.spouse)||'伴侣')
     })),
     委托任务: (S.quests || []).map(q => ({
       title: q.title,

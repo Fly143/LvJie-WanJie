@@ -449,14 +449,31 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-grudge]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.grudge)]
-      const to = prompt('对谁（默认自己）', '玩家')
-      if (to === null) return
-      const kind = prompt('类型：恩 / 怨 / 仇 / 债', '怨') || '怨'
-      const note = prompt('备注', '') || ''
-      addGrudge(f, to || '玩家', kind, note)
-      api.toast('已记入恩怨')
-      api.save()
-      api.refreshAll()
+      openModal(`
+        <h2>记入恩怨</h2>
+        <label style="color:var(--dim);font-size:12px">对象</label>
+        <input id="gr-to" value="玩家">
+        <label style="color:var(--dim);font-size:12px">类型</label>
+        <select id="gr-kind">
+          <option value="怨">怨</option>
+          <option value="恩">恩</option>
+          <option value="仇">仇</option>
+          <option value="债">债</option>
+        </select>
+        <label style="color:var(--dim);font-size:12px">备注</label>
+        <input id="gr-note" placeholder="一句即可">
+        <div class="btn-row">
+          <button class="btn btn-gold" id="gr-ok" type="button">保存</button>
+          <button class="btn" data-close type="button">取消</button>
+        </div>
+      `)
+      document.getElementById('gr-ok').onclick = () => {
+        addGrudge(f, document.getElementById('gr-to').value || '玩家', document.getElementById('gr-kind').value, document.getElementById('gr-note').value)
+        closeModal()
+        api.toast('已记入恩怨')
+        api.save()
+        api.refreshAll()
+      }
     }
   })
   main.querySelectorAll('[data-ungudge]').forEach(b => {

@@ -227,7 +227,12 @@ export function applyChanges(S, ch, hooks = {}) {
   if (Array.isArray(ch.remove_friends)) {
     for (const n of ch.remove_friends.slice(0, 8)) {
       const gone = S.friends.filter(f => f.name === n)
-      gone.forEach(f => forceDivorce(S, f))
+      gone.forEach(f => {
+        if (f.married) {
+          forceDivorce(S, f)
+          minor.push(`与${f.name}解除关系`)
+        }
+      })
       S.friends = S.friends.filter(f => f.name !== n)
     }
   }
