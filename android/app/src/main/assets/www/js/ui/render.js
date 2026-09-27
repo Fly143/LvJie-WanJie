@@ -12,7 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
-import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
+import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
 function favorColor(v) {
   const n = Number(v) || 0
