@@ -222,13 +222,26 @@ function normalizeContentText(v) {
 /** SSE 流式：chat 读 choices.delta.content；response 读 response.output_text.delta */
 async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const host = globalThis.awHost.http
-  // 先订阅 end，且按 id 过滤，避免并发串扰与 handler 泄漏
+  // end 只认本流 id；id 未就绪时挂起，避免并发串扰
+  let streamId = null
+  const waiters = []
   const endBox = { done: null, p: null }
   endBox.p = new Promise((r) => { endBox.done = r })
-  let streamId = null
   const offEnd0 = host.onEnd((d) => {
-    if (!d || !streamId || d.id === streamId) endBox.done(d)
+    if (!d) return
+    if (!streamId) {
+      waiters.push(d)
+      return
+    }
+    if (d.id === streamId) endBox.done(d)
   })
+  const drainWaiters = () => {
+    if (!streamId) return
+    for (const d of waiters) {
+      if (d && d.id === streamId) endBox.done(d)
+    }
+    waiters.length = 0
+  }
   const started = await host.stream({
     url,
     method: 'POST',
@@ -246,15 +259,16 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   }
   const id = started.id
   streamId = id
+  drainWaiters()
   const endForId = new Promise((resolve) => {
     endBox.p.then((d) => {
-      if (d && d.id === id) resolve(d)
-      else if (d && !d.id) resolve(d)
+      if (d && (d.id === id || !d.id)) resolve(d)
       else {
-        // wait for matching end via extra listener
         const off = host.onEnd((dd) => {
           if (dd && dd.id === id) { try { off() } catch (e) {} resolve(dd) }
         })
+        // 防泄漏：流结束后兜底退订
+        setTimeout(() => { try { off() } catch (e) {} }, 200000)
       }
     })
   })

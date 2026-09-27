@@ -94,9 +94,9 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
   if (EV._turn !== turn) return // 过期响应丢弃
   if (EV._ctl === ctl) EV._ctl = null
-  EV.loading = false
 
   if (!res.ok) {
+    EV.loading = false
     EV.error = res.error || '调用失败'
     EV.partial = ''
     // 回滚最后一条 user，允许重试；并恢复上一轮叙事，避免半截残文
@@ -120,8 +120,14 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
   }
   EV.count += 1
 
+  // 流式半截：标记并跳过数据补写，避免残缺 JSON 误写
+  const incomplete = !!res.incomplete
+  if (incomplete) {
+    EV.error = '（本轮输出不完整，剧情已保留，数据未写入）'
+  }
+
   let changesBrief = null
-  if (json) {
+  if (json && !incomplete) {
     if (Array.isArray(json.options) && json.options.length && !json.end) {
       EV.options = json.options.slice(0, 4).map(o => String(o).slice(0, 40))
     } else {
@@ -146,12 +152,17 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       } catch (e) { /* ignore */ }
       S.lastEventText = narrative
     }
-  } else {
-    // 无 json：从正文补奖励，并尽量向模型要一次 json
+  } else if (!incomplete) {
+    // 无 json：从正文补奖励，并尽量向模型要一次 json（recover 期间保持 loading，防并发）
     let recovered = null
     try {
       recovered = await recoverChangesFromLLM({ keyObj, narrative, S, signal: ctl.signal })
     } catch (e) { recovered = null }
+    if (EV._turn !== turn) return // recover 期间被 endEvent/新回合作废
+    if (EV.ended && EV._endedByUser) {
+      EV.loading = false
+      return
+    }
     const ch = recovered || inferLite(narrative)
     if (ch && Object.keys(ch).length) {
       try {
@@ -179,6 +190,10 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
       EV.ended = true
       EV.error = '（未解析到数据块，事件结束）'
     }
+  } else {
+    EV.options = null
+    EV.ended = true
+    S.lastEventText = narrative
   }
 
   EV.resultText = narrative
@@ -195,6 +210,9 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
 export function endEvent(EV) {
   if (!EV) return
+  EV._endedByUser = true
+  EV.ended = true
+  EV.loading = false
   if (EV._ctl) {
     try { EV._ctl.abort() } catch (e) { /* ignore */ }
     EV._ctl = null
@@ -306,7 +324,7 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
     '你是游戏数据抽取器。只输出一个 JSON 对象，不要任何解释或代码块围栏。',
     '根据用户给出的剧情正文，抽取确实发生的数据变化。',
     '字段约定（无则省略）：',
-    '{"money_main":数字(正数表示获得),"add_items":[{"name":"物品名","count":1,"type":"special","desc":"来源"}],"progress":数字,"favor_delta":[{"name":"NPC","delta":1}], "options":["短选项"]}',
+    '{"money_main":数字(正数表示获得),"add_items":[{"name":"物品名","count":1,"type":"special","desc":"来源"}],"progress":数字}',
     '不确定的不要编造。没有变化就输出 {}。'
   ].join('\n')
   const user = `货币单位是「${money}」。剧情正文：\n${String(narrative).slice(0, 3500)}`
@@ -327,7 +345,9 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
     // 只接受白名单字段，防止模型塞垃圾
     const out = {}
     if (Number(ch.money_main) > 0) out.money_main = Math.min(5000, Math.round(Number(ch.money_main)))
-    if (Number(ch.progress) !== 0) out.progress = Math.round(Number(ch.progress) || 0)
+    if (ch.progress != null && Number.isFinite(Number(ch.progress)) && Number(ch.progress) !== 0) {
+      out.progress = Math.round(Number(ch.progress))
+    }
     if (Array.isArray(ch.add_items) && ch.add_items.length) {
       out.add_items = ch.add_items.slice(0, 8).map(it => ({
         name: String((it && it.name) || '').slice(0, 20),

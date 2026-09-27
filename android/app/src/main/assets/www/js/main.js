@@ -1,7 +1,7 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
 import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId } from './engine/state.js'
-import { esc, ageLabelShort, fmtNum } from './engine/util.js'
+import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
 import {
   tierLabel, tierColor, isLifeExpired, playerCultReq, tryBreakthrough
 } from './engine/progression.js'
@@ -240,7 +240,7 @@ function renderWelcome() {
   const cardHtml = (p) => {
     const slot = slotMeta(p.id)
     return `
-          <div class="pack-card ${p.id === sel ? 'on' : ''}" data-id="${p.id}" style="--pk:${p.theme.accent};background:${p.theme.cardBg || p.theme.panel}">
+          <div class="pack-card ${p.id === sel ? 'on' : ''}" data-id="${esc(p.id)}" style="--pk:${cssColor(p.theme && p.theme.accent)};background:${cssColor((p.theme && (p.theme.cardBg || p.theme.panel)) || '')}">
             <div class="picon">${esc(p.icon)}</div>
             <div class="pname">${esc(p.name)}</div>
             <div class="ptag">${esc(p.tagline)}</div>
@@ -487,6 +487,22 @@ function boot() {
   bindHeader()
   initBgm()
   hydrateCustomBgm().catch(() => {})
+  // 先从宿主加密仓补齐 API Key，再读档/开档，避免首存把空 keys 写回
+  Promise.resolve(hydratePlayerKeysFromHost()).then(kd => {
+    if (kd && Array.isArray(kd.keys) && app.S) {
+      if (!Array.isArray(app.S.playerKeys) || !app.S.playerKeys.length) {
+        app.S.playerKeys = kd.keys
+        app.S.selectedKey = typeof kd.selected === 'number' ? kd.selected : 0
+        normalizePlayerKeys(app.S)
+      }
+    }
+    startApp()
+  }).catch(() => {
+    startApp()
+  })
+}
+
+function startApp() {
   const existing = loadSave()
   if (existing) {
     showGame(existing)
@@ -496,15 +512,6 @@ function boot() {
     setShell('welcome')
     renderWelcome()
   }
-  // 从宿主加密仓补齐 API Key（异步，不阻塞 UI）
-  hydratePlayerKeysFromHost().then(kd => {
-    if (!app.S) return
-    if (kd && Array.isArray(kd.keys) && kd.keys.length) {
-      app.S.playerKeys = kd.keys
-      app.S.selectedKey = typeof kd.selected === 'number' ? kd.selected : 0
-      normalizePlayerKeys(app.S)
-    }
-  }).catch(() => { /* optional */ })
 }
 
 window.addEventListener('beforeunload', () => {

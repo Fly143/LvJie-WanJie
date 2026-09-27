@@ -57,6 +57,10 @@ ipcMain.handle('aw:asset:read', async (_e, rel) => {
   try {
     const clean = String(rel || '').replace(/\\/g, '/').replace(/^\/+/, '')
     if (!clean || clean.includes('..')) return { ok: false, error: '非法路径' }
+    // 仅允许 assets/ 与 music/ 资源，禁止读源码
+    if (!/^(assets|music|audio)\//i.test(clean) && !/\.(png|jpg|jpeg|svg|ico|mp3|wav|ogg|m4a|mid|ttf|woff2?)$/i.test(clean)) {
+      return { ok: false, error: '资源类型不被允许' }
+    }
     const base = __dirname
     const p = path.join(base, clean)
     const rootPath = path.resolve(base) + path.sep
@@ -82,16 +86,57 @@ const streamCtl = new Map()
 function allowedHttpUrl(raw) {
   try {
     const u = new URL(String(raw))
-    const h = u.hostname.toLowerCase()
-    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true
-    // 拒绝明显内网/云元数据，其余公网放行（自定义网关）
-    const deny = ['0.0.0.0', '169.254.169.254', 'metadata.google.internal']
+    let h = u.hostname.toLowerCase()
+    // 去掉 IPv6 括号与尾点，避免字符串绕过
+    if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1)
+    h = h.replace(/\.$/, '')
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '0:0:0:0:0:0:0:1') return true
+    // 拒绝云元数据 / 链路本地 / 未指定
+    const deny = ['0.0.0.0', '169.254.169.254', 'metadata.google.internal', 'metadata.google', 'metadata']
     if (deny.includes(h)) return false
-    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return true // 允许自建内网 API
+    // IPv4-mapped IPv6 / 十六进制 IP 归一后再判
+    const norm = normalizeHostIp(h)
+    if (norm && isBlockedIp(norm)) return false
+    // 内网段：允许自建 API，但拒绝链路本地与 CGNAT
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(norm || h)) return true
     return true
   } catch (e) {
     return false
   }
+}
+
+function normalizeHostIp(h) {
+  let s = String(h || '').toLowerCase()
+  // [::ffff:169.254.169.254] 已剥括号
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(s)
+  if (mapped) return mapped[1]
+  // 纯十进制 / 十六进制 IPv4
+  if (/^\d+$/.test(s)) {
+    const n = Number(s)
+    if (Number.isFinite(n) && n >= 0 && n <= 0xffffffff) {
+      return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.')
+    }
+    return null
+  }
+  if (/^0x[0-9a-f]+$/.test(s)) {
+    const n = parseInt(s, 16)
+    if (Number.isFinite(n) && n >= 0 && n <= 0xffffffff) {
+      return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.')
+    }
+    return null
+  }
+  return s
+}
+
+function isBlockedIp(ip) {
+  const s = String(ip || '')
+  if (!s) return false
+  // 链路本地 / 云元数据 / CGNAT / 未指定 / 回环以外的特殊段
+  if (/^169\.254\./.test(s)) return true
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(s)) return true // CGNAT 100.64/10
+  if (/^(0\.|127\.|224\.|240\.)/.test(s)) return true
+  if (/^fe80:/i.test(s) || /^fc00:/i.test(s) || /^fd/i.test(s)) return true // IPv6 ULA/link-local
+  return false
 }
 
 function rejectHttp(url, method) {
@@ -101,6 +146,26 @@ function rejectHttp(url, method) {
     return { ok: false, error: '不允许的 HTTP 方法' }
   }
   return null
+}
+
+function sameOrigin(a, b) {
+  try {
+    const ua = new URL(a)
+    const ub = new URL(b)
+    return ua.protocol === ub.protocol && ua.host === ub.host
+  } catch (e) {
+    return false
+  }
+}
+
+function stripSensitiveHeaders(headers) {
+  const out = {}
+  for (const [k, v] of Object.entries(headers || {})) {
+    const lk = String(k).toLowerCase()
+    if (lk === 'authorization' || lk === 'cookie' || lk === 'proxy-authorization') continue
+    out[k] = v
+  }
+  return out
 }
 
 ipcMain.handle('aw:http', async (_e, req) => {
@@ -136,7 +201,7 @@ ipcMain.handle('aw:http', async (_e, req) => {
   }
 })
 
-/** 逐跳校验 redirect，防 30x 绕过 deny 名单 */
+/** 逐跳校验 redirect，防 30x 绕过 deny 名单；跨 origin 剥掉认证头 */
 async function fetchChecked(url, opts, hop = 0) {
   if (hop > 5) return { ok: false, error: '重定向过多' }
   if (!allowedHttpUrl(url)) return { ok: false, error: '地址不被允许' }
@@ -152,10 +217,14 @@ async function fetchChecked(url, opts, hop = 0) {
     }
     if (!allowedHttpUrl(next)) return { ok: false, error: '重定向目标不被允许' }
     const method = (opts && opts.method) || 'GET'
-    const m = res.status === 303 || ((res.status === 301 || res.status === 302) && method === 'POST')
-      ? 'GET' : method
+    // 301/302/303 对非 GET 降级 GET 并丢 body
+    const downgrade = res.status === 303 || ((res.status === 301 || res.status === 302) && method !== 'GET' && method !== 'HEAD')
+    const m = downgrade ? 'GET' : method
+    let headers = (opts && opts.headers) || {}
+    if (!sameOrigin(url, next)) headers = stripSensitiveHeaders(headers)
     return fetchChecked(next, Object.assign({}, opts, {
       method: m,
+      headers,
       body: m === 'GET' || m === 'HEAD' ? undefined : (opts && opts.body)
     }), hop + 1)
   }
@@ -176,6 +245,13 @@ ipcMain.handle('aw:http:stream', (event, req) => {
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
   const sender = event.sender
 
+function safeSend(channel, payload) {
+  try {
+    if (sender.isDestroyed()) return
+    sender.send(channel, payload)
+  } catch (e) { /* ignore */ }
+}
+
   ;(async () => {
     try {
       const res = await fetchChecked(url, {
@@ -185,14 +261,14 @@ ipcMain.handle('aw:http:stream', (event, req) => {
         signal: ctl.signal
       })
       if (res && res.ok === false) {
-        sender.send('aw:http:end', { id, ok: false, error: res.error || '地址不被允许' })
+        safeSend('aw:http:end', { id, ok: false, error: res.error || '地址不被允许' })
         return
       }
-      if (sender.isDestroyed()) return; sender.send('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
+      safeSend('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
       if (!res.body) {
         const text = await res.text()
-        sender.send('aw:http:chunk', { id, text })
-        sender.send('aw:http:end', { id, ok: true })
+        safeSend('aw:http:chunk', { id, text })
+        safeSend('aw:http:end', { id, ok: true })
         return
       }
       const reader = res.body.getReader()
@@ -200,13 +276,13 @@ ipcMain.handle('aw:http:stream', (event, req) => {
       for (;;) {
         const { done, value } = await reader.read()
         if (done) break
-        sender.send('aw:http:chunk', { id, text: dec.decode(value, { stream: true }) })
+        safeSend('aw:http:chunk', { id, text: dec.decode(value, { stream: true }) })
       }
-      sender.send('aw:http:chunk', { id, text: dec.decode() })
-      sender.send('aw:http:end', { id, ok: true, status: res.status })
+      safeSend('aw:http:chunk', { id, text: dec.decode() })
+      safeSend('aw:http:end', { id, ok: true, status: res.status })
     } catch (e) {
       const aborted = e && (e.name === 'AbortError' || e.name === 'TimeoutError')
-      sender.send('aw:http:end', {
+      safeSend('aw:http:end', {
         id,
         ok: false,
         aborted,

@@ -10,9 +10,16 @@ const STYLE_HELP = {
 
 export function openKeyModal(app, { save, refreshAll }) {
   const S = app.S
-  let selected = S && typeof S.selectedKey === 'number' ? S.selectedKey : 0
   const store = loadKeyStore()
+  // S 有 keys 用 S；否则用 store。selected 两边对齐
+  let selected = 0
+  if (S && Array.isArray(S.playerKeys) && S.playerKeys.length && typeof S.selectedKey === 'number') {
+    selected = S.selectedKey
+  } else if (typeof store.selected === 'number') {
+    selected = store.selected
+  }
   const keys = S && Array.isArray(S.playerKeys) && S.playerKeys.length ? S.playerKeys : (store.keys || [])
+  const useStandalone = !(S && Array.isArray(S.playerKeys) && S.playerKeys.length)
 
   const rows = keys.map((k, i) => {
     const n = normalizeApiKey(k) || k
@@ -162,8 +169,8 @@ export function openKeyModal(app, { save, refreshAll }) {
       return
     }
     const rec = { name, baseUrl, key, model, apiStyle }
-    if (!S) {
-      // 欢迎页配置：写入全局 Key 库，不依赖存档
+    if (!S || useStandalone) {
+      // 欢迎页 / 无 keys 存档：写入全局 Key 库
       persistKeysStandalone(rec, selNow, keyInput)
       save()
       refreshAll()
@@ -195,7 +202,7 @@ export function openKeyModal(app, { save, refreshAll }) {
   document.querySelectorAll('[data-del]').forEach(b => {
     b.onclick = () => {
       const i = Number(b.dataset.del)
-      if (!S) {
+      if (!S || useStandalone) {
         deleteKeyStandalone(i)
         save()
         closeModal()
@@ -217,7 +224,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     r.onchange = () => {
       if (!r.checked) return
       const idx = Number(r.value)
-      if (!S) {
+      if (!S || useStandalone) {
         selectKeyStandalone(idx)
         selected = idx
         save()
@@ -281,7 +288,11 @@ function selectKeyStandalone(idx) {
   } catch (e) { /* ignore */ }
 }
 
+let _keyStoreCache = null
+
 function writeKeyStore(data) {
+  // 内存缓存：host 保存成功后会清 localStorage，同步读取必须走这里
+  _keyStoreCache = { keys: (data.keys || []).slice(), selected: data.selected }
   const host = window.awHost && window.awHost.secrets
   if (host && host.save) {
     host.save(data).then(() => {
@@ -295,10 +306,12 @@ function writeKeyStore(data) {
 }
 
 function loadKeyStore() {
+  if (_keyStoreCache && Array.isArray(_keyStoreCache.keys)) return _keyStoreCache
   try {
     const raw = localStorage.getItem('agentworlds_apikeys_v1')
     const d = raw ? JSON.parse(raw) : { keys: [], selected: 0 }
     if (!Array.isArray(d.keys)) d.keys = []
+    _keyStoreCache = d
     return d
   } catch (e) {
     return { keys: [], selected: 0 }

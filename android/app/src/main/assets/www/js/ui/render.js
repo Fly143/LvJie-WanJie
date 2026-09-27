@@ -87,7 +87,7 @@ export function renderScene(app, api) {
       <div class="loc-desc">${esc(loc.desc || '')}</div>
       ${(loc.notes || []).slice(-3).map(n => `<div class="loc-note">※ ${esc(n)}</div>`).join('')}
       <div class="btn-row">
-        ${actions.map(a => `<button class="btn" data-act="${a.id}" type="button">${a.label}</button>`).join('')}
+        ${actions.map(a => `<button class="btn" data-act="${esc(a.id)}" type="button">${esc(a.label)}</button>`).join('')}
       </div>
     </div>
     ${evHtml}
@@ -450,6 +450,7 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-grudge]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.grudge)]
+      if (!f) return
       openModal(`
         <h2>记入恩怨</h2>
         <label style="color:var(--dim);font-size:12px">对象</label>
@@ -539,6 +540,7 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-marry]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.marry)]
+      if (!f) return
       if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
       const res = propose(S, f, pack)
       api.toast(res.msg)
@@ -549,6 +551,7 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-divorce]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.divorce)]
+      if (!f) return
       if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
@@ -559,6 +562,7 @@ export function renderFriends(app, api) {
   main.querySelectorAll('[data-chat]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.chat)]
+      if (!f) return
       const at = friendAt(f)
       if (!at.here) {
         if (!feat.talkRemote) {

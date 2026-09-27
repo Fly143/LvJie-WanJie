@@ -8,6 +8,13 @@ function secretsHost() {
   return (globalThis.awHost && globalThis.awHost.secrets) || null
 }
 
+// 进程内密钥缓存：宿主加密仓保存后会清 localStorage，同步读取必须走这里
+let _keysCache = null
+
+function peekKeysCache() {
+  return _keysCache
+}
+
 function slotKey(worldview) {
   return SLOT_PREFIX + String(worldview || 'xiuxian')
 }
@@ -44,7 +51,14 @@ export function saveGame(S) {
 }
 
 function persistPlayerKeysAsync(S) {
-  const payload = { keys: S.playerKeys || [], selected: S.selectedKey }
+  const keys = Array.isArray(S && S.playerKeys) ? S.playerKeys : []
+  const payload = { keys, selected: S && S.selectedKey }
+  // 空列表不得覆盖已有密钥仓（新开局/未 hydrate 时 S.playerKeys 可能为空）
+  if (!keys.length) {
+    const existing = peekKeysCache() || loadPlayerKeys()
+    if (existing && Array.isArray(existing.keys) && existing.keys.length) return
+  }
+  _keysCache = { keys: payload.keys.slice(), selected: payload.selected }
   const host = secretsHost()
   if (host && host.save) {
     Promise.resolve(host.save(payload)).then(() => {
@@ -61,21 +75,25 @@ function persistPlayerKeysAsync(S) {
 }
 
 export function loadPlayerKeys() {
+  if (_keysCache && Array.isArray(_keysCache.keys)) return _keysCache
   try {
     const d = JSON.parse(localStorage.getItem(KEYS_KEY))
-    if (d && Array.isArray(d.keys)) return d
+    if (d && Array.isArray(d.keys)) {
+      _keysCache = d
+      return d
+    }
     return null
   } catch (e) { return null }
 }
 
-/** 从宿主加密仓载入（异步）；并写回 localStorage 供同步读取 */
+/** 从宿主加密仓载入（异步）；写入内存缓存供同步读取 */
 export async function hydratePlayerKeysFromHost() {
   const host = secretsHost()
   if (!host || !host.load) return loadPlayerKeys()
   try {
     const d = await host.load()
     if (d && Array.isArray(d.keys)) {
-      // 仅内存缓存，不写明文 localStorage
+      _keysCache = d
       return d
     }
   } catch (e) { /* ignore */ }
@@ -83,6 +101,7 @@ export async function hydratePlayerKeysFromHost() {
 }
 
 export async function clearPlayerKeysStore() {
+  _keysCache = null
   const host = secretsHost()
   if (host && host.clear) {
     try { await host.clear() } catch (e) { /* ignore */ }

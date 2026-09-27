@@ -8,6 +8,17 @@ export function esc(x) {
     .replace(/'/g, '&#39;')
 }
 
+/** 仅放行安全 CSS 颜色，防 style 属性注入 */
+export function cssColor(v) {
+  const s = String(v == null ? '' : v).trim()
+  if (!s) return 'transparent'
+  if (/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) return s
+  if (/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)$/i.test(s)) return s
+  if (/^hsla?\(\s*[\d.]+\s*(deg)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*(,\s*[\d.]+\s*)?\)$/i.test(s)) return s
+  if (/^(transparent|currentColor|inherit|initial|unset)$/i.test(s)) return s
+  return 'transparent'
+}
+
 export function inVal(id) {
   const el = document.getElementById(id)
   return el ? el.value : ''

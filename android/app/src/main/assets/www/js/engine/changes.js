@@ -201,17 +201,20 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
       }
-      // AI 不得直写 married 绕过求婚规则；只走 propose/divorce
+      // AI 不得直写 married 绕过求婚规则；仅允许「已成婚叙事」写入或解除
       if (raw.married !== undefined) {
-        const want = raw.married === 'wife' || raw.married === 'husband' || raw.married === 'concubine' ? raw.married : null
+        const want = raw.married === 'wife' || raw.married === 'husband' ? raw.married : null
         if (want && !f.married) {
-          // 剧情已写婚姻时强制结为伴侣（放宽好感/同图，避免叙事与状态脱节）
-          f.married = want === 'concubine' ? 'wife' : want
-          f.favor = Math.max(Number(f.favor) || 0, 50)
-          if (!f.mem || !/结为|伴侣|道侣|眷侣/.test(f.mem)) {
-            f.mem = f.mem ? (f.mem + '；与你结为伴侣。') : '与你结为伴侣。'
+          // 叙事已写明成婚才接受；不强制抬好感（避免伪造 canPropose 条件）
+          const narrSaidMarry = /结为|成婚|成亲|大婚|喜结|伴侣|道侣|眷侣|wife|husband|married/i.test(String(raw.mem || '') + String(raw.intro || ''))
+          if (narrSaidMarry || (Number(f.favor) || 0) >= 50) {
+            f.married = want
+            if (!f.mem || !/结为|伴侣|道侣|眷侣|成婚/.test(f.mem)) {
+              f.mem = f.mem ? (f.mem + '；与你结为伴侣。') : '与你结为伴侣。'
+            }
+            minor.push(`${f.name} 成为伴侣`)
           }
-          minor.push(`${f.name} 成为伴侣`)
+          // 条件不满足则忽略，不写成已婚
         } else if (!want && f.married) {
           forceDivorce(S, f)
           minor.push(`与${f.name}解除关系`)
@@ -383,30 +386,4 @@ function mergeGList(oldList, raw) {
     else base.push(g)
   }
   return base.slice(0, 8)
-}
-
-/** 正文写了奖励但漏 json 时，尽量补出 changes */
-export function inferChangesFromNarrative(narrative) {
-  const s = String(narrative || '')
-  const changes = {}
-  // 货币：十二枚银币 / +12银币 / 12 金币
-  const numCn = { 一:1, 两:2, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10, 十二:12, 二十:20, 三十:30, 五十:50, 一百:100 }
-  const moneyRe = /([+＋]?)([0-9]+|十[二三]?|[一二两三四五六七八九十]+)\s*(枚|个|张|块)?\s*(银币|金币|铜钱|现金|货币|灵石|金币)/g
-  let m
-  let moneyAdd = 0
-  while ((m = moneyRe.exec(s))) {
-    const raw = m[2]
-    let n = /[0-9]/.test(raw) ? Number(raw) : (numCn[raw] || 0)
-    if (m[1]) n = Math.abs(n)
-    moneyAdd += n
-    if (moneyAdd > 5000) { moneyAdd = 5000; break }
-  }
-  if (moneyAdd > 0) changes.money_main = moneyAdd
-
-  // 赠品
-  const gifts = extractGiftNames(s)
-  if (gifts.length) {
-    changes.add_items = gifts.map(name => ({ name, count: 1, type: 'special', desc: '剧情所得' }))
-  }
-  return changes
 }

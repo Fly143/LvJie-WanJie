@@ -23,7 +23,7 @@ function normQuest(raw, S) {
   if (status === 'completed' || status === 'complete' || status === '完成') status = 'done'
   else if (status === '失败' || status === 'abandoned') status = 'failed'
   else if (status === '接受' || status === 'accepted' || status === '进行中' || status === 'in_progress') status = 'active'
-  else if (!QUEST_STATUS.includes(status)) status = 'active'
+  else if (!QUEST_STATUS.includes(status)) status = ''
 
   return {
     id: String(raw.id || ('q_' + Math.abs(hash(title + (raw.from || '') + (raw.loc || ''))) + '_' + Date.now().toString(36).slice(-3))).slice(0, 40),
@@ -31,7 +31,7 @@ function normQuest(raw, S) {
     desc: String(raw.desc || '').slice(0, 120),
     from: String(raw.from || '').slice(0, 24),
     loc: String(raw.loc || raw.location || raw.place || '').slice(0, 32),
-    status,
+    status: status || 'active',
     objectives: normObjectives(raw.objectives || raw.goals),
     reward: String(raw.reward || '').slice(0, 60),
     notes: String(raw.notes || raw.note || '').slice(0, 80),
@@ -77,6 +77,7 @@ export function applyQuestChanges(S, list) {
         desc: q.desc || old.desc,
         from: q.from || old.from,
         loc: q.loc || old.loc || '',
+        // 未提供 status 或非法 status 时保留旧状态，避免 done 被重置
         status: (raw.status && q.status) ? q.status : old.status,
         objectives: q.objectives.length ? q.objectives : old.objectives,
         reward: q.reward || old.reward,

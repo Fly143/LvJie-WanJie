@@ -67,10 +67,13 @@ class MainActivity : AppCompatActivity() {
                     }
                     var code = conn.responseCode
                     var hop = 0
-                    while (code in 301..308 && hop < 5) {
+                    var curUrl = url
+                    var curMethod = methodU
+                    var curBody = body
+                    while (code in setOf(301, 302, 303, 307, 308) && hop < 5) {
                         val loc = conn.getHeaderField("Location") ?: break
                         val next = try {
-                            URL(u, loc).toString()
+                            URL(URL(curUrl), loc).toString()
                         } catch (_: Exception) {
                             postResult(id, false, 0, "", "非法重定向地址")
                             return@execute
@@ -79,25 +82,38 @@ class MainActivity : AppCompatActivity() {
                             postResult(id, false, 0, "", "重定向目标不被允许")
                             return@execute
                         }
+                        // 301/302/303 非 GET 降级 GET 并丢 body
+                        val downgrade = code == 303 || ((code == 301 || code == 302) && curMethod != "GET" && curMethod != "HEAD")
+                        if (downgrade) {
+                            curMethod = "GET"
+                            curBody = null
+                        }
                         conn.disconnect()
                         val nu = URL(next)
                         conn = nu.openConnection() as HttpURLConnection
-                        conn.requestMethod = if (code == 303) "GET" else methodU
+                        conn.requestMethod = curMethod
                         conn.connectTimeout = timeoutMs.coerceIn(1000, 180000)
                         conn.readTimeout = conn.connectTimeout
                         conn.instanceFollowRedirects = false
                         try {
                             val headers = JSONObject(headersJson ?: "{}")
                             val keys = headers.keys()
+                            val sameOrigin = try {
+                                URL(curUrl).host.equals(nu.host, true) && URL(curUrl).protocol == nu.protocol
+                            } catch (_: Exception) { false }
                             while (keys.hasNext()) {
                                 val k = keys.next()
+                                val lk = k.lowercase()
+                                // 跨 origin 剥掉认证头，防 Bearer Key 外带
+                                if (!sameOrigin && (lk == "authorization" || lk == "cookie" || lk == "proxy-authorization")) continue
                                 conn.setRequestProperty(k, headers.optString(k))
                             }
                         } catch (_: Exception) {}
-                        if (conn.requestMethod != "GET" && conn.requestMethod != "HEAD" && body != null) {
+                        if (conn.requestMethod != "GET" && conn.requestMethod != "HEAD" && curBody != null) {
                             conn.doOutput = true
-                            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                            conn.outputStream.use { it.write(curBody.toByteArray(Charsets.UTF_8)) }
                         }
+                        curUrl = next
                         code = conn.responseCode
                         hop++
                     }
@@ -110,6 +126,16 @@ class MainActivity : AppCompatActivity() {
                     conn?.disconnect()
                 }
             }
+        }
+    }
+
+    /** 仅本机静态服页面可注入桥 */
+    private fun isTrustedPage(url: String?): Boolean {
+        return try {
+            val u = URL(url ?: return false)
+            (u.protocol == "http") && (u.host == "127.0.0.1" || u.host == "localhost")
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -238,10 +264,10 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            allowFileAccess = true
-            allowContentAccess = true
+            allowFileAccess = false
+            allowContentAccess = false
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
 
@@ -266,12 +292,12 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                injectBridge(view)
+                if (isTrustedPage(url)) injectBridge(view)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                injectBridge(view)
+                if (isTrustedPage(url)) injectBridge(view)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
