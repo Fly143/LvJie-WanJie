@@ -15,6 +15,13 @@ function peekKeysCache() {
   return _keysCache
 }
 
+/** 设置面板写入时同步引擎缓存，避免两套 Key 库不一致 */
+export function setKeysCache(data) {
+  if (data && Array.isArray(data.keys)) {
+    _keysCache = { keys: data.keys.slice(), selected: data.selected }
+  }
+}
+
 function slotKey(worldview) {
   return SLOT_PREFIX + String(worldview || 'xiuxian')
 }

@@ -3,6 +3,7 @@ import { openModal, closeModal, toast } from './modals.js'
 import { normalizeApiKey, endpointOf, maskKey, listModels } from '../engine/llm.js'
 import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
+import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -294,6 +295,7 @@ let _keyStoreCache = null
 function writeKeyStore(data) {
   // 内存缓存：同步读取必须走这里
   _keyStoreCache = { keys: (data.keys || []).slice(), selected: data.selected }
+  try { setKeysCache(data) } catch (e) { /* ignore */ }
   const host = window.awHost && window.awHost.secrets
   if (host && host.save) {
     // 宿主加密仓可用时绝不写明文 localStorage（成功/失败都不写）
@@ -309,6 +311,14 @@ function writeKeyStore(data) {
 
 function loadKeyStore() {
   if (_keyStoreCache && Array.isArray(_keyStoreCache.keys)) return _keyStoreCache
+  // 引擎缓存（hydrate 后）优先，避免两套库不一致
+  try {
+    const kd = loadPlayerKeys()
+    if (kd && Array.isArray(kd.keys) && kd.keys.length) {
+      _keyStoreCache = { keys: kd.keys.slice(), selected: kd.selected }
+      return _keyStoreCache
+    }
+  } catch (e) { /* ignore */ }
   const host = window.awHost && window.awHost.secrets
   try {
     const raw = localStorage.getItem('agentworlds_apikeys_v1')

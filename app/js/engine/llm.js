@@ -329,7 +329,26 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     return true
   })
 
-  await Promise.race([endPromise, waitStreamEnd(host, id)])
+  // 无增量时快速失败：8 秒内没 chunk 就放弃流式，避免干等 185s
+  const noChunkTimer = new Promise((resolve) => {
+    const iv = setInterval(() => {
+      if (text) { clearInterval(iv); resolve('has'); return }
+    }, 200)
+    setTimeout(() => { clearInterval(iv); resolve('empty') }, 8000)
+  })
+  const raceResult = await Promise.race([
+    endPromise.then(() => 'end'),
+    waitStreamEnd(host, id).then(() => 'timeout'),
+    noChunkTimer
+  ])
+  if (raceResult === 'empty' && !text) {
+    try { host.abort(id) } catch (e) { /* ignore */ }
+    try { offEnd0() } catch (e) { /* ignore */ }
+    try { offChunk() } catch (e) { /* ignore */ }
+    try { offEnd() } catch (e) { /* ignore */ }
+    if (signal) signal.removeEventListener('abort', onAbort)
+    return null
+  }
   if (!settled.end && !text) {
     try { offEnd0() } catch (e) { /* ignore */ }
     try { offChunk() } catch (e) { /* ignore */ }

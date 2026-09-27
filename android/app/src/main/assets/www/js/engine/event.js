@@ -2,6 +2,7 @@
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON } from './llm-bridge.js'
 import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './changes.js'
+import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
 const MAX_HISTORY_MSGS = 20
@@ -333,9 +334,20 @@ function parseOptionsFromText(text) {
 }
 
 function resolveKey(S) {
-  const keys = Array.isArray(S.playerKeys) ? S.playerKeys : []
+  let keys = Array.isArray(S && S.playerKeys) ? S.playerKeys : []
+  let sel = S && typeof S.selectedKey === 'number' ? S.selectedKey : 0
+  if (!keys.length) {
+    // 存档还没带上 Key 时，从全局密钥仓回退
+    try {
+      const kd = loadPlayerKeys()
+      if (kd && Array.isArray(kd.keys) && kd.keys.length) {
+        keys = kd.keys
+        sel = typeof kd.selected === 'number' ? kd.selected : 0
+      }
+    } catch (e) { /* ignore */ }
+  }
   if (!keys.length) return null
-  const idx = (typeof S.selectedKey === 'number' && keys[S.selectedKey]) ? S.selectedKey : 0
+  const idx = keys[sel] ? sel : 0
   return keys[idx] || keys[0] || null
 }
 
