@@ -35,14 +35,6 @@ export function saveGame(S) {
     return false
   }
   try {
-    // 宿主加密仓可用时，明文 Key 不镜像进 localStorage
-    const host = secretsHost()
-    if (!(host && host.save)) {
-      localStorage.setItem(KEYS_KEY, JSON.stringify({
-        keys: S.playerKeys || [],
-        selected: S.selectedKey
-      }))
-    }
     persistPlayerKeysAsync(S)
   } catch (e) { /* ignore */ }
   saveMeta({
@@ -58,6 +50,7 @@ function persistPlayerKeysAsync(S) {
     Promise.resolve(host.save(payload)).catch(e => console.warn('密钥保存失败', e))
     return
   }
+  // 无宿主：写 localStorage（WebView 场景），避免仅内存丢失
   try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }
 }
 
@@ -76,7 +69,7 @@ export async function hydratePlayerKeysFromHost() {
   try {
     const d = await host.load()
     if (d && Array.isArray(d.keys)) {
-      try { localStorage.setItem(KEYS_KEY, JSON.stringify(d)) } catch (e) { /* ignore */ }
+      // 仅内存缓存，不写明文 localStorage
       return d
     }
   } catch (e) { /* ignore */ }

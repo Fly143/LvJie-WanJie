@@ -130,8 +130,7 @@ export function syncReverseRelations(S, name, relations, grudges) {
     const relKey = item.rel || ''
     const i = arr.findIndex(x => {
       if (!x || x.to !== item.to) return false
-      if (kindKey) return (x.kind || '') === kindKey
-      return (x.rel || '') === relKey
+      return (x.kind || '') === kindKey && (x.rel || '') === relKey
     })
     if (i >= 0) arr[i] = Object.assign({}, arr[i], item)
     else arr.push(item)

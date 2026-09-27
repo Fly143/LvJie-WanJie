@@ -180,9 +180,7 @@ export function applyChanges(S, ch, hooks = {}) {
           history: [],
           married: raw.married || null,
           relType: normalizeRelType(raw.relType || raw.relation_type),
-          grudges: (normalizeRelType(raw.relType || raw.relation_type) === '仇人'
-            ? [{ to: '玩家', kind: '怨', note: '敌对关系' }]
-            : normGList(raw.grudges)) ,
+          grudges: normGList(raw.grudges),
           relations: normRelList(raw.relations),
           grudges: normGList(raw.grudges)
         }

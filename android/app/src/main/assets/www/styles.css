@@ -173,7 +173,7 @@ body{
 .chg-list li:last-child{border-bottom:none}
 .chg-list li.major{color:var(--accent);font-weight:bold}
 
-#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:69%;z-index:700;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:max-content;max-width:88vw}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18%;z-index:700;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:max-content;max-width:88vw}
 .toast{background:var(--panel);border:1px solid color-mix(in srgb, var(--accent) 55%, transparent);border-radius:9px;padding:9px 16px;
   font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.35);animation:tin .25s;max-width:88vw;pointer-events:none;backdrop-filter:blur(3px)}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -185,7 +185,7 @@ body{
 .key-row input[type=radio]{accent-color:var(--accent)}
 .masktext{font-family:monospace;color:var(--dim);font-size:12px}
 
-#center-msg{position:fixed;left:50%;top:32%;transform:translate(-50%,-50%);z-index:800;pointer-events:none;
+#center-msg{position:fixed;left:50%;top:22%;transform:translate(-50%,-50%);z-index:800;pointer-events:none;
   font-family:var(--font-display);font-size:42px;color:var(--accent);letter-spacing:6px;text-align:center;
   text-shadow:0 0 32px var(--glow),0 4px 20px rgba(0,0,0,.7);animation:ctin .35s}
 #center-msg.fade{opacity:0;transition:opacity .7s}

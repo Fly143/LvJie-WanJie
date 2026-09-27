@@ -47,7 +47,7 @@ export function spousePowerF(S) {
   let p = 0
   ;(S.friends || []).forEach(f => {
     if (!f.married) return
-    p += friendPowerF(S, f) * (f.married === 'wife' ? 1 : 0.3)
+    p += friendPowerF(S, f)
   })
   return Math.round(p * 10) / 10
 }

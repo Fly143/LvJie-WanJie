@@ -59,7 +59,9 @@ ipcMain.handle('aw:asset:read', async (_e, rel) => {
     if (!clean || clean.includes('..')) return { ok: false, error: '非法路径' }
     const base = __dirname
     const p = path.join(base, clean)
-    if (!p.startsWith(base)) return { ok: false, error: '路径越界' }
+    const rootPath = path.resolve(base) + path.sep
+    const abs = path.resolve(p)
+    if (abs !== path.resolve(base) && !abs.startsWith(rootPath)) return { ok: false, error: '路径越界' }
     if (!fs.existsSync(p)) return { ok: false, error: '文件不存在' }
     const buf = fs.readFileSync(p)
     return {
@@ -77,6 +79,21 @@ const ALLOWED_HTTP = /^https?:\/\//i
 let streamSeq = 0
 const streamCtl = new Map()
 
+function allowedHttpUrl(raw) {
+  try {
+    const u = new URL(String(raw))
+    const h = u.hostname.toLowerCase()
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true
+    // 拒绝明显内网/云元数据，其余公网放行（自定义网关）
+    const deny = ['0.0.0.0', '169.254.169.254', 'metadata.google.internal']
+    if (deny.includes(h)) return false
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return true // 允许自建内网 API
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
 function rejectHttp(url, method) {
   if (!ALLOWED_HTTP.test(url)) return { ok: false, error: '仅允许 http(s) 协议' }
   const m = String(method || 'GET').toUpperCase()
@@ -91,6 +108,7 @@ ipcMain.handle('aw:http', async (_e, req) => {
   const method = String((req && req.method) || 'GET').toUpperCase()
   const bad = rejectHttp(url, method)
   if (bad) return bad
+  if (!allowedHttpUrl(url)) return { ok: false, error: '地址不被允许' }
   const timeoutMs = Math.max(1000, Math.min(180000, Number(req.timeoutMs) || 120000))
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
@@ -138,7 +156,7 @@ ipcMain.handle('aw:http:stream', (event, req) => {
         body: method === 'GET' || method === 'HEAD' ? undefined : (req && req.body),
         signal: ctl.signal
       })
-      sender.send('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
+      if (sender.isDestroyed()) return; sender.send('aw:http:head', { id, status: res.status, headers: Object.fromEntries(res.headers.entries()) })
       if (!res.body) {
         const text = await res.text()
         sender.send('aw:http:chunk', { id, text })

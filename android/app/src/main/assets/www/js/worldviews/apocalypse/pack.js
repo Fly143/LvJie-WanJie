@@ -48,6 +48,9 @@ export const apocalypsePack = {
   subNames: ['初期', '中期', '后期', '巅峰'],
   subPower: [1, 1.3, 1.7, 2.1],
   lexicon: {
+    spouse: '伴侣',
+    propose: '结为伴侣',
+    divorce: '解除关系',
     level: '进化等阶',
     progress: '进化点',
     money: { main: '物资点', mid: '信用点', high: '核心币' },

@@ -34,7 +34,7 @@ export function startEvent(kind, user, target) {
  */
 export async function runEventTurn(S, EV, userContent, hooks = {}) {
   if (!EV || EV.ended) return
-  if (EV.loading && EV._ctl) return // 并发闸：上一轮未完成
+  if (EV.loading) return // 并发闸
 
   let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
   // 扩图提示：外出类行动在用户侧提醒模型补 new_locations
@@ -294,15 +294,26 @@ function giftMentioned(text) {
 }
 
 function inferLite(narrative) {
+  const cnNum = (raw) => {
+    if (/^\d+$/.test(raw)) return Number(raw)
+    const map = { 一:1, 两:2, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9 }
+    if (raw === '十') return 10
+    if (raw.startsWith('十')) return 10 + (map[raw[1]] || 0)
+    if (raw.includes('十')) {
+      const [a,b] = raw.split('十')
+      return (map[a] || 0) * 10 + (map[b] || 0)
+    }
+    return Number(raw) || 0
+  }
   const s = String(narrative || '')
   const ch = {}
-  const cn = { 一:1, 两:2, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10, 十二:12, 二十:20, 三十:30, 五十:50, 一百:100 }
+  const cn = { 一:1, 两:2, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10, 十一:11, 十二:12, 十三:13, 十五:15, 二十:20, 三十:30, 五十:50, 一百:100, 两百:200, 一千:1000 }
   const re = /([0-9]+|十[一二三]?|[一二两三四五六七八九十百]+)\s*(枚|个)?\s*(银币|金币|铜钱|现金|灵石)/g
   let m
   let sum = 0
   while ((m = re.exec(s))) {
     const raw = m[1]
-    const n = /\d/.test(raw) ? Number(raw) : (cn[raw] || 0)
+    const n = cnNum(raw)
     sum += n
     if (sum > 2000) { sum = 2000; break }
   }

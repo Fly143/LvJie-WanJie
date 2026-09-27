@@ -4,6 +4,8 @@ import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByNa
 import { fmtNum, ageLabel } from './util.js'
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
+import { forceDivorce, syncFavorToRelations } from './marriage.js'
+import { normalizeRelType } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
 
 /** 单轮熔断：防 AI 刷爆数值 */
@@ -177,6 +179,8 @@ export function applyChanges(S, ch, hooks = {}) {
           talkCount: 0,
           history: [],
           married: raw.married || null,
+          relType: normalizeRelType(raw.relType || raw.relation_type),
+          grudges: normGList(raw.grudges),
           relations: normRelList(raw.relations),
           grudges: normGList(raw.grudges)
         }
@@ -189,8 +193,18 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.mem) f.mem = String(raw.mem)
         if (raw.married !== undefined) f.married = raw.married
         if (raw.gender) f.gender = raw.gender
+        if (raw.relType || raw.relation_type) {
+          f.relType = normalizeRelType(raw.relType || raw.relation_type)
+          if (f.relType === '仇人' && !(f.grudges || []).length) {
+            f.grudges = f.grudges || []
+            f.grudges.push({ to: '玩家', kind: '怨', note: '敌对关系' })
+          }
+        }
         if (raw.relations != null) f.relations = mergeRelList(f.relations, raw.relations)
         if (raw.grudges != null) f.grudges = mergeGList(f.grudges, raw.grudges)
+      }
+      if (f && f.married) {
+        S.spouses = (S.friends || []).filter(x => x && x.married).map(x => x.name)
       }
       // 双向关系回写
       try {
@@ -200,6 +214,7 @@ export function applyChanges(S, ch, hooks = {}) {
         const d = Math.round(capAbs(Number(raw.favor) || 0, CHANGE_CAPS.favor_abs))
         f.favor = (f.favor || 0) + d
         if (d) minor.push(`${f.name} 好感 ${d > 0 ? '+' : ''}${d}`)
+        syncFavorToRelations(f)
       }
       if (Array.isArray(f.history) && f.history.length > 50) {
         f.history = f.history.slice(-50)
@@ -209,6 +224,13 @@ export function applyChanges(S, ch, hooks = {}) {
 
   if (Array.isArray(ch.remove_friends)) {
     for (const n of ch.remove_friends.slice(0, 8)) {
+      const gone = S.friends.filter(f => f.name === n)
+      gone.forEach(f => {
+        if (f.married) {
+          forceDivorce(S, f)
+          minor.push(`与${f.name}解除关系`)
+        }
+      })
       S.friends = S.friends.filter(f => f.name !== n)
     }
   }

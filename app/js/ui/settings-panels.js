@@ -10,8 +10,9 @@ const STYLE_HELP = {
 
 export function openKeyModal(app, { save, refreshAll }) {
   const S = app.S
-  const keys = (S && Array.isArray(S.playerKeys)) ? S.playerKeys : []
-  let selected = S ? S.selectedKey : 0
+  let selected = S && typeof S.selectedKey === 'number' ? S.selectedKey : 0
+  const store = loadKeyStore()
+  const keys = S && Array.isArray(S.playerKeys) && S.playerKeys.length ? S.playerKeys : (store.keys || [])
 
   const rows = keys.map((k, i) => {
     const n = normalizeApiKey(k) || k
@@ -145,7 +146,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     const model = modelEl.value.trim()
     const keyInput = valEl.value.trim()
     const name = nameEl.value.trim() || model || '自定义'
-    const selNow = typeof S.selectedKey === 'number' ? S.selectedKey : selected
+    const selNow = (S && typeof S.selectedKey === 'number') ? S.selectedKey : selected
     if (!baseUrl || !model) {
       toast('请填写 Base URL 与模型')
       return
@@ -249,4 +250,15 @@ function persistKeysStandalone(rec, selNow, keyInput) {
       window.awHost.secrets.save(data).catch(function () {})
     }
   } catch (e) { /* ignore */ }
+}
+
+function loadKeyStore() {
+  try {
+    const raw = localStorage.getItem('agentworlds_apikeys_v1')
+    const d = raw ? JSON.parse(raw) : { keys: [], selected: 0 }
+    if (!Array.isArray(d.keys)) d.keys = []
+    return d
+  } catch (e) {
+    return { keys: [], selected: 0 }
+  }
 }

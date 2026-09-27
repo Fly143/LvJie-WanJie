@@ -79,7 +79,7 @@ export function buildSystemPrompt(S, opts = {}) {
       usable: x.usable, use_effect: x.use_effect
     })),
     亲密关系: (S.friends || []).filter(f => f.married).map(f => ({
-      name: f.name, rank: f.realm, 关系: f.married === 'wife' ? '伴侣' : '次要伴侣'
+      name: f.name, rank: f.realm, 关系: f.married === 'wife' ? '女'+((pack.lexicon&&pack.lexicon.spouse)||'伴侣') : '男'+((pack.lexicon&&pack.lexicon.spouse)||'伴侣')
     })),
     委托任务: (S.quests || []).map(q => ({
       title: q.title,
@@ -222,7 +222,8 @@ ${worldviewBlock}
     "major_events": ["…"],
     "small_events": ["…"],
     "skills": {},
-    "friends": [{"name": "…", "favor": 3, "rank": "${tierLabel(S)}", "gender": "男", "power": 10, "intro": "…", "mem": "…", "relations": [{"to": "某人", "rel": "师徒|仇敌|旧友", "note": "一句"}], "grudges": [{"to": "某人", "kind": "恩|怨|仇|债", "note": "一句"}]}],
+    "friends": [{"name": "…", "favor": 3, "rank": "${tierLabel(S)}", "gender": "男", "power": 10, "intro": "…", "mem": "…", "married":"wife|husband|null", "relType": "熟人|伙伴|恩师|弟子|仇人|挚友", "relations": [{"to": "某人", "rel": "师徒|仇敌|旧友", "note": "一句"}], "grudges": [{"to": "某人", "kind": "恩|怨|仇|债", "note": "一句"}]}],
+    "remove_friends": ["解除关系的名字"],
     "new_locations": [{"name": "…", "world": "${(pack.worlds && pack.worlds[0]) || '主世界'}", "continent": "…", "type": "…", "desc": "…", "people": [], "shop": [], "beasts": [], "interactables": []}],
     "quests": [{"title": "…", "from": "…", "loc": "…", "status": "active", "objectives": ["…"], "reward": "…", "notes": "…"}],
     "remove_locations": ["…"],

@@ -12,6 +12,14 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
+import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
+
+function favorColor(v) {
+  const n = Number(v) || 0
+  if (n < 0) return 'var(--red)'
+  if (n >= 80) return 'var(--gold, #e8c46a)'
+  return 'inherit'
+}
 
 function relBlock(person) {
   const lines = relationLines(person)
@@ -414,14 +422,21 @@ export function renderFriends(app, api) {
           return `
           <div class="card">
             <div class="cname">${esc(f.name)} ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
-            <div class="crealm">${esc(f.realm || '')} · 好感 ${fmtNum(f.favor || 0)}</div>
+            <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">好感 ${fmtNum(f.favor || 0)}</span>${f.relType ? ' · ' + esc(f.relType) : ''}</div>
             <div class="cdim">📍 ${esc(at.name)}${at.here ? ' · 当前场景' : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
             ${relBlock(f)}
+            ${true ? `<div class="btn-row" style="margin-top:4px">
+              <button class="btn btn-sm" data-grudge="${i}" type="button">＋恩怨</button>
+              ${(f.grudges || []).length ? `<button class="btn btn-sm" data-ungudge="${i}" type="button">－恩怨</button>` : ''}
+            </div>` : ''}
             <div class="cbtn">
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? '当面交谈' : (feat.talkRemote ? '远程传讯' : '需在同一场景')}">${at.here ? '交谈' : (feat.talkRemote ? '传讯' : '不在附近')}</button>
-              ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${f.married === 'wife' ? '伴侣' : '次要'}</span>` : ''}
+              ${marriageEnabled(pack) ? (f.married
+                ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
+                : (canPropose(f, S, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
+              ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${esc(spouseLabel(f, pack))}</span>` : ''}
             </div>
           </div>
         `}).join('') || '<div class="empty">尚无同伴，去场景中结识吧</div>'}
@@ -431,6 +446,65 @@ export function renderFriends(app, api) {
   `
   const nb = document.getElementById('fr-new')
   if (nb) nb.onclick = () => api.startFlow('结识', `我想要结识一位新的${pack.lexicon.companion}。`)
+  main.querySelectorAll('[data-grudge]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.grudge)]
+      openModal(`
+        <h2>记入恩怨</h2>
+        <label style="color:var(--dim);font-size:12px">对象</label>
+        <input id="gr-to" value="玩家">
+        <label style="color:var(--dim);font-size:12px">类型</label>
+        <select id="gr-kind">
+          <option value="怨">怨</option>
+          <option value="恩">恩</option>
+          <option value="仇">仇</option>
+          <option value="债">债</option>
+        </select>
+        <label style="color:var(--dim);font-size:12px">备注</label>
+        <input id="gr-note" placeholder="一句即可">
+        <div class="btn-row">
+          <button class="btn btn-gold" id="gr-ok" type="button">保存</button>
+          <button class="btn" data-close type="button">取消</button>
+        </div>
+      `)
+      document.getElementById('gr-ok').onclick = () => {
+        addGrudge(f, document.getElementById('gr-to').value || '玩家', document.getElementById('gr-kind').value, document.getElementById('gr-note').value)
+        closeModal()
+        api.toast('已记入恩怨')
+        api.save()
+        api.refreshAll()
+      }
+    }
+  })
+  main.querySelectorAll('[data-ungudge]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.ungudge)]
+      removeGrudge(f, 0)
+      api.toast('已去掉一条恩怨')
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-marry]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.marry)]
+      if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
+      const res = propose(S, f, pack)
+      api.toast(esc(res.msg))
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-divorce]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.divorce)]
+      if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
+      const res = divorce(S, f, pack)
+      api.toast(esc(res.msg))
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-chat]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.chat)]
@@ -542,7 +616,7 @@ export function renderBag(app, api) {
       if (!it) return
       ensureEquipFlags(S)
       const res = toggleEquip(S, it)
-      if (res.msg) api.toast(res.msg)
+      if (res.msg) api.toast(esc(res.msg))
       api.save()
       api.refreshAll()
     }

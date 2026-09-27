@@ -427,7 +427,7 @@ export function renderFriends(app, api) {
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">记忆：${esc(f.mem)}</div>` : ''}
             ${relBlock(f)}
-            ${marriageEnabled(pack) || true ? `<div class="btn-row" style="margin-top:4px">
+            ${true ? `<div class="btn-row" style="margin-top:4px">
               <button class="btn btn-sm" data-grudge="${i}" type="button">＋恩怨</button>
               ${(f.grudges || []).length ? `<button class="btn btn-sm" data-ungudge="${i}" type="button">－恩怨</button>` : ''}
             </div>` : ''}
@@ -490,7 +490,7 @@ export function renderFriends(app, api) {
       const f = S.friends[Number(b.dataset.marry)]
       if (!confirm('向 ' + f.name + ' ' + proposeWord(pack) + '？')) return
       const res = propose(S, f, pack)
-      api.toast(res.msg)
+      api.toast(esc(res.msg))
       api.save()
       api.refreshAll()
     }
@@ -500,7 +500,7 @@ export function renderFriends(app, api) {
       const f = S.friends[Number(b.dataset.divorce)]
       if (!confirm('与 ' + f.name + ' ' + divorceWord(pack) + '？')) return
       const res = divorce(S, f, pack)
-      api.toast(res.msg)
+      api.toast(esc(res.msg))
       api.save()
       api.refreshAll()
     }
@@ -616,7 +616,7 @@ export function renderBag(app, api) {
       if (!it) return
       ensureEquipFlags(S)
       const res = toggleEquip(S, it)
-      if (res.msg) api.toast(res.msg)
+      if (res.msg) api.toast(esc(res.msg))
       api.save()
       api.refreshAll()
     }

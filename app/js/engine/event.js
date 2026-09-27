@@ -34,7 +34,7 @@ export function startEvent(kind, user, target) {
  */
 export async function runEventTurn(S, EV, userContent, hooks = {}) {
   if (!EV || EV.ended) return
-  if (EV.loading && EV._ctl) return // 并发闸：上一轮未完成
+  if (EV.loading) return // 并发闸
 
   let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
   // 扩图提示：外出类行动在用户侧提醒模型补 new_locations

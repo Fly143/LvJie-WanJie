@@ -21,8 +21,7 @@ export function normalizeApiKey(k) {
 
 export function maskKey(key) {
   const s = String(key || '')
-  if (s.length <= 8) return s ? '••••' : ''
-  return s.slice(0, 4) + '…' + s.slice(-4)
+  return s ? '••••••••' : ''
 }
 
 /** 把 Base URL 拼成最终 endpoint */
@@ -227,8 +226,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const endBox = { done: null, p: null }
   endBox.p = new Promise((r) => { endBox.done = r })
   const offEnd0 = host.onEnd((d) => {
-    if (d && d.id) endBox.done(d)
-    else if (d && d.id == null) { /* ignore */ }
+    if (d) endBox.done(d)
   })
   const started = await host.stream({
     url,
@@ -313,6 +311,10 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   })
 
   await Promise.race([endPromise, waitStreamEnd(host, id)])
+  if (!settled.end && !text) return null
+  if (!settled.end && text && err == null && !aborted) {
+    // 超时但已有正文：仍返回文本，但标记不完整
+  }
   try { offChunk() } catch (e) { /* ignore */ }
   try { offEnd() } catch (e) { /* ignore */ }
   if (signal) signal.removeEventListener('abort', onAbort)

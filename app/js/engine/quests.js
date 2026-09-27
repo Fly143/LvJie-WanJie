@@ -21,12 +21,12 @@ function normQuest(raw, S) {
   if (!title) return null
   let status = String(raw.status || 'active').toLowerCase()
   if (status === 'completed' || status === 'complete' || status === '完成') status = 'done'
-  if (status === '失败' || status === 'abandoned') status = 'failed'
-  if (status === '接受' || status === 'accepted' || status === '进行中' || status === 'in_progress') status = 'active'
-  if (!QUEST_STATUS.includes(status)) status = 'active'
+  else if (status === '失败' || status === 'abandoned') status = 'failed'
+  else if (status === '接受' || status === 'accepted' || status === '进行中' || status === 'in_progress') status = 'active'
+  else if (!QUEST_STATUS.includes(status)) status = ''
 
   return {
-    id: String(raw.id || ('q_' + Math.abs(hash(title)))).slice(0, 32),
+    id: String(raw.id || ('q_' + Math.abs(hash(title + (raw.from || '') + (raw.loc || ''))) + '_' + Date.now().toString(36).slice(-3))).slice(0, 40),
     title,
     desc: String(raw.desc || '').slice(0, 120),
     from: String(raw.from || '').slice(0, 24),
@@ -63,7 +63,7 @@ export function applyQuestChanges(S, list) {
     )
     if (idx < 0) {
       if (quests.length >= MAX_QUESTS) {
-        const drop = quests.findIndex(x => x.status !== 'active')
+        const drop = quests.findIndex(x => x.status === 'failed') >= 0 ? quests.findIndex(x => x.status === 'failed') : quests.findIndex(x => x.status !== 'active')
         if (drop >= 0) quests.splice(drop, 1)
         else continue
       }
@@ -77,7 +77,7 @@ export function applyQuestChanges(S, list) {
         desc: q.desc || old.desc,
         from: q.from || old.from,
         loc: q.loc || old.loc || '',
-        status: raw.status ? q.status : old.status,
+        status: (raw.status && q.status) ? q.status : old.status,
         objectives: q.objectives.length ? q.objectives : old.objectives,
         reward: q.reward || old.reward,
         notes: q.notes || old.notes,

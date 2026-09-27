@@ -85,7 +85,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun startLocalServer(): Int {
         val sock = ServerSocket()
-        sock.bind(InetSocketAddress("127.0.0.1", 8765))
+        try {
+            sock.bind(InetSocketAddress("127.0.0.1", 8765))
+        } catch (e: Exception) {
+            sock.bind(InetSocketAddress("127.0.0.1", 0))
+        }
         server = sock
         val port = sock.localPort
         Thread {
@@ -157,7 +161,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun injectBridge(view: WebView?) {
-        val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostHttpCb=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(){return Promise.resolve({ok:false})},abort:function(){return Promise.resolve({ok:true})},onChunk:function(){return function(){}},onEnd:function(){return function(){}},onHead:function(){return function(){}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){return Promise.resolve(null)},save:function(){return Promise.resolve({ok:true})},clear:function(){return Promise.resolve({ok:true})}}};})()"
+        val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostHttpCb=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(){return Promise.resolve({ok:false})},abort:function(){return Promise.resolve({ok:true})},onChunk:function(){return function(){}},onEnd:function(){return function(){}},onHead:function(){return function(){}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){try{return Promise.resolve(JSON.parse(localStorage.getItem('agentworlds_apikeys_v1')||'null'))}catch(e){return Promise.resolve(null)}},save:function(p){try{localStorage.setItem('agentworlds_apikeys_v1',JSON.stringify(p));return Promise.resolve({ok:true})}catch(e){return Promise.resolve({ok:false})}},clear:function(){try{localStorage.removeItem('agentworlds_apikeys_v1')}catch(e){};return Promise.resolve({ok:true})}}};})()"
         view?.evaluateJavascript(js, null)
     }
 

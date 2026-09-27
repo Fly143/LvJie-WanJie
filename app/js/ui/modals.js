@@ -16,7 +16,12 @@ export function openModal(html) {
 
 export function closeModal() {
   const box = document.getElementById('modals')
-  box.innerHTML = ''
+  const masks = box.querySelectorAll('.modal-mask')
+  if (masks.length > 1) {
+    masks[masks.length - 1].remove()
+  } else {
+    box.innerHTML = ''
+  }
 }
 
 export function toast(msg, ms) {

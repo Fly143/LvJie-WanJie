@@ -130,8 +130,7 @@ export function syncReverseRelations(S, name, relations, grudges) {
     const relKey = item.rel || ''
     const i = arr.findIndex(x => {
       if (!x || x.to !== item.to) return false
-      if (kindKey) return (x.kind || '') === kindKey
-      return (x.rel || '') === relKey
+      return (x.kind || '') === kindKey && (x.rel || '') === relKey
     })
     if (i >= 0) arr[i] = Object.assign({}, arr[i], item)
     else arr.push(item)
@@ -266,4 +265,18 @@ export function npcFocusFromTexts(S, texts) {
 function curPeopleNames(S) {
   const loc = (S && S.map && S.map.find(l => l.id === S.currentLoc)) || (S && S.map && S.map[0])
   return ((loc && loc.people) || []).map(p => p && p.name).filter(Boolean)
+}
+
+
+export const REL_TYPES = ['熟人', '伙伴', '恩师', '弟子', '仇人', '挚友']
+
+export function normalizeRelType(x) {
+  const s = String(x || '')
+  if (REL_TYPES.includes(s)) return s
+  if (/师|师尊|恩师/.test(s)) return '恩师'
+  if (/徒|弟子/.test(s)) return '弟子'
+  if (/仇|敌|恨/.test(s)) return '仇人'
+  if (/挚|密友|爱人/.test(s)) return '挚友'
+  if (/伙|同伴|队友/.test(s)) return '伙伴'
+  return '熟人'
 }
