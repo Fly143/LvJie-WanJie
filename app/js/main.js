@@ -185,6 +185,7 @@ function setShell(mode) {
     hdr.style.display = ''
     appEl.hidden = false
     appEl.style.display = ''
+    document.body.classList.remove('in-welcome')
     document.body.classList.remove('menu')
   } else {
     w.hidden = false
@@ -193,7 +194,8 @@ function setShell(mode) {
     hdr.style.display = 'none'
     appEl.hidden = true
     appEl.style.display = 'none'
-    document.body.classList.add('menu')
+    document.body.classList.remove('menu')
+    document.body.classList.add('in-welcome')
   }
 }
 
