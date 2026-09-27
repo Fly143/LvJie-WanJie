@@ -25,7 +25,8 @@ export function startEvent(kind, user, target) {
     changesBrief: null,
     partial: '',
     _ctl: null,
-    _turn: 0
+    _turn: 0,
+    _busy: false
   }
 }
 
@@ -34,8 +35,16 @@ export function startEvent(kind, user, target) {
  */
 export async function runEventTurn(S, EV, userContent, hooks = {}) {
   if (!EV || EV.ended) return
-  if (EV.loading) return // 并发闸
+  if (EV._busy) return // 并发闸（loading 是 UI 态，不能用来挡调用）
+  EV._busy = true
+  try {
+    await runEventTurnInner(S, EV, userContent, hooks)
+  } finally {
+    EV._busy = false
+  }
+}
 
+async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
   // 扩图提示：外出类行动在用户侧提醒模型补 new_locations
   if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
@@ -235,6 +244,7 @@ export function endEvent(EV) {
   EV._endedByUser = true
   EV.ended = true
   EV.loading = false
+  EV._busy = false
   if (EV._ctl) {
     try { EV._ctl.abort() } catch (e) { /* ignore */ }
     EV._ctl = null
