@@ -511,6 +511,40 @@ export async function listModels({ baseUrl, key }) {
 }
 
 /** 从模型输出中抽出 JSON（优先 ```json 块；降级用括号配对扫描） */
+
+/** 流式展示用：从（可能未闭合的）JSON 里抽出 narrative，去掉转义，避免刷屏 JSON/字面 \n */
+export function narrativeFromStream(text) {
+  const s = String(text == null ? '' : text)
+  if (!s) return ''
+  const j = extractGameJSON(s)
+  if (j && typeof j.narrative === 'string' && j.narrative.trim()) return j.narrative
+  // 未闭合 JSON：直接抠 "narrative":".....
+  const m = s.match(/"narrative"\s*:\s*"((?:\\.|[^"\\])*)/)
+  if (m && m[1] != null) {
+    try {
+      return JSON.parse('"' + m[1] + '"')
+    } catch (e) {
+      return m[1]
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+    }
+  }
+  // 不是 JSON 就原样（去掉围栏）
+  if (!/"(?:narrative|options|changes|thought)"/.test(s) && !/^\s*\{/.test(s)) {
+    return s
+      .replace(/```think[\s\S]*?```/gi, '')
+      .replace(/```json[\s\S]*?```/gi, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .trim()
+  }
+  // JSON 但还没写到 narrative：返回空，等后续 chunk
+  return ''
+}
+
 export function extractGameJSON(text) {
   if (text == null) return null
   const s = typeof text === 'string' ? text : String(text)

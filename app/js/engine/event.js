@@ -1,6 +1,6 @@
 // AI 事件状态机
 import { buildSystemPrompt } from './prompt.js'
-import { callLLM, extractGameJSON } from './llm-bridge.js'
+import { callLLM, extractGameJSON, narrativeFromStream } from './llm-bridge.js'
 import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './changes.js'
 import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
@@ -97,7 +97,8 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
         onDelta: (delta, acc) => {
           if (EV._turn !== turn) return
           EV.partial = acc
-          EV.resultText = stripJSONBlock(acc)
+          // 流式只展示 narrative，避免先刷 JSON/字面 \n，结束再跳变
+          EV.resultText = narrativeFromStream(acc) || stripJSONBlock(acc)
           const now = Date.now()
           if (!hooks.onState) return
           if (now - lastPaint < 120) return
@@ -160,7 +161,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
     if (json && typeof json.narrative === 'string' && json.narrative.trim()) {
       narrative = json.narrative
     } else {
-      narrative = stripJSONBlock(text)
+      narrative = narrativeFromStream(text) || stripJSONBlock(text)
     }
   } catch (e) {
     EV.loading = false

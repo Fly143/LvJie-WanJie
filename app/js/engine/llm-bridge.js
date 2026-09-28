@@ -2,6 +2,7 @@
 export {
   callLLM,
   extractGameJSON,
+  narrativeFromStream,
   normalizeApiKey,
   endpointOf,
   maskKey,
