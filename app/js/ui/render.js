@@ -589,6 +589,11 @@ export function renderFriends(app, api) {
           t('proposeRejectFlow'),
           t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeRejectWhy') + '（' + t('favor') + ' ' + fmtNum(res.favor || 0) + '/' + fmtNum(res.need || 50) + '）。' + t('proposeRejectAsk')
         )
+      } else if (res && res.ok) {
+        api.startFlow(
+          t('proposeAcceptFlow'),
+          t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeAcceptWhy') + '。' + t('proposeAcceptAsk')
+        )
       } else {
         api.toast(res.msg)
       }
@@ -724,6 +729,11 @@ export function renderMarriage(app, api) {
         api.startFlow(
           t('proposeRejectFlow'),
           t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeRejectWhy') + '（' + t('favor') + ' ' + fmtNum(res.favor || 0) + '/' + fmtNum(res.need || 50) + '）。' + t('proposeRejectAsk')
+        )
+      } else if (res && res.ok) {
+        api.startFlow(
+          t('proposeAcceptFlow'),
+          t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeAcceptWhy') + '。' + t('proposeAcceptAsk')
         )
       } else {
         api.toast(res.msg)
