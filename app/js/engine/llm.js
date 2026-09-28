@@ -114,7 +114,7 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
  * 调用一次 LLM。
  * @returns {Promise<{ok:boolean, text?:string, error?:string, aborted?:boolean}>}
  */
-export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId }) {
+export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId, forceJson }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -150,6 +150,7 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
         store: true,
         temperature: 0.9
       }
+      if (forceJson) body.text = { format: { type: 'json_object' } }
     }
     if (maxTokens > 0) body.max_output_tokens = Number(maxTokens)
   } else {
@@ -158,6 +159,8 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
       messages,
       temperature: 0.9
     }
+    // 仅游戏事件强制 JSON，避免破坏考据等自由文本调用
+    if (forceJson) body.response_format = { type: 'json_object' }
     if (maxTokens > 0) body.max_tokens = Number(maxTokens)
   }
 
@@ -176,18 +179,25 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
     delete body.stream
   }
 
+  // 部分网关不支持 response_format：4xx 时去掉该字段重试一次
+  const sendOnce = () => httpSend({
+    url,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + k.key
+    },
+    body: JSON.stringify(body),
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    signal
+  })
   try {
-    const res = await httpSend({
-      url,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + k.key
-      },
-      body: JSON.stringify(body),
-      timeoutMs: DEFAULT_TIMEOUT_MS,
-      signal
-    })
+    let res = await sendOnce()
+    if (res && res.status >= 400 && res.status < 500 && /response_format|text\.format|json_object/i.test(String(res.text || ''))) {
+      delete body.response_format
+      if (body.text) delete body.text
+      res = await sendOnce()
+    }
     const raw = res.text || ''
     if (res.status < 200 || res.status >= 300) {
       let msg = raw.slice(0, 400)
@@ -622,6 +632,9 @@ function safeParse(s) {
 function sanitizeGameJSON(j) {
   if (!j || typeof j !== 'object' || Array.isArray(j)) return j
   const out = Object.assign({}, j)
+  if (typeof out.narrative === 'string') {
+    if (!out.options && Array.isArray(out.choices)) out.options = out.choices
+  }
   delete out.thought
   delete out.thinking
   delete out.reasoning

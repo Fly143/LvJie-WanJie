@@ -92,6 +92,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
         user: userText,
         history: useChain ? [] : trimHistory(EV.history.slice(0, -1)),
         prevResponseId: useChain ? EV._respId : undefined,
+        forceJson: true,
         signal: ctl.signal,
         onDelta: (delta, acc) => {
           if (EV._turn !== turn) return
@@ -155,7 +156,12 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   try {
     text = normalizeText(res.text)
     json = extractGameJSON(text)
-    narrative = stripJSONBlock(text)
+    // 单一 JSON 对象输出：正文在 narrative 字段
+    if (json && typeof json.narrative === 'string' && json.narrative.trim()) {
+      narrative = json.narrative
+    } else {
+      narrative = stripJSONBlock(text)
+    }
   } catch (e) {
     EV.loading = false
     EV.error = (e && e.message) || '解析失败'
@@ -416,7 +422,8 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
       user,
       history: [],
       signal,
-      maxTokens: 400
+      maxTokens: 400,
+      forceJson: true
     })
     if (!res || !res.ok) return null
     const json = extractGameJSON(res.text)
