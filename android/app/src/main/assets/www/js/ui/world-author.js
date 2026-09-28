@@ -95,6 +95,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 
     <div class="btn-row" style="margin-top:10px">
       <button class="btn btn-gold" id="cw-gen" type="button">${t('waGenSmart')}</button>
+      <button class="btn" id="cw-gen-resume" type="button" hidden>${t('waResume')}</button>
       <button class="btn" id="cw-gen-stop" type="button" hidden>${t('waCancel')}</button>
     </div>
     <p style="font-size:11px;color:var(--faint);margin:6px 0 0">${t('waGenSmartHint')}</p>
@@ -154,6 +155,47 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   const bookEl = document.getElementById('cw-book')
   const fileInfo = document.getElementById('cw-file-info')
   let genCtl = null
+  // 中间结果缓存：失败后可从断点续接，不必重跑前面步骤
+  let genCache = {
+    next: 'web',          // 下一个未完成步骤
+    webNotes: [],
+    userBrief: '',        // 设定圣经摘要（含补充设定）
+    userFinal: '',        // 含 NPC、可直接出包
+    facts: null,
+    bible: null,
+    samples: [],
+    hasBook: false,
+    bookTitle: ''
+  }
+
+  function resetGenCache(next) {
+    genCache = {
+      next: next || 'web',
+      webNotes: [],
+      userBrief: '',
+      userFinal: '',
+      facts: null,
+      bible: null,
+      samples: [],
+      hasBook: false,
+      bookTitle: genCache.bookTitle || ''
+    }
+    const rb = document.getElementById('cw-gen-resume')
+    if (rb) rb.hidden = true
+  }
+
+  function showResumeBtn() {
+    const rb = document.getElementById('cw-gen-resume')
+    if (!rb) return
+    const can = (genCache.next === 'draft' && !!genCache.userFinal)
+      || (genCache.next === 'npc' && !!genCache.userBrief)
+      || genCache.next === 'lore'
+    rb.hidden = !can
+    if (can) {
+      const st = document.getElementById('cw-status')
+      if (st) st.textContent = (st.textContent || '') + ' · ' + t('waResumeHint')
+    }
+  }
 
   document.getElementById('cw-file').onchange = (e) => {
     const f = e.target.files && e.target.files[0]
@@ -173,7 +215,9 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     reader.readAsText(f, 'utf-8')
   }
 
-  document.getElementById('cw-gen').onclick = () => runGenerate()
+  document.getElementById('cw-gen').onclick = () => runGenerate({ resume: false })
+  const resumeBtn = document.getElementById('cw-gen-resume')
+  if (resumeBtn) resumeBtn.onclick = () => runGenerate({ resume: true })
 
   const STEP_IDS = ['web', 'lore', 'npc', 'draft']
   const stepEl = (id) => document.getElementById('cw-step-' + id)
@@ -265,6 +309,11 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     stopGenClock()
     const el = document.getElementById('cw-progress-time')
     if (el && genStartedAt) el.textContent = fmtSec(Date.now() - genStartedAt)
+    if (id === 'web') genCache.next = 'web'
+    else if (id === 'lore') genCache.next = 'lore'
+    else if (id === 'npc') genCache.next = 'npc'
+    else if (id === 'draft') genCache.next = 'draft'
+    showResumeBtn()
   }
 
   const finishOk = (msg) => {
@@ -280,6 +329,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     stopGenClock()
     const el = document.getElementById('cw-progress-time')
     if (el && genStartedAt) el.textContent = fmtSec(Date.now() - genStartedAt)
+    resetGenCache('web')
   }
 
   const resetSteps = () => {
@@ -297,7 +347,8 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     setProgressTitle(t('waProgRunning'))
   }
 
-  async function runGenerate() {
+  async function runGenerate(opts) {
+    const resume = !!(opts && opts.resume)
     const f = draftFromForm()
     if (!f.title && !f.bookText && !f.urls.length) { toast(t('waNeedFill')); return }
     const title = f.title || t('waUntitled')
@@ -311,17 +362,44 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       } catch (e) { /* ignore */ }
       return
     }
+
+    // 新一轮完整生成：清缓存；续接：沿用缓存
+    const canResume = resume && genCache.next && genCache.next !== 'web'
+    if (!canResume) {
+      resetGenCache('web')
+      genCache.bookTitle = title
+    }
+    const startAt = canResume ? genCache.next : 'web'
+
     const btn = document.getElementById('cw-gen')
     const stop = document.getElementById('cw-gen-stop')
+    const rbtn = document.getElementById('cw-gen-resume')
     btn.disabled = true
+    if (rbtn) rbtn.disabled = true
     stop.hidden = false
-    resetSteps()
     startGenClock()
     const panel = document.getElementById('cw-progress-panel')
     if (panel) {
       panel.hidden = false
       try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) } catch (e) { /* ignore */ }
     }
+    // 续接时保留已完成步骤的绿勾
+    if (!canResume) {
+      resetSteps()
+    } else {
+      setProgressTitle(t('waResumeFrom') + '「' + t('step_' + startAt) + '」')
+      const order = STEP_IDS
+      const startIdx = order.indexOf(startAt)
+      order.forEach((s, i) => {
+        if (i < startIdx) {
+          const detail = s === 'web' && genCache.webNotes.length
+            ? genCache.webNotes.length + t('waWebNotes')
+            : (s === 'draft' ? '' : t('step_ok'))
+          setStep(s, 'done', detail)
+        }
+      })
+    }
+
     genCtl = new AbortController()
     stop.onclick = () => {
       try { genCtl.abort() } catch (e) {}
@@ -337,112 +415,153 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       }
       stopGenClock()
       btn.disabled = false
+      if (rbtn) rbtn.disabled = false
       stop.hidden = true
     }
 
     try {
-      let webNotes = []
-      const wantWeb = !!(f.useWeb || f.urls.length)
-      if (wantWeb) {
-        setStep('web', 'run', t('step_web_run'))
-        setProgress(8, t('step_web_run'))
-        const g = await gatherWebLore({
-          title,
-          urls: f.urls,
-          useWiki: f.useWiki,
-          onProgress: (p) => {
-            const hits = (p && p.hits) || 0
-            const done = (p && p.done) || 0
-            const total = (p && p.total) || 1
-            const pct = 8 + Math.min(22, hits * 6 + (done / Math.max(1, total)) * 8)
-            setProgress(pct, p.message || '')
-            setStep('web', 'run', p.message || '')
+      let webNotes = genCache.webNotes || []
+      let user = genCache.userFinal || ''
+      let needLore = startAt === 'web' || startAt === 'lore'
+      let needNpc = startAt === 'web' || startAt === 'lore' || startAt === 'npc'
+      let needDraft = true
+
+      // ---- ① 联网补充 ----
+      if (startAt === 'web') {
+        const wantWeb = !!(f.useWeb || f.urls.length)
+        if (wantWeb) {
+          setStep('web', 'run', t('step_web_run'))
+          setProgress(8, t('step_web_run'))
+          const g = await gatherWebLore({
+            title,
+            urls: f.urls,
+            useWiki: f.useWiki,
+            onProgress: (p) => {
+              const hits = (p && p.hits) || 0
+              const done = (p && p.done) || 0
+              const total = (p && p.total) || 1
+              const pct = 8 + Math.min(22, hits * 6 + (done / Math.max(1, total)) * 8)
+              setProgress(pct, p.message || '')
+              setStep('web', 'run', p.message || '')
+            }
+          })
+          webNotes = g.ok ? g.notes : []
+          genCache.webNotes = webNotes
+          if (!webNotes.length) {
+            setStep('web', 'err', t('waWebEmpty'))
+            setProgress(30, t('waWebEmpty'))
+          } else {
+            setStep('web', 'done', t('step_web_done') + ' · ' + webNotes.length + t('waWebNotes'))
+            setProgress(32, t('step_web_done'))
           }
-        })
-        webNotes = g.ok ? g.notes : []
-        if (!webNotes.length) {
-          setStep('web', 'err', t('waWebEmpty'))
-          setProgress(30, t('waWebEmpty'))
         } else {
-          setStep('web', 'done', t('step_web_done') + ' · ' + webNotes.length + t('waWebNotes'))
-          setProgress(32, t('step_web_done'))
+          webNotes = []
+          genCache.webNotes = []
+          setStep('web', 'skip', t('step_web_skip'))
+          setProgress(32, t('step_web_skip'))
         }
-      } else {
-        setStep('web', 'skip', t('step_web_skip'))
-        setProgress(32, t('step_web_skip'))
+        genCache.next = 'lore'
       }
 
       const hasBook = f.bookText.length >= 800
-      if (!hasBook && !webNotes.length && !f.setting) {
-        failStep('lore', t('waNeedSrc'))
-        return
-      }
+      genCache.hasBook = hasBook
 
-      let user
-      if (hasBook || webNotes.length) {
-        const ch = hasBook ? sampleBookChunks(f.bookText) : { samples: [], chapters: 0, totalChars: 0 }
-        setStep('lore', 'run', hasBook
-          ? `${ch.totalChars} ${t('waChars')} · ${t('waSample')} ${ch.samples.length} ${t('waSample2')}`
-          : t('waWebMerge'))
-        setProgress(36, hasBook
-          ? `${ch.totalChars} ${t('waChars')} · ${t('waSample')} ${ch.samples.length} ${t('waSample2')}`
-          : t('waWebMerge'))
-        const onLoreProgress = (p) => {
-          const msg = (p && p.message) || ''
-          const step = (p && p.step) || 1
-          const total = (p && p.total) || 1
-          const pct = 36 + Math.min(18, (step / Math.max(1, total)) * 18)
-          setProgress(pct, msg)
-          setStep('lore', 'run', msg)
-        }
-        const ex = hasBook
-          ? await extractBookFacts({
-              keyObj,
-              title,
-              author: f.author,
-              samples: ch.samples,
-              signal: genCtl.signal,
-              webNotes,
-              onProgress: onLoreProgress
-            })
-          : await mergeWebOnly({
-              keyObj,
-              title,
-              author: f.author,
-              webNotes,
-              signal: genCtl.signal,
-              onProgress: onLoreProgress
-            })
-        if (!ex.ok) {
-          if (ex.aborted) {
-            setProgressTitle(t('waCancelled'))
-            setStep('lore', 'err', t('waCancelled'))
-            const st = document.getElementById('cw-status')
-            if (st) { st.style.color = 'var(--red)'; st.textContent = t('waCancelled') }
-            stopGenClock()
-          } else {
-            failStep('lore', (ex.error || ''))
-          }
+      // ---- ② 设定考据 ----
+      if (needLore) {
+        if (!hasBook && !webNotes.length && !f.setting) {
+          failStep('lore', t('waNeedSrc'))
           return
         }
-        user = bibleToUserBrief(title, f.author, ex.bible)
-        if (f.levels) user += `\n用户补充等级提示：${f.levels}`
-        if (f.setting) user += `\n用户补充设定：${f.setting}`
-        // webNotes 已并入设定圣经，此处不再重复拼贴，省 token
+        if (hasBook || webNotes.length) {
+          const ch = hasBook ? sampleBookChunks(f.bookText) : { samples: [], chapters: 0, totalChars: 0 }
+          genCache.samples = ch.samples
+          setStep('lore', 'run', hasBook
+            ? `${ch.totalChars} ${t('waChars')} · ${t('waSample')} ${ch.samples.length} ${t('waSample2')}`
+            : t('waWebMerge'))
+          setProgress(36, hasBook
+            ? `${ch.totalChars} ${t('waChars')} · ${t('waSample')} ${ch.samples.length} ${t('waSample2')}`
+            : t('waWebMerge'))
+          const onLoreProgress = (p) => {
+            const msg = (p && p.message) || ''
+            const step = (p && p.step) || 1
+            const total = (p && p.total) || 1
+            const pct = 36 + Math.min(18, (step / Math.max(1, total)) * 18)
+            setProgress(pct, msg)
+            setStep('lore', 'run', msg)
+          }
+          const ex = hasBook
+            ? await extractBookFacts({
+                keyObj,
+                title,
+                author: f.author,
+                samples: ch.samples,
+                signal: genCtl.signal,
+                webNotes,
+                onProgress: onLoreProgress
+              })
+            : await mergeWebOnly({
+                keyObj,
+                title,
+                author: f.author,
+                webNotes,
+                signal: genCtl.signal,
+                onProgress: onLoreProgress
+              })
+          if (!ex.ok) {
+            if (ex.aborted) {
+              setProgressTitle(t('waCancelled'))
+              setStep('lore', 'err', t('waCancelled'))
+              const st = document.getElementById('cw-status')
+              if (st) { st.style.color = 'var(--red)'; st.textContent = t('waCancelled') }
+              stopGenClock()
+              genCache.next = 'lore'
+              showResumeBtn()
+            } else {
+              failStep('lore', (ex.error || ''))
+            }
+            return
+          }
+          user = bibleToUserBrief(title, f.author, ex.bible)
+          if (f.levels) user += `\n用户补充等级提示：${f.levels}`
+          if (f.setting) user += `\n用户补充设定：${f.setting}`
+          genCache.userBrief = user
+          genCache.facts = ex.facts || []
+          genCache.bible = ex.bible
+          setStep('lore', 'done', t('step_lore_done'))
+          setProgress(55, t('step_lore_done'))
+          genCache.next = 'npc'
+        } else {
+          user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
+题材风格：${f.style}
+设定摘要：${f.setting || '（请根据作品常识补全）'}
+等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
 
-        setStep('lore', 'done', t('step_lore_done'))
-        setProgress(55, t('step_lore_done'))
+请输出完整世界包 JSON。`
+          genCache.userBrief = user
+          genCache.facts = []
+          genCache.bible = null
+          setStep('lore', 'done', t('waSimpleInput'))
+          setStep('npc', 'skip', t('step_skip'))
+          setProgress(70, t('waGenDraft'))
+          genCache.userFinal = user
+          genCache.next = 'draft'
+        }
+      } else {
+        user = genCache.userFinal || genCache.userBrief || ''
+      }
 
-        // 人物 → NPC 种子
+      // ---- ③ 人物种子（失败不阻断出包）----
+      if (needNpc && genCache.userBrief && (genCache.hasBook || (genCache.webNotes || []).length)) {
+        user = genCache.userBrief
         try {
           setStep('npc', 'run', t('waNpcSeed'))
           setProgress(60, t('waNpcSeed'))
           const chs = await buildCharacterSeeds({
             keyObj,
             title,
-            facts: ex.facts || [],
-            bible: ex.bible,
-            samples: hasBook ? ch.samples : [],
+            facts: genCache.facts || [],
+            bible: genCache.bible,
+            samples: genCache.samples || [],
             signal: genCtl.signal,
             useWeb: f.useWeb || f.urls.length > 0,
             fetchCharacterLore,
@@ -462,77 +581,87 @@ export function openWorldAuthor(app, { onSaved } = {}) {
             const st = document.getElementById('cw-status')
             if (st) { st.style.color = 'var(--red)'; st.textContent = t('waCancelled') }
             stopGenClock()
+            genCache.next = 'npc'
+            genCache.userFinal = ''
+            showResumeBtn()
             return
           } else {
             setStep('npc', 'skip', t('waNpcNone'))
             setProgress(72, t('waNpcNone'))
           }
         } catch (e) {
-          // 人物失败不阻断出包
           console.warn('npc seeds', e)
           setStep('npc', 'err', (e && e.message) || '')
         }
-
         setProgress(75, t('waMerged'))
-      } else {
-        user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
-题材风格：${f.style}
-设定摘要：${f.setting || '（请根据作品常识补全）'}
-等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
-
-请输出完整世界包 JSON。`
-        setStep('lore', 'done', t('waSimpleInput'))
-        setStep('npc', 'skip', t('step_skip'))
-        setProgress(70, t('waGenDraft'))
-      }
-
-      setStep('draft', 'run', t('waGenDraft'))
-      setProgress(82, t('waGenDraft'))
-      const draftT0 = Date.now()
-      genHb = setInterval(() => {
-        const sec = Math.floor((Date.now() - draftT0) / 1000)
-        setProgress(82 + Math.min(14, sec / 4), t('waGenDraft') + ' (' + sec + 's)')
-        setStep('draft', 'run', t('waGenDraft') + ' (' + sec + 's)')
-      }, 1500)
-      let res
-      try {
-        res = await callLLM({
-          keyObj,
-          system: PACK_DRAFT_PROMPT,
-          user,
-          signal: genCtl.signal,
-          maxTokens: MAX_TOKENS_DRAFT
+      } else if (startAt === 'draft') {
+        // 续接出包：前面步骤已在缓存
+        user = genCache.userFinal || genCache.userBrief
+        if (!user) {
+          failStep('draft', t('waResumeHint'))
+          return
+        }
+        STEP_IDS.forEach(s => {
+          if (s !== 'draft' && s !== 'npc') {
+            const el = stepEl(s)
+            if (el && el.dataset.state !== 'done' && el.dataset.state !== 'skip') setStep(s, 'done')
+          }
         })
-      } finally {
-        if (genHb) { clearInterval(genHb); genHb = null }
       }
-      if (!res.ok) {
-        failStep('draft', res.error || '')
-        return
-      }
-      const json = extractGameJSON(res.text)
-      if (!json) {
-        failStep('draft', t('waNoJson'))
-        jsonEl.value = res.text.slice(0, 12000)
-        return
-      }
-      if (!json.id || getPack(json.id) || hasCustomPack(json.id)) {
-        json.id = 'book-' + hashId(title) + '-' + String(Date.now()).slice(-5)
-      }
-      if (BUILTIN_HIT(json.id)) json.id = json.id + '-x'
-      jsonEl.value = JSON.stringify(json, null, 2)
-      const v = validatePackDraft(json)
-      if (v.ok) {
-        setStep('draft', 'done', t('step_draft_done'))
-        finishOk(`${t('waDraftOk')}${v.pack.name}（${v.pack.tiers.length} ${t('waTiers')} · ${v.pack._decl.map.length} ${t('waLands')}）。${t('waEditable')}`)
-        msg.textContent = ''
-      } else {
-        failStep('draft', v.errors.join('; '))
-        const st = document.getElementById('cw-status')
-        if (st) st.textContent = t('waDraftNeedFix') + v.errors.join('; ')
+      genCache.userFinal = user
+      genCache.next = 'draft'
+
+      // ---- ④ 出包 ----
+      if (needDraft) {
+        setStep('draft', 'run', t('waGenDraft'))
+        setProgress(82, t('waGenDraft'))
+        const draftT0 = Date.now()
+        genHb = setInterval(() => {
+          const sec = Math.floor((Date.now() - draftT0) / 1000)
+          setProgress(82 + Math.min(14, sec / 4), t('waGenDraft') + ' (' + sec + 's)')
+          setStep('draft', 'run', t('waGenDraft') + ' (' + sec + 's)')
+        }, 1500)
+        let res
+        try {
+          res = await callLLM({
+            keyObj,
+            system: PACK_DRAFT_PROMPT,
+            user,
+            signal: genCtl.signal,
+            maxTokens: MAX_TOKENS_DRAFT
+          })
+        } finally {
+          if (genHb) { clearInterval(genHb); genHb = null }
+        }
+        if (!res.ok) {
+          failStep('draft', res.error || '')
+          return
+        }
+        const json = extractGameJSON(res.text)
+        if (!json) {
+          failStep('draft', t('waNoJson'))
+          jsonEl.value = res.text.slice(0, 12000)
+          return
+        }
+        if (!json.id || getPack(json.id) || hasCustomPack(json.id)) {
+          json.id = 'book-' + hashId(title) + '-' + String(Date.now()).slice(-5)
+        }
+        if (BUILTIN_HIT(json.id)) json.id = json.id + '-x'
+        jsonEl.value = JSON.stringify(json, null, 2)
+        const v = validatePackDraft(json)
+        if (v.ok) {
+          setStep('draft', 'done', t('step_draft_done'))
+          finishOk(`${t('waDraftOk')}${v.pack.name}（${v.pack.tiers.length} ${t('waTiers')} · ${v.pack._decl.map.length} ${t('waLands')}）。${t('waEditable')}`)
+          msg.textContent = ''
+        } else {
+          failStep('draft', v.errors.join('; '))
+          const st = document.getElementById('cw-status')
+          if (st) st.textContent = t('waDraftNeedFix') + v.errors.join('; ')
+        }
       }
     } finally {
       btn.disabled = false
+      if (rbtn) rbtn.disabled = false
       stop.hidden = true
       genCtl = null
     }
