@@ -171,6 +171,8 @@ export function applyChanges(S, ch, hooks = {}) {
           name: String(raw.name),
           realm: rankStr,
           gender: raw.gender === '女' ? '女' : raw.gender === '男' ? '男' : '',
+          ageDays: raw.age_days != null ? Math.max(0, Math.round(Number(raw.age_days) || 0))
+            : (raw.ageDays != null ? Math.max(0, Math.round(Number(raw.ageDays) || 0)) : null),
           power: Math.abs(Math.round(Number(raw.power) || 0)) > CHANGE_CAPS.power_abs ? CHANGE_CAPS.power_abs : Math.abs(Math.round(Number(raw.power) || 0)),
           intro: String(raw.intro || ''),
           mem: String(raw.mem || ''),
@@ -191,6 +193,9 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.intro) f.intro = String(raw.intro)
         if (raw.mem) f.mem = String(raw.mem)
         if (raw.gender) f.gender = raw.gender
+        if (raw.age_days != null || raw.ageDays != null) {
+          f.ageDays = Math.max(0, Math.round(Number(raw.age_days != null ? raw.age_days : raw.ageDays) || 0))
+        }
         if (raw.relType || raw.relation_type) {
           f.relType = normalizeRelType(raw.relType || raw.relation_type)
           if (f.relType === '仇人' && !(f.grudges || []).length) {

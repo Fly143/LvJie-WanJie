@@ -95,11 +95,11 @@ export function propose(S, friend, pack) {
     return { ok: false, msg: '此界仅可有一位' + spouseWord(pack) }
   }
   if (!isSameLocation(S, friend)) {
-    return { ok: false, msg: '需要在同一场景才能' + proposeWord(pack) }
+    return { ok: false, code: 'need_scene', msg: '需要在同一场景才能' + proposeWord(pack) }
   }
   const favor = Number(friend.favor) || 0
   if (favor < PROPOSE_MIN_FAVOR) {
-    return { ok: false, msg: `对方婉拒了你（好感 ${favor}/${PROPOSE_MIN_FAVOR}）` }
+    return { ok: false, code: 'low_favor', favor, need: PROPOSE_MIN_FAVOR, msg: `对方婉拒了你（好感 ${favor}/${PROPOSE_MIN_FAVOR}）` }
   }
   // 按对方性别记伴侣，允许同性；未知性别默认女
   const spouse = friend.gender === '男' ? 'husband' : friend.gender === '女' ? 'wife' : 'wife'

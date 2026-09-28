@@ -171,7 +171,7 @@ export function buildSystemPrompt(S, opts = {}) {
 
 1. narrative：给玩家看的剧情正文，用${lang.storyHint}，可含「1. 选项」行（与 options 一一对应）。
 2. options：1~4 条短选项；事件结束则 "end":true 且 options 为 []。
-3. changes：数值变化，哪怕没有也必须是 {}（不能省略该字段）。
+3. changes：数值变化，哪怕没有也必须是 {}（不能省略该字段）。friends 尽量带 age_days（游戏天，1 岁 = 360 天）与 gender。
 4. thought：可选，仅思考，玩家界面不显示。
 5. narrative 禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」/ 任何语言的规划旁白。
 6. 整个输出必须是可直接 JSON.parse 的单个对象。
@@ -227,7 +227,7 @@ ${worldviewBlock}
     "major_events": ["…"],
     "small_events": ["…"],
     "skills": {},
-    "friends": [{"name": "…", "favor": 3, "rank": "${tierLabel(S)}", "gender": "男", "power": 10, "intro": "…", "mem": "…", "married":"wife|husband|null", "relType": "熟人|伙伴|恩师|弟子|仇人|挚友", "relations": [{"to": "某人", "rel": "师徒|仇敌|旧友", "note": "一句"}], "grudges": [{"to": "某人", "kind": "恩|怨|仇|债", "note": "一句"}]}],
+    "friends": [{"name": "…", "favor": 3, "rank": "${tierLabel(S)}", "gender": "男", "age_days": 3650, "power": 10, "intro": "…", "mem": "…", "married":"wife|husband|null", "relType": "熟人|伙伴|恩师|弟子|仇人|挚友", "relations": [{"to": "某人", "rel": "师徒|仇敌|旧友", "note": "一句"}], "grudges": [{"to": "某人", "kind": "恩|怨|仇|债", "note": "一句"}]}],
     "remove_friends": ["解除关系的名字"],
     "new_locations": [{"name": "…", "world": "${(pack.worlds && pack.worlds[0]) || '主世界'}", "continent": "…", "type": "…", "desc": "…", "people": [], "shop": [], "beasts": [], "interactables": []}],
     "quests": [{"title": "…", "from": "…", "loc": "…", "status": "active", "objectives": ["…"], "reward": "…", "notes": "…"}],

@@ -5,6 +5,8 @@
  * 建索引：friends + 全图 people
  * @returns {Map<string, object>} 小写名 → 卡片
  */
+import { ageLabel } from './util.js'
+
 export function buildNpcIndex(S) {
   const idx = new Map()
   if (!S) return idx
@@ -21,6 +23,7 @@ export function buildNpcIndex(S) {
       realm: f.realm || '',
       power: f.power != null ? f.power : null,
       gender: f.gender || '',
+      ageDays: f.ageDays,
       favor: f.favor || 0,
       married: f.married || null,
       intro: f.intro || '',
@@ -228,6 +231,7 @@ ${list.map(c => {
     if (c.realm) bits.push(`档位：${c.realm}`)
     if (c.power != null) bits.push(`战力：${c.power}`)
     if (c.gender) bits.push(`性别：${c.gender}`)
+    if (c.ageDays != null) bits.push(`年龄：${ageLabel(c.ageDays)}`)
     if (c.favor != null) bits.push(`好感：${c.favor}`)
     if (c.married) bits.push('关系：伴侣')
     if (c.at) bits.push(`出没：${c.at}`)

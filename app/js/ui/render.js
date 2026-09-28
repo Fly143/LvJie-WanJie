@@ -463,7 +463,7 @@ export function renderFriends(app, api) {
           return `
           <div class="card">
             <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
-            <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">${t('favor')} ${fmtNum(f.favor || 0)}</span>${f.relType ? ' · ' + esc(f.relType) : ''}</div>
+            <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">${t('favor')} ${fmtNum(f.favor || 0)}</span>${f.ageDays != null ? ' · ' + ageLabel(f.ageDays) : ''}${f.relType ? ' · ' + esc(f.relType) : ''}</div>
             <div class="cdim">📍 ${esc(at.name)}${at.here ? t('curScene') : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
             ${f.mem ? `<div class="cdim">${t('mem')}${esc(f.mem)}</div>` : ''}
@@ -584,7 +584,14 @@ export function renderFriends(app, api) {
       const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
       if (!okGo) return
       const res = propose(S, f, pack)
-      api.toast(res.msg)
+      if (res && res.code === 'low_favor') {
+        api.startFlow(
+          t('proposeRejectFlow'),
+          t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeRejectWhy') + '（' + t('favor') + ' ' + fmtNum(res.favor || 0) + '/' + fmtNum(res.need || 50) + '）。' + t('proposeRejectAsk')
+        )
+      } else {
+        api.toast(res.msg)
+      }
       api.save()
       api.refreshAll()
     }
@@ -713,7 +720,14 @@ export function renderMarriage(app, api) {
       const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
       if (!okGo) return
       const res = propose(S, f, pack)
-      api.toast(res.msg)
+      if (res && res.code === 'low_favor') {
+        api.startFlow(
+          t('proposeRejectFlow'),
+          t('youPropose') + ' ' + f.name + ' ' + proposeWord(pack) + '，' + t('proposeRejectWhy') + '（' + t('favor') + ' ' + fmtNum(res.favor || 0) + '/' + fmtNum(res.need || 50) + '）。' + t('proposeRejectAsk')
+        )
+      } else {
+        api.toast(res.msg)
+      }
       api.save()
       api.refreshAll()
     }
