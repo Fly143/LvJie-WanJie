@@ -44,6 +44,11 @@ export function canPropose(f, S, pack) {
   return (Number(f.favor) || 0) >= PROPOSE_MIN_FAVOR
 }
 
+/** 求婚按钮：已开婚姻且未婚即可点；低好感只是会被拒 */
+export function showPropose(f, pack) {
+  return !!(f && marriageEnabled(pack) && !f.married)
+}
+
 export function isSameLocation(S, f) {
   if (!S || !f) return false
   const name = f.name
@@ -72,19 +77,17 @@ export function forceDivorce(S, friend, pack) {
 
 export function propose(S, friend, pack) {
   if (!S || !friend) return { ok: false, msg: '无效对象' }
-  if (!canPropose(friend, S, pack)) {
-    return { ok: false, msg: '当前无法' + proposeWord(pack) }
-  }
-  const favor = Number(friend.favor) || 0
-  if (favor < PROPOSE_MIN_FAVOR) {
-    return { ok: false, msg: `好感不足（需 ${PROPOSE_MIN_FAVOR}）` }
-  }
-  if (pack && !isSameLocation(S, friend)) {
-    return { ok: false, msg: '需要在同一场景才能' + proposeWord(pack) }
-  }
+  if (!marriageEnabled(pack)) return { ok: false, msg: '本世界未开启婚姻' }
   if (friend.married) return { ok: false, msg: '对方已有' + spouseWord(pack) }
   if (!haremEnabled(pack) && marriedList(S).length > 0) {
     return { ok: false, msg: '此界仅可有一位' + spouseWord(pack) }
+  }
+  if (!isSameLocation(S, friend)) {
+    return { ok: false, msg: '需要在同一场景才能' + proposeWord(pack) }
+  }
+  const favor = Number(friend.favor) || 0
+  if (favor < PROPOSE_MIN_FAVOR) {
+    return { ok: false, msg: `对方婉拒了你（好感 ${favor}/${PROPOSE_MIN_FAVOR}）` }
   }
   // 按对方性别记伴侣，允许同性；未知性别默认女
   const spouse = friend.gender === '男' ? 'husband' : friend.gender === '女' ? 'wife' : 'wife'

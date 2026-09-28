@@ -12,7 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
-import { propose, divorce, canPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
+import { propose, divorce, canPropose, showPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
 function favorColor(v) {
   const n = Number(v) || 0
@@ -462,7 +462,7 @@ export function renderFriends(app, api) {
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? t('faceTalk') : (feat.talkRemote ? t('msg') : t('needSameScene'))}">${at.here ? t('chat') : (feat.talkRemote ? t('msg') : t('notNearby'))}</button>
               ${marriageEnabled(pack) ? (f.married
                 ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
-                : (canPropose(f, S, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
+                : (showPropose(f, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
               ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${esc(spouseLabel(f, pack))}</span>` : ''}
             </div>
           </div>
@@ -635,7 +635,7 @@ export function renderMarriage(app, api) {
   const enabled = marriageEnabled(pack)
   const spouseW = spouseWord(pack)
   const spouses = marriedList(S)
-  const candidates = (S.friends || []).filter(f => f && !f.married && (Number(f.favor) || 0) >= 10)
+  const candidates = (S.friends || []).filter(f => f && !f.married)
     .sort((a, b) => (b.favor || 0) - (a.favor || 0))
     .slice(0, 12)
 
@@ -659,13 +659,13 @@ export function renderMarriage(app, api) {
         <div class="grid">
           ${candidates.map(f => {
             const idx = (S.friends || []).indexOf(f)
-            const ok = canPropose(f, S, pack)
+            const ok = true
             return `
               <div class="card">
                 <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button></div>
                 <div class="crealm">${esc(f.realm || '')} · ${t('favor')} ${fmtNum(f.favor || 0)}</div>
                 <div class="cbtn">
-                  ${ok ? `<button class="btn btn-sm btn-gold" data-mpropose="${idx}" type="button">💍 ${esc(proposeWord(pack))}</button>` : `<span class="ctype">${t('proposeNeed')}</span>`}
+                  <button class="btn btn-sm btn-gold" data-mpropose="${idx}" type="button">💍 ${esc(proposeWord(pack))}</button>
                 </div>
               </div>
             `

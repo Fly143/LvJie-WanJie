@@ -25,7 +25,7 @@ export const apocalypsePack = {
   },
   defaultName: '幸存者',
   startText: '红雾降临第七天，你从废墟里爬出来，手里只剩半瓶水。',
-  features: { lifespan: false, levelPressure: true, marriage: false },
+  features: { lifespan: false, levelPressure: true, marriage: true },
   ui: {
     advanceBtn: '☢️ 进化',
     advanceVerb: '进化',
