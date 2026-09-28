@@ -434,6 +434,7 @@ export function newGame(name, packId, opts = {}) {
     bgmTrack: (PACK_BGM && PACK_BGM[pack.id]) || BGM_DEFAULT || '',
     aiStyle: 'normal',
     playerGender: '',
+    marriagePref: '',
     dialogLimit: true,
     giftChoice: null,
     _locSeq: 0
@@ -517,6 +518,7 @@ export function saveGlobalPrefsFrom(S) {
   pref.bgmTrack = S.bgmTrack == null ? '' : S.bgmTrack
   pref.aiStyle = S.aiStyle || 'normal'
   pref.playerGender = S.playerGender || ''
+  pref.marriagePref = S.marriagePref || ''
   pref.dialogLimit = S.dialogLimit !== false
   try { localStorage.setItem(GLOBAL_PREFS_KEY, JSON.stringify(pref)) } catch (e) { /* ignore */ }
 }
@@ -541,6 +543,7 @@ export function applyGlobalPrefs(S) {
   if (Object.prototype.hasOwnProperty.call(p, 'bgmTrack')) S.bgmTrack = p.bgmTrack
   if (p.aiStyle) S.aiStyle = p.aiStyle
   if (p.playerGender != null) S.playerGender = p.playerGender
+  if (p.marriagePref != null) S.marriagePref = p.marriagePref
   if (p.dialogLimit != null) S.dialogLimit = !!p.dialogLimit
   return S
 }

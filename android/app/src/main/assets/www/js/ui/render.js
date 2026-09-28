@@ -12,7 +12,7 @@ import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines } from '../engine/npc-memory.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
-import { propose, divorce, canPropose, showPropose, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
+import { propose, divorce, canPropose, showPropose, genderMatchesPref, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
 function favorColor(v) {
   const n = Number(v) || 0
@@ -476,7 +476,7 @@ export function renderFriends(app, api) {
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? t('faceTalk') : (feat.talkRemote ? t('msg') : t('needSameScene'))}">${at.here ? t('chat') : (feat.talkRemote ? t('msg') : t('notNearby'))}</button>
               ${marriageEnabled(pack) ? (f.married
                 ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
-                : (showPropose(f, pack) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
+                : (showPropose(f, pack, S.marriagePref) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
               ${(packFeatures(pack).marriage !== false && f.married) ? `<span class="ctype">${esc(spouseLabel(f, pack))}</span>` : ''}
             </div>
           </div>
@@ -651,14 +651,21 @@ export function renderMarriage(app, api) {
   const enabled = marriageEnabled(pack)
   const spouseW = spouseWord(pack)
   const spouses = marriedList(S)
-  const candidates = (S.friends || []).filter(f => f && !f.married)
+  const candidates = (S.friends || []).filter(f => f && !f.married && genderMatchesPref(f, S.marriagePref))
     .sort((a, b) => (b.favor || 0) - (a.favor || 0))
     .slice(0, 12)
 
   main.innerHTML = `
     <div class="panel">
       <h3>💍 ${esc(spouseW)}</h3>
-      ${!enabled ? `<div class="empty">${t('marriageOff')}</div>` : ''}
+      ${!enabled ? `<div class="empty">${t('marriageOff')}</div>` : `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 4px;font-size:12px;color:var(--dim)">
+          <span>${t('marriagePrefLabel')}</span>
+          <button class="btn btn-sm ${!S.marriagePref ? 'btn-gold' : ''}" data-mpref="" type="button">${t('prefAny')}</button>
+          <button class="btn btn-sm ${S.marriagePref === 'female' ? 'btn-gold' : ''}" data-mpref="female" type="button">${t('prefFemale')}</button>
+          <button class="btn btn-sm ${S.marriagePref === 'male' ? 'btn-gold' : ''}" data-mpref="male" type="button">${t('prefMale')}</button>
+        </div>`}
+      ${!enabled ? '' : ''}
       ${enabled && !spouses.length ? `<div class="empty">${t('noSpouse')}</div>` : ''}
       <div class="grid">
         ${spouses.map((f, i) => `
@@ -692,6 +699,13 @@ export function renderMarriage(app, api) {
     </div>
   `
 
+  main.querySelectorAll('[data-mpref]').forEach(b => {
+    b.onclick = async () => {
+      S.marriagePref = b.dataset.mpref || ''
+      api.save()
+      api.refreshAll()
+    }
+  })
   main.querySelectorAll('[data-mpropose]').forEach(b => {
     b.onclick = async () => {
       const f = S.friends[Number(b.dataset.mpropose)]

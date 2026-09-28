@@ -44,9 +44,21 @@ export function canPropose(f, S, pack) {
   return (Number(f.favor) || 0) >= PROPOSE_MIN_FAVOR
 }
 
-/** 求婚按钮：已开婚姻且未婚即可点；低好感只是会被拒 */
-export function showPropose(f, pack) {
-  return !!(f && marriageEnabled(pack) && !f.married)
+/** 求婚按钮：已开婚姻、未婚且符合取向 */
+export function showPropose(f, pack, pref) {
+  return !!(f && marriageEnabled(pack) && !f.married && genderMatchesPref(f, pref))
+}
+
+/** 婚姻取向：''/any 不限，female 只看女，male 只看男；性别未知不挡 */
+export function genderMatchesPref(f, pref) {
+  const use = String(pref || '')
+  if (!use || use === 'any') return true
+  const g = f && f.gender
+  const isF = g === '女' || g === 'female' || g === 'F'
+  const isM = g === '男' || g === 'male' || g === 'M'
+  if (use === 'female') return !isM
+  if (use === 'male') return !isF
+  return true
 }
 
 export function isSameLocation(S, f) {
