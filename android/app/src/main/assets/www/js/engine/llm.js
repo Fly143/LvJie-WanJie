@@ -143,6 +143,8 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
         store: true,
         temperature: 0.9
       }
+      // 链上续聊也必须强制 JSON，否则第二轮起模型吐纯文本，解析不到数据块
+      if (forceJson) body.text = { format: { type: 'json_object' } }
     } else {
       body = {
         model: k.model,

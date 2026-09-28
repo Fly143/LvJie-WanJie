@@ -52,6 +52,10 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
     userText += '\n（本轮为外出行动，请尽量在 json.changes.new_locations 添加 1 个新地点及 people/shop）'
   }
+  // 连续回合：历史里是纯正文，需再次钉死 JSON 合同，避免第二轮起吐纯文本
+  if ((EV._turn || 0) >= 1 && !/只输出一个 JSON|narrative/.test(userText)) {
+    userText += '\n（输出合同：只输出一个 JSON 对象 {"narrative","options","end","changes","thought"}，不要 markdown、不要多余文字。）'
+  }
   EV.loading = true
   EV.error = ''
   const turn = (EV._turn = (EV._turn || 0) + 1)
