@@ -79,20 +79,27 @@ function mediaWikiExtract(jsonText) {
 
 /** 萌娘百科（国内可访问，网文/ACG 条目多） */
 export async function fetchMoegirl(title) {
-  const q = encodeURIComponent(String(title || '').trim())
-  if (!q) return { ok: false, error: '缺少书名' }
-  // 搜索定条目名
-  const searchUrl = `https://zh.moegirl.org.cn/api.php?action=query&list=search&srsearch=${q}&format=json&utf8=1&srlimit=3`
-  const sr = await httpGet(searchUrl)
-  let pageTitle = title
-  if (sr.ok) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  // list=search 会 401；opensearch 可用
+  const osUrl = 'https://zh.moegirl.org.cn/api.php?action=opensearch&search=' + encodeURIComponent(name) + '&format=json&limit=5&namespace=0'
+  const os = await httpGet(osUrl)
+  let pageTitle = name
+  if (os.ok) {
     try {
-      const j = JSON.parse(sr.text)
-      const hit = j && j.query && j.query.search && j.query.search[0]
-      if (hit && hit.title) pageTitle = hit.title
-    } catch (e) { /* keep */ }
+      const j = JSON.parse(os.text)
+      const list = (j && j[1]) || []
+      if (list.length) {
+        const exact = list.find(t => String(t).trim() === name) || list[0]
+        pageTitle = exact
+      }
+    } catch (e) { /* keep raw */ }
   }
-  const extractUrl = `https://zh.moegirl.org.cn/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&titles=${encodeURIComponent(pageTitle)}&format=json&utf8=1&redirects=1`
+  return extractMoegirlPage(pageTitle)
+}
+
+async function extractMoegirlPage(pageTitle) {
+  const extractUrl = 'https://zh.moegirl.org.cn/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&titles=' + encodeURIComponent(pageTitle) + '&format=json&utf8=1&redirects=1'
   const er = await httpGet(extractUrl)
   if (!er.ok) return er
   const hit = mediaWikiExtract(er.text)
@@ -161,6 +168,178 @@ export async function fetchWikipedia(title) {
   return { ok: false, error: '维基未找到或不可达' }
 }
 
+/** 任意 MediaWiki 站：搜标题并抽正文 */
+async function mediaWikiSearchExtract(host, title, sourceLabel) {
+  const q = encodeURIComponent(String(title || '').trim())
+  if (!q) return { ok: false, error: '缺少条目名' }
+  const searchUrl = `https://${host}/api.php?action=query&list=search&srsearch=${q}&format=json&utf8=1&srlimit=3`
+  const sr = await httpGet(searchUrl)
+  if (!sr.ok) return sr
+  let pageTitle = title
+  try {
+    const j = JSON.parse(sr.text)
+    const hit = j && j.query && j.query.search && j.query.search[0]
+    if (hit && hit.title) pageTitle = hit.title
+  } catch (e) { /* keep raw */ }
+  const extractUrl = `https://${host}/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&titles=${encodeURIComponent(pageTitle)}&format=json&utf8=1&redirects=1`
+  const er = await httpGet(extractUrl)
+  if (!er.ok) return er
+  const hit = mediaWikiExtract(er.text)
+  if (!hit) return { ok: false, error: (sourceLabel || host) + ' 未找到条目' }
+  return { ok: true, source: host, title: hit.title, text: hit.text }
+}
+
+/** 萌娘相关页（Title/世界历史、Title/神灵 等子页） */
+export async function fetchMoegirlExtra(title, mainTitle, max = 2) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  const osUrl = 'https://zh.moegirl.org.cn/api.php?action=opensearch&search=' + encodeURIComponent(name) + '&format=json&limit=8&namespace=0'
+  const os = await httpGet(osUrl)
+  if (!os.ok) return { ok: false, error: '萌娘搜索不可达' }
+  let titles = []
+  try {
+    const j = JSON.parse(os.text)
+    const list = (j && j[1]) || []
+    const main = String(mainTitle || name || '').trim()
+    titles = list.map(t => String(t || '').trim()).filter(Boolean).filter(t => t !== main).slice(0, max)
+  } catch (e) { return { ok: false, error: '萌娘搜索解析失败' } }
+  if (!titles.length) return { ok: false, error: '萌娘无相关页' }
+  const notes = []
+  for (const pageTitle of titles) {
+    const r = await extractMoegirlPage(pageTitle)
+    if (r.ok && r.text && r.text.length > 120) {
+      notes.push({ kind: 'wiki', source: 'zh.moegirl.org.cn', title: r.title, text: r.text.slice(0, 8000) })
+    }
+    if (notes.length >= max) break
+  }
+  if (!notes.length) return { ok: false, error: '萌娘相关页无正文' }
+  return { ok: true, notes }
+}
+
+/** Bangumi（ACG 条目库，公开 API，适合游戏/动画/轻小说） */
+export async function fetchBangumiLore(title) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  const q = encodeURIComponent(name)
+  const searchUrl = `https://api.bgm.tv/search/subject/${q}?limit=5&type=2&responseGroup=medium`
+  const sr = await httpGet(searchUrl)
+  if (!sr.ok) return { ok: false, error: 'Bangumi 不可达' }
+  let items = []
+  try {
+    const j = JSON.parse(sr.text)
+    items = (j && j.list) || []
+  } catch (e) { return { ok: false, error: 'Bangumi 解析失败' } }
+  if (!items.length) return { ok: false, error: 'Bangumi 未命中' }
+  // 优先名完全匹配
+  items.sort((a, b) => {
+    const an = ((a.name_cn || a.name || '') === name) ? 0 : 1
+    const bn = ((b.name_cn || b.name || '') === name) ? 0 : 1
+    return an - bn
+  })
+  const it = items[0]
+  const summary = String(it.summary || '').trim()
+  if (summary.length < 80) {
+    // 再拉 subject 详情
+    const detail = await httpGet('https://api.bgm.tv/subject/' + it.id + '?responseGroup=medium')
+    if (detail.ok) {
+      try {
+        const d = JSON.parse(detail.text)
+        const s2 = String((d && d.summary) || '').trim()
+        if (s2.length > summary.length) {
+          return {
+            ok: true,
+            source: 'bgm.tv',
+            title: d.name_cn || d.name || name,
+            text: s2.slice(0, 8000)
+          }
+        }
+      } catch (e) { /* fallthrough */ }
+    }
+  }
+  if (summary.length < 60) return { ok: false, error: 'Bangumi 正文过短' }
+  return {
+    ok: true,
+    source: 'bgm.tv',
+    title: it.name_cn || it.name || name,
+    text: summary.slice(0, 8000)
+  }
+}
+
+/** Fandom 同人站：按作品名找 wiki 并抽条目 */
+export async function fetchFandomLore(title) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  const q = encodeURIComponent(name)
+  const searchUrl = `https://community.fandom.com/api/v1/Search/Community?query=${q}&limit=5&minimal=true`
+  const sr = await httpGet(searchUrl)
+  if (!sr.ok) return { ok: false, error: 'Fandom 搜索不可达' }
+  let domains = []
+  try {
+    const j = JSON.parse(sr.text)
+    const items = (j && (j.items || j.results)) || []
+    domains = items.map(it => {
+      const raw = (it && (it.domain || it.url || it.subdomain || '')) + ''
+      return raw.replace(/^https?:\/\//, '').split('/')[0].trim()
+    }).filter(d => d && /\.fandom\.com$/i.test(d))
+  } catch (e) { return { ok: false, error: 'Fandom 搜索解析失败' } }
+  if (!domains.length) return { ok: false, error: 'Fandom 无匹配 wiki' }
+  for (const host of domains.slice(0, 3)) {
+    const hit = await mediaWikiSearchExtract(host, name, 'Fandom')
+    if (hit && hit.ok) return hit
+    // 换更短关键词再试
+    const short = name.split(/[（(·・\s]/)[0]
+    if (short && short !== name) {
+      const hit2 = await mediaWikiSearchExtract(host, short, 'Fandom')
+      if (hit2 && hit2.ok) return hit2
+    }
+  }
+  return { ok: false, error: 'Fandom 未找到正文' }
+}
+
+/** 灰机 Wiki（中文同人/游戏站群） */
+export async function fetchHuijiLore(title) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  const q = encodeURIComponent(name)
+  // 1) 灰机全站搜索（若开放）
+  const tryUrls = [
+    `https://www.huijiwiki.com/api/search/global?q=${q}&limit=5`,
+    `https://www.huijiwiki.com/api.php?action=query&list=search&srsearch=${q}&format=json&utf8=1&srlimit=5`
+  ]
+  for (const u of tryUrls) {
+    const r = await httpGet(u)
+    if (!r.ok || looksBlocked(r.text)) continue
+    try {
+      const j = JSON.parse(r.text)
+      // global search: { results: [{ site, title, ... }] } 或 MediaWiki search
+      const results = j.results || (j.query && j.query.search) || []
+      if (!results.length) continue
+      const notes = []
+      for (const it of results.slice(0, 3)) {
+        const pageTitle = it.title || it.page || it.name
+        const site = it.site || it.wiki || it.domain || ''
+        let host = String(site).replace(/^https?:\/\//, '').split('/')[0]
+        if (!host && it.url) host = String(it.url).replace(/^https?:\/\//, '').split('/')[0]
+        if (!host) host = 'www.huijiwiki.com'
+        if (host && !/huijiwiki\.com$/i.test(host)) continue
+        const extractUrl = `https://${host}/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&titles=${encodeURIComponent(pageTitle)}&format=json&utf8=1&redirects=1`
+        const er = await httpGet(extractUrl)
+        if (!er.ok) continue
+        const hit = mediaWikiExtract(er.text)
+        if (hit && hit.text.length > 120) {
+          notes.push({ kind: 'wiki', source: host, title: hit.title, text: hit.text.slice(0, 8000) })
+          if (notes.length >= 2) break
+        }
+      }
+      if (notes.length) return { ok: true, notes }
+    } catch (e) { /* next */ }
+  }
+  // 2) 常见中文同人站群兜底：直接在主站搜
+  const hit = await mediaWikiSearchExtract('www.huijiwiki.com', name, '灰机')
+  if (hit && hit.ok) return hit
+  return { ok: false, error: '灰机未命中' }
+}
+
 /** 用户提供的设定页 URL */
 export async function fetchSettingUrl(url) {
   const u = String(url || '').trim()
@@ -194,7 +373,11 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
   // 国内信源优先；维基是独立可选源（勾选即查，不是失败回退）
   const sources = [
     { name: '萌娘百科', fn: () => fetchMoegirl(title) },
-    { name: '百度百科', fn: () => fetchBaiduBaike(title) }
+    { name: '百度百科', fn: () => fetchBaiduBaike(title) },
+    { name: '萌娘相关页', fn: () => fetchMoegirlExtra(title, title, 2) },
+    { name: 'Bangumi', fn: () => fetchBangumiLore(title) },
+    { name: 'Fandom', fn: () => fetchFandomLore(title) },
+    { name: '灰机Wiki', fn: () => fetchHuijiLore(title) }
   ]
   if (useWiki) {
     sources.push({ name: '维基百科', fn: () => fetchWikipedia(title) })
@@ -215,12 +398,13 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
       const r = await s.fn()
       attempts.push({ name: s.name, ok: r.ok, detail: r.ok ? (r.title || '') : (r.error || '') })
       if (r.ok) {
-        notes.push({ kind: 'wiki', source: r.source, title: r.title, text: r.text })
-        reportNow(`已获取${s.name}《${r.title || title}》${r.text.length} 字`)
-        // 国内源拿到两份即可；维基仅在勾选后作为补充
-        // 任一源命中即可继续下一源；维基作为独立补充源照常收集，不做「失败才查」
-        const cnHits = notes.filter(n => n.source && !/wikipedia/i.test(n.source)).length
-        if (s.name !== '维基百科' && cnHits >= 2) break
+        const multi = Array.isArray(r.notes) ? r.notes : [{ kind: 'wiki', source: r.source, title: r.title, text: r.text }]
+        multi.filter(Boolean).forEach(n => {
+          if (n && n.text) notes.push(n)
+        })
+        const label = multi[0] && multi[0].title ? multi[0].title : (r.title || title)
+        reportNow(`已获取${s.name}《${label}》${multi.length} 条`)
+        // 不提前 break：百科之外的同人/设定站也要跑，补齐世界观
       } else {
         reportNow(`${s.name}：${r.error || '未命中'}`)
       }
