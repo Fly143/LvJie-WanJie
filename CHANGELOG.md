@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.7.1] - 2025-09
+
+### Fixed
+- 选项去掉重复序号，不再显示「1. 1.xxx」
+
 ## [0.0.7] - 2025-09
 
 ### Added
@@ -93,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...HEAD
+[0.0.7.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...v0.0.7.1
 [0.0.7]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.3...v0.0.5
