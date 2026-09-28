@@ -299,6 +299,7 @@ function migrateSave(s) {
     s.money.main = Number(s.money.main) || 0
     s.money.mid = Number(s.money.mid) || 0
     s.money.high = Number(s.money.high) || 0
+    s.money.peak = Number(s.money.peak) || 0
   }
   if (s.tierIndex == null) s.tierIndex = Number(s.realmIndex) || 0
   if (s.sub == null) s.sub = 0
@@ -409,7 +410,7 @@ export function newGame(name, packId, opts = {}) {
     // 游戏历：1 岁 = 360 天（与各包 ageDays 约定一致）
     ageDays: (opts && opts.ageDays != null) ? opts.ageDays : (init.ageDays != null ? init.ageDays : 3600),
     // 中性三级货币：main / mid / high（包决定叫什么）
-    money: Object.assign({ main: 0, mid: 0, high: 0 }, init.money || {}),
+    money: Object.assign({ main: 0, mid: 0, high: 0, peak: 0 }, init.money || {}),
     // 等级进度（包决定叫什么）
     tierIndex: init.tierIndex != null ? init.tierIndex : 0,
     sub: init.sub != null ? init.sub : 0,

@@ -46,7 +46,7 @@ export function buildSystemPrompt(S, opts = {}) {
   const ui = packUi(pack)
   const feat = packFeatures(pack)
   const limitOn = opts.limitOn !== false
-  const moneyNames = lex.money || { main: '货币', mid: '中阶货币', high: '高阶货币' }
+  const moneyNames = lex.money || { main: '货币', mid: '中阶货币', high: '高阶货币', peak: '极品货币' }
   const progName = lex.progress || '进度'
   const levelName = lex.level || '等级'
   const companionName = lex.companion || '同伴'
@@ -66,6 +66,7 @@ export function buildSystemPrompt(S, opts = {}) {
     [moneyNames.main || '主货币']: S.money.main,
     [moneyNames.mid || '中货币']: S.money.mid,
     [moneyNames.high || '高货币']: S.money.high,
+    [moneyNames.peak || '极品货币']: S.money.peak,
     技能: Object.fromEntries((pack.skills || []).map(sk => [sk.name, skillLabel(S, sk, S.skills[sk.id] || 0)])),
     已习得: (S.techniques || []).map(m => ({
       name: m.name,
@@ -207,7 +208,7 @@ ${worldviewBlock}
 【物品】
 - desc/名字/type/use_effect 与实际用途一致。
 - type：${typeList}；${techName}用 add_items(type=technique) 并带 realm_index、levels、level_costs、level_powers。
-- 货币三档默认不自动进位。标价/奖励用最低档计数；玩家可用高档抵账：1 中品=100 下品、1 上品=10000 下品，整枚抵扣不找零。剧情里用高档付低档价通常更亏（要价更高），不要写自动找零。
+- 货币四档（下/中/上/极品），相邻 100:1，默认不自动进位。标价/奖励用最低档；付款可高抵低并找零（1 中品付 50 下品找回 50 下品）。fields 用 money_main/mid/high/peak。
 
 【反例】（只许进 think，正文禁止）
 错误开头示例：「用户与米拉交谈…」「应该给奖励…」「写约100字…」「JSON 要一致…」「开始写。」

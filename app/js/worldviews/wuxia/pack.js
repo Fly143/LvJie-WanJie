@@ -53,7 +53,7 @@ export const wuxiaPack = {
     divorce: '解除关系',
     level: '武功境界',
     progress: '内力',
-    money: { main: '铜', mid: '银', high: '金' },
+    money: { main: '铜', mid: '银', high: '金', peak: '龙纹金' },
     companion: '江湖故人',
     skill: '杂学',
     power: '战力',

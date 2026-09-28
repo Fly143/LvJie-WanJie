@@ -53,7 +53,7 @@ export const xuanhuanPack = {
     divorce: '解除关系',
     level: '境界',
     progress: '灵力',
-    money: { main: '下品灵石', mid: '中品灵石', high: '上品灵石' },
+    money: { main: '下品灵石', mid: '中品灵石', high: '上品灵石', peak: '极品灵石' },
     companion: '同伴',
     skill: '技艺',
     power: '战力',

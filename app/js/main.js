@@ -93,9 +93,12 @@ function renderHeader() {
   const pack = getPackNow()
   const S = app.S
   if (!S || !pack) return
-  const mn = pack.lexicon.money || { main: '货币', mid: '', high: '' }
-  // 有名字的档才显示；现代只有一档「元」
+  const mn = pack.lexicon.money || { main: '货币', mid: '', high: '', peak: '' }
+  // 下/中/上常显；极品仅持有 >0 时显示
   const segs = []
+  if (mn.peak && (Number(S.money.peak) || 0) > 0) {
+    segs.push(fmtNum(S.money.peak) + mn.peak)
+  }
   if (mn.high) segs.push(fmtNum(S.money.high || 0) + mn.high)
   if (mn.mid) segs.push(fmtNum(S.money.mid || 0) + mn.mid)
   segs.push(fmtNum(S.money.main || 0) + (mn.main || '货币'))
@@ -127,9 +130,10 @@ function renderPlayerCard() {
     <div class="pgrid" style="margin-top:8px">
       <div class="row"><span class="k">${t('age')}</span><span class="v">${esc(ageLabelShort(S.ageDays))}</span></div>
       <div class="row"><span class="k">${esc(ui.powerLabel)}</span><span class="v">${fmtNum(totalPowerF(S))}</span></div>
-      <div class="row"><span class="k">${esc(money.main || '货币')}</span><span class="v">${fmtNum(S.money.main || 0)}</span></div>
-      ${money.mid ? `<div class="row"><span class="k">${esc(money.mid)}</span><span class="v">${fmtNum(S.money.mid || 0)}</span></div>` : ''}
+      ${money.peak && (Number(S.money.peak) || 0) > 0 ? `<div class="row"><span class="k">${esc(money.peak)}</span><span class="v">${fmtNum(S.money.peak)}</span></div>` : ''}
       ${money.high ? `<div class="row"><span class="k">${esc(money.high)}</span><span class="v">${fmtNum(S.money.high || 0)}</span></div>` : ''}
+      ${money.mid ? `<div class="row"><span class="k">${esc(money.mid)}</span><span class="v">${fmtNum(S.money.mid || 0)}</span></div>` : ''}
+      <div class="row"><span class="k">${esc(money.main || '货币')}</span><span class="v">${fmtNum(S.money.main || 0)}</span></div>
       <div class="row"><span class="k">${esc(pack.lexicon.progress)}</span><span class="v">${fmtNum(S.progress)} / ${fmtNum(req)}</span></div>
     </div>
     <div class="btn-row">

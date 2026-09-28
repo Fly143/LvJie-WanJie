@@ -70,58 +70,64 @@ export function pick(arr, i) {
 }
 
 
-/**
- * 货币默认不自动进位（100 下品不自动变 1 中品）。
- * 保留函数以便需要时显式整理；当前为 no-op。
- * 付款可用高阶抵低阶（1 中品抵 100 下品），见 spendMoney。
- */
+/** 货币默认不自动进位（攒够也不折上一档） */
 export function normalizeMoney(S) {
   if (!S || !S.money) return
   const m = S.money
   m.main = Math.max(0, Math.round(Number(m.main) || 0))
   m.mid = Math.max(0, Math.round(Number(m.mid) || 0))
   m.high = Math.max(0, Math.round(Number(m.high) || 0))
+  m.peak = Math.max(0, Math.round(Number(m.peak) || 0))
+}
+
+/** 相邻档兑换：1 上档 = 100 下档 */
+export const MONEY_STEP = 100
+/** 四档折算成最低档总量 */
+export function moneyToMain(S) {
+  const m = (S && S.money) || {}
+  return (Number(m.main) || 0)
+    + (Number(m.mid) || 0) * MONEY_STEP
+    + (Number(m.high) || 0) * MONEY_STEP * MONEY_STEP
+    + (Number(m.peak) || 0) * MONEY_STEP * MONEY_STEP * MONEY_STEP
 }
 
 /**
- * 扣款：cost 以最低档计。
- * 1 中品可抵 100 下品、1 上品可抵 100 中品（10000 下品）。
- * 不找零：用高档抵低档时整枚扣掉，超出不退。
- * @returns {{ok:boolean, paidMid?:number, paidHigh?:number, msg?:string}}
+ * 扣款（cost 以最低档计），优先用低档，不够再上一档并找零。
+ * 例：50 下品账用 1 中品付 → 扣 1 中品，找回 50 下品。
+ * @returns {{ok:boolean, change?:number, msg?:string}}
  */
 export function spendMoney(S, cost) {
   if (!S || !S.money) return { ok: false, msg: '无货币' }
   const need = Math.max(0, Math.round(Number(cost) || 0))
-  if (need <= 0) return { ok: true }
+  if (need <= 0) return { ok: true, change: 0 }
   const m = S.money
-  const main = Math.max(0, Math.round(Number(m.main) || 0))
-  const mid = Math.max(0, Math.round(Number(m.mid) || 0))
-  const high = Math.max(0, Math.round(Number(m.high) || 0))
+  if (moneyToMain(S) < need) return { ok: false, msg: '货币不足' }
 
-  if (main >= need) {
-    m.main = main - need
-    return { ok: true }
+  // 从低到高扣，扣上一档时按 1:100 折算，最后把找零写回低档
+  let remain = need
+  const lvl = [
+    ['main', 1],
+    ['mid', MONEY_STEP],
+    ['high', MONEY_STEP * MONEY_STEP],
+    ['peak', MONEY_STEP * MONEY_STEP * MONEY_STEP]
+  ]
+  const use = { main: 0, mid: 0, high: 0, peak: 0 }
+  for (let i = 0; i < lvl.length; i++) {
+    const [k, unit] = lvl[i]
+    if (remain <= 0) break
+    const have = Math.max(0, Math.round(Number(m[k]) || 0))
+    const needN = Math.ceil(remain / unit)
+    const take = Math.min(have, needN)
+    use[k] = take
+    remain -= take * unit
   }
+  // 找零 = 实付 - 应付，写回最低档
+  let paid = 0
+  for (const [k, unit] of lvl) paid += use[k] * unit
+  const change = paid - need
 
-  // 下品不够：先耗尽下品，用中品整枚抵（1 中品 = 100 下品），再上品（1 上品 = 100 中品 = 10000 下品）
-  let short = need - main
-  let useMid = 0
-  let useHigh = 0
+  for (const [k] of lvl) m[k] = Math.max(0, (Math.round(Number(m[k]) || 0)) - use[k])
+  m.main = Math.max(0, (Math.round(Number(m.main) || 0)) + change)
 
-  const midsNeed = Math.ceil(short / 100)
-  if (mid >= midsNeed) {
-    useMid = midsNeed
-  } else {
-    useMid = mid
-    short -= useMid * 100
-    if (short > 0) {
-      useHigh = Math.ceil(short / 10000)
-      if (high < useHigh) return { ok: false, msg: '货币不足' }
-    }
-  }
-
-  m.main = 0
-  m.mid = mid - useMid
-  m.high = high - useHigh
-  return { ok: true, paidMid: useMid, paidHigh: useHigh }
+  return { ok: true, change }
 }
