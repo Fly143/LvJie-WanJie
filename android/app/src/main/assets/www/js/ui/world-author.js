@@ -2,6 +2,7 @@
 import { openModal, closeModal, toast } from './modals.js'
 import { openKeyModal } from './settings-panels.js'
 import { esc } from '../engine/util.js'
+import { loadPlayerKeys } from '../engine/state.js'
 import { t } from '../engine/i18n.js'
 import { validatePackDraft, PACK_DRAFT_PROMPT, packToDraft } from '../engine/worldpack.js'
 import { saveCustomPackDraft, deleteCustomPack, loadCustomPackDrafts, hasCustomPack } from '../engine/custom-packs.js'
@@ -21,6 +22,14 @@ function activeKey(app) {
 }
 
 function firstKeyFallback() {
+  // 1) 引擎密钥仓（含内存缓存 / hydrate 结果）
+  try {
+    const kd = loadPlayerKeys()
+    if (kd && Array.isArray(kd.keys) && kd.keys.length) {
+      return kd.keys[kd.selected || 0] || kd.keys[0]
+    }
+  } catch (e) { /* ignore */ }
+  // 2) localStorage 兼容旧数据
   try {
     const raw = localStorage.getItem('agentworlds_apikeys_v1')
     const d = raw ? JSON.parse(raw) : null

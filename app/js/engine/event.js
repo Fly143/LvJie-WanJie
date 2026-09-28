@@ -384,7 +384,12 @@ function resolveKey(S) {
 }
 
 function giftMentioned(text) {
-  return /[「“][^」”]{1,20}[」”]/.test(String(text || '')) && /(塞|递|交|送|给|赠)/.test(String(text || ''))
+  const s = String(text || '')
+  if (/(塞|递|交|送|给|赠|赏|赐|收下|接过|获得|得到)/.test(s)) {
+    if (/[「“][^」”]{1,20}[」”]/.test(s)) return true
+    if (/(丹药|灵药|灵丹|法宝|秘籍|武器|剑|刀|枪|甲|袍|符|丹|药|草|果|石|珠|镜|印|塔|炉)/.test(s)) return true
+  }
+  return false
 }
 
 /**
@@ -472,5 +477,12 @@ function inferLite(narrative) {
       ch.add_items = gifts.map(name => ({ name, count: 1, type: 'special', desc: '剧情所得' }))
     }
   } catch (e) { /* ignore */ }
+  // 没抽出名字但正文明确给了东西：至少标记一次赠与，避免「奖励没写入」
+  if (!ch.add_items && giftMentioned(s)) {
+    const fallback = /(?:丹药|灵丹|灵药|回元丹|筑基丹|培元丹|金创药|灵石|符箓|法器|秘籍|宝剑|宝甲)/.exec(s)
+    if (fallback) {
+      ch.add_items = [{ name: fallback[0], count: 1, type: 'special', desc: '剧情所得' }]
+    }
+  }
   return ch
 }
