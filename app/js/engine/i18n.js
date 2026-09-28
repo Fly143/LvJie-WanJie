@@ -305,7 +305,7 @@ const S = {
     waFileHint: '支持 TXT/MD。超长文本会自动抽样开头/中段/结尾章节做考据，不是全文直塞模型。',
     waBookPh2: '也可直接粘贴原文…',
     waGenSmart: '生成世界包草稿',
-    waGenSmartHint: '一键智能生成：有原文自动考据，勾了联网或填了 URL 会补充设定，最后合并出草稿。以前两个按钮职责重叠，已合成这一个。失败可从断点续接。',
+    waGenSmartHint: '有原文自动考据，勾了联网或填了 URL 会补充设定，最后合并出草稿。',
     waWebNotes: '条资料',
     waNpcNone: '未筛出人物，跳过',
     waSimpleInput: '按填写设定直接出包',
