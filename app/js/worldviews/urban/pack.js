@@ -55,7 +55,7 @@ export const urbanPack = {
     divorce: '解除关系',
     level: '社会段位',
     progress: '声望经验',
-    money: { main: '现金', mid: '理财', high: '资产' },
+    money: { main: '铜', mid: '银', high: '金' },
     companion: '人脉',
     skill: '专业技能',
     power: '影响力',

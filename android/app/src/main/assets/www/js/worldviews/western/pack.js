@@ -53,7 +53,7 @@ export const westernPack = {
     divorce: '解除关系',
     level: '位阶',
     progress: '魔力/经验',
-    money: { main: '银币', mid: '金币', high: '魔晶' },
+    money: { main: '铜', mid: '银', high: '金' },
     companion: '同伴',
     skill: '副职',
     power: '战力',

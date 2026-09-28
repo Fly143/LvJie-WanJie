@@ -53,7 +53,7 @@ export const xuanhuanPack = {
     divorce: '解除关系',
     level: '境界',
     progress: '灵力',
-    money: { main: '金币', mid: '灵玉', high: '神晶' },
+    money: { main: '铜', mid: '银', high: '金' },
     companion: '同伴',
     skill: '技艺',
     power: '战力',
