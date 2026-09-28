@@ -8,8 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.7] - 2025-09
+
 ### Added
-- 末世开启婚姻；求婚按钮常显，低好感可被拒（婉拒提示）
+- 婚姻：末世开启；取向（不限/女/男）；求婚成功/婉拒均走 AI 剧情
+- NPC 年龄（age_days）与展示；求婚确认改应用内弹窗
+- 货币四档（下/中/上/极品）：修仙灵晶、玄幻灵石、武侠西幻金银铜、现代元、自定义原设定
+- 付款高抵低 1:100 并找零；极品持有后才显示；不自动进位
+- BGM 全局偏好持久化；多 API Key 按协议分条保存
+
+### Fixed
+- Response 流式过滤思考链；chat 连续轮 JSON 回放防丢数据块
+- MIDI 安卓播放（asset.read 回退 + 本地服 URL 解码中文文件名）
+- 生成剧情滚回整页顶部；render ageLabel 导入崩溃
 
 ## [0.0.6] - 2025-09
 
@@ -82,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.3...v0.0.5
 [0.0.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.2.1...v0.0.3
