@@ -94,11 +94,11 @@ function renderHeader() {
   const S = app.S
   if (!S || !pack) return
   const mn = pack.lexicon.money || { main: '货币', mid: '货币', high: '货币' }
-  const parts = []
-  if (Number(S.money.high) || 0) parts.push(fmtNum(S.money.high) + ' ' + mn.high)
-  if (Number(S.money.mid) || 0) parts.push(fmtNum(S.money.mid) + ' ' + mn.mid)
-  parts.push(fmtNum(S.money.main || 0) + ' ' + mn.main)
-  document.getElementById('hdr-money').textContent = parts.join(' ')
+  // 固定三档：0金0银99铜 这种，不省略 0
+  document.getElementById('hdr-money').textContent =
+    fmtNum(S.money.high || 0) + (mn.high || '') + ' ' +
+    fmtNum(S.money.mid || 0) + (mn.mid || '') + ' ' +
+    fmtNum(S.money.main || 0) + (mn.main || '')
   const loc = curLoc(S)
   document.getElementById('hdr-who').textContent =
     `${S.name} · ${tierLabel(S)} · ${loc ? loc.name : ''}`
