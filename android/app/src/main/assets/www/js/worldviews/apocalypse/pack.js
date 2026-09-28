@@ -53,7 +53,7 @@ export const apocalypsePack = {
     divorce: '解除关系',
     level: '进化等阶',
     progress: '进化点',
-    money: { main: '铜', mid: '银', high: '金' },
+    money: { main: '物资点', mid: '信用点', high: '核心币' },
     companion: '同伴',
     skill: '生存技能',
     power: '战力',

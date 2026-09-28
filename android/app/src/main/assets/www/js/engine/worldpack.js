@@ -314,9 +314,9 @@ function normalizeLexicon(lex) {
     level: String(l.level || '等级'),
     progress: String(l.progress || '进度'),
     money: {
-      main: String((l.money && l.money.main) || '铜'),
+      main: String((l.money && l.money.main) || '金'),
       mid: String((l.money && l.money.mid) || '银'),
-      high: String((l.money && l.money.high) || '金')
+      high: String((l.money && l.money.high) || '晶石')
     },
     companion: String(l.companion || '同伴'),
     skill: String(l.skill || '技艺'),

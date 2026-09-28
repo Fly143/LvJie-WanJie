@@ -51,7 +51,7 @@ export const xiuxianPack = {
     divorce: '解除关系',
     level: '境界',
     progress: '修为',
-    money: { main: '铜', mid: '银', high: '金' },
+    money: { main: '下品灵石', mid: '中品灵石', high: '上品灵石' },
     companion: '道友',
     skill: '技艺',
     power: '战力',

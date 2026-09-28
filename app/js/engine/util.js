@@ -70,19 +70,27 @@ export function pick(arr, i) {
 }
 
 
-/** 金银铜进位：100 低阶 = 1 中阶，100 中阶 = 1 高阶 */
+/** 金银铜进位：100 低阶 = 1 中阶，100 中阶 = 1 高阶；仅当包声明了上档币名 */
 export function normalizeMoney(S) {
   if (!S || !S.money) return
   const m = S.money
   m.main = Math.max(0, Math.round(Number(m.main) || 0))
   m.mid = Math.max(0, Math.round(Number(m.mid) || 0))
   m.high = Math.max(0, Math.round(Number(m.high) || 0))
-  if (m.main >= 100) {
+  let lex = null
+  try {
+    const reg = globalThis.__AW_PACKS__
+    const pack = reg && (reg[S.worldview] || reg[Object.keys(reg)[0]])
+    lex = pack && pack.lexicon && pack.lexicon.money
+  } catch (e) { /* ignore */ }
+  const hasMid = !lex || !!lex.mid
+  const hasHigh = !lex || !!lex.high
+  if (hasMid && m.main >= 100) {
     const up = Math.floor(m.main / 100)
     m.main -= up * 100
     m.mid += up
   }
-  if (m.mid >= 100) {
+  if (hasHigh && m.mid >= 100) {
     const up = Math.floor(m.mid / 100)
     m.mid -= up * 100
     m.high += up
