@@ -21,7 +21,7 @@ const S = {
     noSpouse: '尚无伴侣',
     canPropose: '可考虑的对象',
     proposeNeed: '需同场景且好感足够',
-    marriageNote: '在同伴页或通过剧情提升好感；同场景才能表白。各世界用词不同：道侣/眷侣/配偶/伴侣。',
+    marriageNote: '在同伴页或通过剧情提升好感；同场景才能表白。',
     navBag: '行囊',
     navSettings: '设置',
     start: '进入世界',
