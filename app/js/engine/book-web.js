@@ -200,35 +200,44 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
     sources.push({ name: '维基百科', fn: () => fetchWikipedia(title) })
   }
 
+  const list = Array.isArray(urls) ? urls.map(s => String(s || '').trim()).filter(Boolean) : []
+  const totalTasks = sources.length + list.length
+  let doneTasks = 0
+  const reportNow = (message) => {
+    doneTasks += 1
+    report({ message, hits: notes.length, done: doneTasks, total: totalTasks })
+  }
+
   for (const s of sources) {
     if (!title) break
-    report({ message: `查询${s.name}…` })
+    report({ message: `查询${s.name}…`, hits: notes.length, done: doneTasks, total: totalTasks })
     try {
       const r = await s.fn()
       attempts.push({ name: s.name, ok: r.ok, detail: r.ok ? (r.title || '') : (r.error || '') })
       if (r.ok) {
         notes.push({ kind: 'wiki', source: r.source, title: r.title, text: r.text })
-        report({ message: `已获取${s.name}《${r.title || title}》${r.text.length} 字` })
+        reportNow(`已获取${s.name}《${r.title || title}》${r.text.length} 字`)
         // 国内源拿到两份即可；维基仅在勾选后作为补充
         // 任一源命中即可继续下一源；维基作为独立补充源照常收集，不做「失败才查」
         const cnHits = notes.filter(n => n.source && !/wikipedia/i.test(n.source)).length
         if (s.name !== '维基百科' && cnHits >= 2) break
       } else {
-        report({ message: `${s.name}：${r.error || '未命中'}` })
+        reportNow(`${s.name}：${r.error || '未命中'}`)
       }
     } catch (e) {
       attempts.push({ name: s.name, ok: false, detail: e && e.message })
+      reportNow(`${s.name}：${(e && e.message) || '异常'}`)
     }
   }
 
-  const list = Array.isArray(urls) ? urls.map(s => String(s || '').trim()).filter(Boolean) : []
   for (let i = 0; i < list.length; i++) {
-    report({ message: `抓取设定页 ${i + 1}/${list.length}…` })
+    report({ message: `抓取设定页 ${i + 1}/${list.length}…`, hits: notes.length, done: doneTasks, total: totalTasks })
     const r = await fetchSettingUrl(list[i])
     if (r.ok) {
       notes.push({ kind: 'url', source: list[i], text: r.text })
+      reportNow(`设定页已抓取（${r.text.length} 字）`)
     } else {
-      report({ message: `设定页失败：${r.error || list[i]}` })
+      reportNow(`设定页失败：${r.error || list[i]}`)
     }
   }
 
