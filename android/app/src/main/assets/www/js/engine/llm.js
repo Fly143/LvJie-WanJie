@@ -412,11 +412,12 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
 export function extractStreamDelta(j, apiStyle) {
   if (!j || typeof j !== 'object') return ''
   if (apiStyle === 'response') {
-    // Responses API: {type:'response.output_text.delta', delta:'...'}
     const t = String(j.type || '')
-    if (typeof j.delta === 'string' && /(^|\.)delta$|output_text\.delta|text\.delta/i.test(t)) return j.delta
-    // 兼容少量网关直接给 output_text
-    if (typeof j.output_text === 'string') return j.output_text
+    // 思考链/摘要不是正文，绝不能进 resultText
+    if (/reason|think|summary/i.test(t)) return ''
+    // 仅 output_text.delta（含兼容 text.delta）算正文
+    if (typeof j.delta === 'string' && /output_text\.delta|(^|\.)text\.delta$/i.test(t) && !/reason|think/i.test(t)) return j.delta
+    if (typeof j.output_text === 'string' && j.output_text) return j.output_text
     if (j.choices && j.choices[0] && j.choices[0].delta && typeof j.choices[0].delta.content === 'string') {
       return j.choices[0].delta.content
     }

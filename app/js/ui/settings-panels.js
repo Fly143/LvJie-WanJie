@@ -181,11 +181,21 @@ export function openKeyModal(app, { save, refreshAll }) {
       return
     }
     S.playerKeys = S.playerKeys || []
-    if (typeof selNow === 'number' && S.playerKeys[selNow] && !keyInput) {
-      // 覆盖当前条目（沿用原 Key）
-      S.playerKeys[selNow] = rec
-    } else if (typeof selNow === 'number' && S.playerKeys[selNow] && keyInput && keyInput === (S.playerKeys[selNow].key || S.playerKeys[selNow].value)) {
-      S.playerKeys[selNow] = rec
+    // 同 base+model+协议 才更新；chat / response 分条保存
+    let upsert = S.playerKeys.findIndex(k => sameKeyEntry(k, rec))
+    if (upsert < 0 && !keyInput && typeof selNow === 'number' && S.playerKeys[selNow]) {
+      upsert = selNow
+    } else if (upsert < 0 && keyInput && typeof selNow === 'number' && S.playerKeys[selNow]
+      && keyInput === (S.playerKeys[selNow].key || S.playerKeys[selNow].value)
+      && sameKeyEntry(S.playerKeys[selNow], rec)) {
+      upsert = selNow
+    }
+    if (upsert >= 0) {
+      const old = S.playerKeys[upsert] || {}
+      S.playerKeys[upsert] = Object.assign({}, old, rec, {
+        key: rec.key || old.key || old.value || ''
+      })
+      S.selectedKey = upsert
     } else {
       S.playerKeys.push(rec)
       S.selectedKey = S.playerKeys.length - 1
@@ -258,12 +268,28 @@ export function openHelp(app) {
   `)
 }
 
+function sameKeyEntry(a, b) {
+  if (!a || !b) return false
+  return String(a.baseUrl || '') === String(b.baseUrl || '')
+    && String(a.model || '') === String(b.model || '')
+    && String(a.apiStyle || a.style || '') === String(b.apiStyle || b.style || '')
+}
+
 function persistKeysStandalone(rec, selNow, keyInput) {
   try {
     const data = loadKeyStore()
-    const exists = data.keys[selNow]
-    if (exists) data.keys[selNow] = rec
-    else {
+    // 同 base+model+协议 才更新；chat/response 即便同 Key 也各存一条
+    let idx = data.keys.findIndex(k => sameKeyEntry(k, rec))
+    if (idx < 0 && !keyInput && typeof selNow === 'number' && data.keys[selNow]) {
+      idx = selNow // 沿用原 Key 的编辑
+    }
+    if (idx >= 0) {
+      const old = data.keys[idx] || {}
+      data.keys[idx] = Object.assign({}, old, rec, {
+        key: rec.key || old.key || old.value || ''
+      })
+      data.selected = idx
+    } else {
       data.keys.push(rec)
       data.selected = data.keys.length - 1
     }
