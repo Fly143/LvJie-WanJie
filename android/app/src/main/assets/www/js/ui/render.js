@@ -1,5 +1,5 @@
 // 各 Tab 渲染
-import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney, spendMoney } from '../engine/util.js'
+import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney, spendMoney, stripOptPrefix } from '../engine/util.js'
 import {
   tierLabel, tierColor, playerCultReq, isLifeExpired
 } from '../engine/progression.js'
@@ -48,7 +48,7 @@ export function renderScene(app, api) {
         <div class="ev-text">${t('loading')}</div></div>`
     } else if (EV.resultText) {
       const opts = (EV.options || []).map((o, i) =>
-        `<button class="btn ev-opt" data-opt="${i}" type="button">${i + 1}. ${esc(o)}</button>`
+        `<button class="btn ev-opt" data-opt="${i}" type="button">${i + 1}. ${esc(stripOptPrefix(o))}</button>`
       ).join('')
       evHtml = `
         <div class="ev-box">

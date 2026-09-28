@@ -1,6 +1,7 @@
 // AI 事件状态机
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON, narrativeFromStream } from './llm-bridge.js'
+import { stripOptPrefix } from './util.js'
 import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './changes.js'
 import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
@@ -193,7 +194,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   let changesBrief = null
   if (json && !incomplete) {
     if (Array.isArray(json.options) && json.options.length && !json.end) {
-      EV.options = json.options.slice(0, 4).map(o => String(o).slice(0, 40))
+      EV.options = json.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
     } else {
       EV.options = null
       EV.ended = true
@@ -390,7 +391,7 @@ function parseOptionsFromText(text) {
   const re = /(?:^|\n)\s*([1-4])\s*[.．、)\]]\s*([^\n]{1,30})/g
   let m
   while ((m = re.exec(s))) {
-    const t = m[2].trim()
+    const t = stripOptPrefix(m[2])
     if (t && !out.includes(t)) out.push(t)
     if (out.length >= 4) break
   }
@@ -475,7 +476,7 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
       })).filter(it => it.name)
     }
     if (Array.isArray(ch.options) && ch.options.length) {
-      out.options = ch.options.slice(0, 4).map(o => String(o).slice(0, 40)).filter(Boolean)
+      out.options = ch.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
     }
     return Object.keys(out).length ? out : null
   } catch (e) {

@@ -70,6 +70,11 @@ export function pick(arr, i) {
 }
 
 
+/** 去掉选项前多余序号，避免界面再加一层变成「1. 1.xxx」 */
+export function stripOptPrefix(s) {
+  return String(s == null ? '' : s).replace(/^\s*\d+\s*[.．、)）:：]\s*/, '').trim()
+}
+
 /** 货币默认不自动进位（攒够也不折上一档） */
 export function normalizeMoney(S) {
   if (!S || !S.money) return
