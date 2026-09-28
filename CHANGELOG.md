@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- 末世开启婚姻；求婚按钮常显，低好感可被拒（婉拒提示）
+
 ## [0.0.6] - 2025-09
 
 ### Added
