@@ -207,7 +207,7 @@ ${worldviewBlock}
 【物品】
 - desc/名字/type/use_effect 与实际用途一致。
 - type：${typeList}；${techName}用 add_items(type=technique) 并带 realm_index、levels、level_costs、level_powers。
-- 货币三级进位：100 低阶自动折 1 中阶，100 中阶折 1 高阶；奖励尽量给低阶。货币字段 money_main/mid/high → ${moneyNames.main}/${moneyNames.mid}/${moneyNames.high}（兼容 ling_shi 等旧名）。
+- 货币三级进位：100 低阶折 1 中阶，100 中阶折 1 高阶；奖励尽量给低阶。剧情币别名并档：极品灵石/上品灵晶/仙元石 → 高阶（money_high）；中品灵石/灵玉 → 中阶；下品灵石/灵石/卢恩/元 → 低阶。货币字段 money_main/mid/high → ${moneyNames.main}/${moneyNames.mid}/${moneyNames.high}（兼容 ling_shi 等旧名）。
 
 【反例】（只许进 think，正文禁止）
 错误开头示例：「用户与米拉交谈…」「应该给奖励…」「写约100字…」「JSON 要一致…」「开始写。」
