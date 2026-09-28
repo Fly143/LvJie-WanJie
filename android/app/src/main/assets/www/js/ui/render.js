@@ -1,5 +1,5 @@
 // 各 Tab 渲染
-import { esc, fmtNum, ageLabelShort } from '../engine/util.js'
+import { esc, fmtNum, ageLabel, ageLabelShort } from '../engine/util.js'
 import {
   tierLabel, tierColor, playerCultReq, isLifeExpired
 } from '../engine/progression.js'
