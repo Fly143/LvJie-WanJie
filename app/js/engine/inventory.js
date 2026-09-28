@@ -1,7 +1,8 @@
 // 背包与物品（中性 type + 包词表显示）
 import { LEGACY_TYPE_MAP } from './constants.js'
-import { fmtNum, esc } from './util.js'
+import { fmtNum, esc, normalizeMoney } from './util.js'
 import { tierColor, packOf } from './progression.js'
+
 
 export function normalizeType(t) {
   return LEGACY_TYPE_MAP[t] || t || 'special'
@@ -87,6 +88,7 @@ export function useDirectItem(S, it) {
     const next = (S.money[slot] || 0) + delta
     if (next < 0) return false
     S.money[slot] = next
+    normalizeMoney(S)
     return true
   }
   switch (eff.type) {

@@ -1,7 +1,8 @@
 // 应用 AI 返回的 changes JSON
 import { addItem, removeItem, normalizeType } from './inventory.js'
 import { applyNewLocations, applyModifyLocations, applyRemoveLocations, moveByName, gateReason } from './map.js'
-import { fmtNum, ageLabel } from './util.js'
+import { fmtNum, ageLabel, normalizeMoney } from './util.js'
+export { normalizeMoney }
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
 import { forceDivorce, syncFavorToRelations } from './marriage.js'
@@ -82,8 +83,10 @@ export function applyChanges(S, ch, hooks = {}) {
             const actual = -(S.money[slot] || 0)
             S.money[slot] = 0
             if (actual) minor.push(`${moneyName(slot)} ${fmtNum(actual)}`)
+            normalizeMoney(S)
           } else {
             S.money[slot] = next
+            normalizeMoney(S)
             minor.push(`${moneyName(slot)} ${v > 0 ? '+' : ''}${fmtNum(v)}`)
           }
         }

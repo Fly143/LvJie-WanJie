@@ -1,5 +1,5 @@
 // 各 Tab 渲染
-import { esc, fmtNum, ageLabel, ageLabelShort } from '../engine/util.js'
+import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney } from '../engine/util.js'
 import {
   tierLabel, tierColor, playerCultReq, isLifeExpired
 } from '../engine/progression.js'
@@ -180,6 +180,7 @@ export function renderScene(app, api) {
         return
       }
       S.money.main -= it.price || 0
+      normalizeMoney(S)
       addItem(S, it, 1)
       api.save()
       api.toast(`${t('bought')} ${it.name}`)
@@ -935,6 +936,7 @@ export function renderBag(app, api) {
         return
       }
       S.money.main += gain
+      normalizeMoney(S)
       if (it.equipped) it.equipped = false
       it.count = (it.count || 1) - 1
       if (it.count <= 0) S.inventory.splice(i, 1)

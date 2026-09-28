@@ -93,8 +93,12 @@ function renderHeader() {
   const pack = getPackNow()
   const S = app.S
   if (!S || !pack) return
-  const money = pack.lexicon.money.main
-  document.getElementById('hdr-money').textContent = fmtNum(S.money.main) + ' ' + money
+  const mn = pack.lexicon.money || { main: '货币', mid: '货币', high: '货币' }
+  const parts = []
+  if (Number(S.money.high) || 0) parts.push(fmtNum(S.money.high) + ' ' + mn.high)
+  if (Number(S.money.mid) || 0) parts.push(fmtNum(S.money.mid) + ' ' + mn.mid)
+  parts.push(fmtNum(S.money.main || 0) + ' ' + mn.main)
+  document.getElementById('hdr-money').textContent = parts.join(' ')
   const loc = curLoc(S)
   document.getElementById('hdr-who').textContent =
     `${S.name} · ${tierLabel(S)} · ${loc ? loc.name : ''}`
@@ -122,7 +126,9 @@ function renderPlayerCard() {
     <div class="pgrid" style="margin-top:8px">
       <div class="row"><span class="k">${t('age')}</span><span class="v">${esc(ageLabelShort(S.ageDays))}</span></div>
       <div class="row"><span class="k">${esc(ui.powerLabel)}</span><span class="v">${fmtNum(totalPowerF(S))}</span></div>
-      <div class="row"><span class="k">${esc(money.main)}</span><span class="v">${fmtNum(S.money.main)}</span></div>
+      <div class="row"><span class="k">${esc(money.high || money.main)}</span><span class="v">${fmtNum(S.money.high || 0)}</span></div>
+      <div class="row"><span class="k">${esc(money.mid || money.main)}</span><span class="v">${fmtNum(S.money.mid || 0)}</span></div>
+      <div class="row"><span class="k">${esc(money.main)}</span><span class="v">${fmtNum(S.money.main || 0)}</span></div>
       <div class="row"><span class="k">${esc(pack.lexicon.progress)}</span><span class="v">${fmtNum(S.progress)} / ${fmtNum(req)}</span></div>
     </div>
     <div class="btn-row">
@@ -526,6 +532,7 @@ function startNewGame(name, packId, ageYears) {
       ? Math.round(Number(ageYears) * 360)
       : undefined
     app.S = newGame(name, packId, { ageDays })
+    try { applyGlobalPrefs(app.S) } catch (e) { /* ignore */ }
     save()
     try { playBgm(app.S.bgmTrack) } catch (e) { /* music optional */ }
     setShell('game')
