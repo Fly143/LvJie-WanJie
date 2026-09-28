@@ -235,10 +235,10 @@ export function renderScene(app, api) {
 
 function scrollEventTop() {
   try {
+    // 只回整页顶，不要把剧情框顶到视口（那样会停在中间）
     const main = document.getElementById('main')
     if (main) main.scrollTop = 0
-    const evBox = document.querySelector('.ev-box')
-    if (evBox && evBox.scrollIntoView) evBox.scrollIntoView({ block: 'start' })
+    if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0)
   } catch (e) { /* ignore */ }
 }
 
@@ -292,6 +292,7 @@ function contEvent(app, api, content, isRetry) {
         return
       }
       api.refreshAll()
+      if (ev.loading && !ev.resultText) scrollEventTop()
     },
     onDone: (e, brief) => {
       api.save()
@@ -301,6 +302,7 @@ function contEvent(app, api, content, isRetry) {
     }
   })
   api.refreshAll()
+  scrollEventTop()
 }
 
 export function renderMap(app, api) {

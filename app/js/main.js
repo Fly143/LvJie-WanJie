@@ -157,8 +157,7 @@ export function startFlow(kind, content, target) {
   try {
     const mainEl = document.getElementById('main')
     if (mainEl) mainEl.scrollTop = 0
-    const evBox = document.querySelector('.ev-box')
-    if (evBox && evBox.scrollIntoView) evBox.scrollIntoView({ block: 'start' })
+    if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0)
   } catch (e) { /* ignore */ }
   const ev = app.EV
   runEventTurn(app.S, ev, content, {
