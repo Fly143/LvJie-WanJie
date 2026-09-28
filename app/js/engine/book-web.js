@@ -265,6 +265,67 @@ export async function fetchBangumiLore(title) {
   }
 }
 
+/** AniList（ACG 条目库，GraphQL，漫画/动画简介） */
+export async function fetchAniListLore(title) {
+  const name = String(title || '').trim()
+  if (!name) return { ok: false, error: '缺少书名' }
+  const query = `query ($search: String, $type: MediaType) {
+    Page(page: 1, perPage: 4) {
+      media(search: $search, type: $type, sort: SEARCH_MATCH) {
+        id format
+        title { romaji english native }
+        description(asHtml: false)
+        genres
+        siteUrl
+      }
+    }
+  }`
+  const types = ['MANGA', 'ANIME']
+  let best = null
+  for (const type of types) {
+    let res
+    try {
+      res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'AgentWorlds/0.1'
+        },
+        body: JSON.stringify({ query, variables: { search: name, type } }),
+        signal: (globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.request) ? undefined : AbortSignal.timeout(20000)
+      })
+      const text = await res.text()
+      if (!res.ok) continue
+      let list = []
+      try {
+        const j = JSON.parse(text)
+        list = (j && j.data && j.data.Page && j.data.Page.media) || []
+      } catch (e) { continue }
+      for (const m of list) {
+        const desc = String((m && m.description) || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ')
+        const titles = [m && m.title && m.title.native, m && m.title && m.title.english, m && m.title && m.title.romaji].filter(Boolean).map(s => String(s).trim())
+        const exact = titles.some(t => t === name)
+        const score = (exact ? 100 : 0) + Math.min(80, Math.floor(desc.length / 20)) + (type === 'MANGA' ? 5 : 0)
+        if (!best || score > best.score) {
+          best = { score, title: titles[0] || name, text: desc.trim(), source: 'anilist.co', genres: (m && m.genres) || [] }
+        }
+      }
+      if (best && best.score >= 100) break
+    } catch (e) { /* next type */ }
+  }
+  if (!best || !best.text || best.text.length < 80) {
+    return { ok: false, error: 'AniList 未命中或正文过短' }
+  }
+  const head = best.genres.length ? '类型：' + best.genres.join('、') + '\n' : ''
+  return {
+    ok: true,
+    source: best.source,
+    title: best.title,
+    text: (head + best.text).slice(0, 8000)
+  }
+}
+
 /** Fandom 同人站：按作品名找 wiki 并抽条目 */
 export async function fetchFandomLore(title) {
   const name = String(title || '').trim()
@@ -376,6 +437,7 @@ export async function gatherWebLore({ title, urls, onProgress, useWiki }) {
     { name: '百度百科', fn: () => fetchBaiduBaike(title) },
     { name: '萌娘相关页', fn: () => fetchMoegirlExtra(title, title, 2) },
     { name: 'Bangumi', fn: () => fetchBangumiLore(title) },
+    { name: 'AniList', fn: () => fetchAniListLore(title) },
     { name: 'Fandom', fn: () => fetchFandomLore(title) },
     { name: '灰机Wiki', fn: () => fetchHuijiLore(title) }
   ]
