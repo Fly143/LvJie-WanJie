@@ -70,29 +70,58 @@ export function pick(arr, i) {
 }
 
 
-/** 金银铜进位：100 低阶 = 1 中阶，100 中阶 = 1 高阶；仅当包声明了上档币名 */
+/**
+ * 货币默认不自动进位（100 下品不自动变 1 中品）。
+ * 保留函数以便需要时显式整理；当前为 no-op。
+ * 付款可用高阶抵低阶（1 中品抵 100 下品），见 spendMoney。
+ */
 export function normalizeMoney(S) {
   if (!S || !S.money) return
   const m = S.money
   m.main = Math.max(0, Math.round(Number(m.main) || 0))
   m.mid = Math.max(0, Math.round(Number(m.mid) || 0))
   m.high = Math.max(0, Math.round(Number(m.high) || 0))
-  let lex = null
-  try {
-    const reg = globalThis.__AW_PACKS__
-    const pack = reg && (reg[S.worldview] || reg[Object.keys(reg)[0]])
-    lex = pack && pack.lexicon && pack.lexicon.money
-  } catch (e) { /* ignore */ }
-  const hasMid = !lex || !!lex.mid
-  const hasHigh = !lex || !!lex.high
-  if (hasMid && m.main >= 100) {
-    const up = Math.floor(m.main / 100)
-    m.main -= up * 100
-    m.mid += up
+}
+
+/**
+ * 扣款：cost 以最低档计。
+ * 1 中品可抵 100 下品、1 上品可抵 100 中品（10000 下品）。
+ * 不找零：用高档抵低档时整枚扣掉，超出不退。
+ * @returns {{ok:boolean, paidMid?:number, paidHigh?:number, msg?:string}}
+ */
+export function spendMoney(S, cost) {
+  if (!S || !S.money) return { ok: false, msg: '无货币' }
+  const need = Math.max(0, Math.round(Number(cost) || 0))
+  if (need <= 0) return { ok: true }
+  const m = S.money
+  const main = Math.max(0, Math.round(Number(m.main) || 0))
+  const mid = Math.max(0, Math.round(Number(m.mid) || 0))
+  const high = Math.max(0, Math.round(Number(m.high) || 0))
+
+  if (main >= need) {
+    m.main = main - need
+    return { ok: true }
   }
-  if (hasHigh && m.mid >= 100) {
-    const up = Math.floor(m.mid / 100)
-    m.mid -= up * 100
-    m.high += up
+
+  // 下品不够：先耗尽下品，用中品整枚抵（1 中品 = 100 下品），再上品（1 上品 = 100 中品 = 10000 下品）
+  let short = need - main
+  let useMid = 0
+  let useHigh = 0
+
+  const midsNeed = Math.ceil(short / 100)
+  if (mid >= midsNeed) {
+    useMid = midsNeed
+  } else {
+    useMid = mid
+    short -= useMid * 100
+    if (short > 0) {
+      useHigh = Math.ceil(short / 10000)
+      if (high < useHigh) return { ok: false, msg: '货币不足' }
+    }
   }
+
+  m.main = 0
+  m.mid = mid - useMid
+  m.high = high - useHigh
+  return { ok: true, paidMid: useMid, paidHigh: useHigh }
 }

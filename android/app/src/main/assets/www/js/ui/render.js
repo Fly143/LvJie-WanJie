@@ -1,5 +1,5 @@
 // 各 Tab 渲染
-import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney } from '../engine/util.js'
+import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney, spendMoney } from '../engine/util.js'
 import {
   tierLabel, tierColor, playerCultReq, isLifeExpired
 } from '../engine/progression.js'
@@ -175,12 +175,11 @@ export function renderScene(app, api) {
   main.querySelectorAll('[data-buy]').forEach(b => {
     b.onclick = async () => {
       const it = loc.shop[Number(b.dataset.buy)]
-      if (S.money.main < (it.price || 0)) {
-        api.toast(pack.lexicon.money.main + t('notEnough'))
+      const pay = spendMoney(S, it.price || 0)
+      if (!pay.ok) {
+        api.toast((pack.lexicon.money && pack.lexicon.money.main || '') + t('notEnough'))
         return
       }
-      S.money.main -= it.price || 0
-      normalizeMoney(S)
       addItem(S, it, 1)
       api.save()
       api.toast(`${t('bought')} ${it.name}`)

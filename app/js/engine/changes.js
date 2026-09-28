@@ -69,9 +69,9 @@ export function applyChanges(S, ch, hooks = {}) {
 
 /** 剧情里出现的货币别名 → 三档槽位（极品灵石/上品灵晶 等并进 high） */
 const MONEY_ALIAS = {
-  main: ['ling_shi', 'money_main', 'currency', 'money', '铜', '铜钱', '铜币', '下品灵石', '灵石', '卢恩', 'rune', 'runes', '元', '现金', '物资点'],
-  mid: ['shang_pin', 'money_mid', '银', '银两', '银币', '中品灵石', '灵玉', '信用点'],
-  high: ['xian_yuan', 'money_high', '金', '金币', '金叶', '灵晶', '上品灵石', '极品灵石', '神晶', '仙元石', '魔晶', '核心币', '奇珍']
+  main: ['ling_shi', 'money_main', 'currency', 'money', '铜', '铜钱', '铜币', '下品灵石', '下品灵晶', '灵石', '灵晶', '卢恩', 'rune', 'runes', '元', '现金', '物资点'],
+  mid: ['shang_pin', 'money_mid', '银', '银两', '银币', '中品灵石', '中品灵晶', '灵玉', '信用点'],
+  high: ['xian_yuan', 'money_high', '金', '金币', '金叶', '上品灵石', '上品灵晶', '极品灵石', '极品灵晶', '神晶', '仙元石', '魔晶', '核心币', '奇珍']
 }
 
   // 货币：兼容旧字段名 + 剧情币别名
