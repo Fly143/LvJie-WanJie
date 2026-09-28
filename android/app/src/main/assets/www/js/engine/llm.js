@@ -138,6 +138,8 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
     if (useChain) {
       body = {
         model: k.model,
+        // 链上续聊不重放历史，system 提示必须走 instructions，否则改提示词不生效
+        instructions: system,
         input: [{ role: 'user', content: user }],
         previous_response_id: String(prevResponseId),
         store: true,
@@ -258,6 +260,8 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   let err = null
   let aborted = false
   let streamRespId = null
+  let endFallbackOff = null
+  let endFallbackTimer = null
 
   const pushDelta = (delta) => {
     if (!delta) return
@@ -286,6 +290,14 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
       if (!payload || payload === '[DONE]') continue
       try {
         const j = JSON.parse(payload)
+        // 捕获响应 id：response 事件带 response.id（response.created 等）；chat 首 chunk 带顶层 id
+        if (!streamRespId) {
+          if (apiStyle === 'response') {
+            if (j && j.response && typeof j.response.id === 'string') streamRespId = j.response.id
+          } else if (j && typeof j.id === 'string') {
+            streamRespId = j.id
+          }
+        }
         const delta = extractStreamDelta(j, apiStyle)
         if (delta) pushDelta(delta)
       } catch (e) { /* partial json */ }
@@ -298,6 +310,18 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     }
     waiters.length = 0
   }
+  // 统一收尾：注销所有监听器 + 清理兜底定时器
+  let offHead = () => {}
+  const cleanupStream = () => {
+    try { offEnd0() } catch (e) { /* ignore */ }
+    try { offChunk() } catch (e) { /* ignore */ }
+    try { offEnd() } catch (e) { /* ignore */ }
+    try { offHead() } catch (e) { /* ignore */ }
+    if (endFallbackTimer) { clearTimeout(endFallbackTimer); endFallbackTimer = null }
+    if (endFallbackOff) { try { endFallbackOff() } catch (e) { /* ignore */ } endFallbackOff = null }
+    if (signal) signal.removeEventListener('abort', onAbort)
+  }
+
   const started = await host.stream({
     url,
     method: 'POST',
@@ -310,7 +334,9 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     timeoutMs: DEFAULT_TIMEOUT_MS
   })
   if (!started || !started.ok || !started.id) {
+    // 启动失败必须把已注册的 chunk/end 监听一并注销，否则泄漏的 onChunk 会把后续并发流的增量灌进本回调
     try { offEnd0() } catch (e) { /* ignore */ }
+    try { offChunk() } catch (e) { /* ignore */ }
     return null
   }
   const id = started.id
@@ -323,7 +349,8 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
         const off = host.onEnd((dd) => {
           if (dd && dd.id === id) { try { off() } catch (e) {} resolve(dd) }
         })
-        setTimeout(() => { try { off() } catch (e) {} }, 200000)
+        endFallbackOff = off
+        endFallbackTimer = setTimeout(() => { try { off() } catch (e) {} }, 200000)
       }
     })
   })
@@ -337,7 +364,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     else signal.addEventListener('abort', onAbort, { once: true })
   }
 
-  const offHead = host.onHead((d) => {
+  offHead = host.onHead((d) => {
     try {
       if (d && d.id === id && d.headers) {
         // 不可靠，仅为兜底
@@ -376,17 +403,11 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   ])
   if (raceResult === 'empty' && !text) {
     try { host.abort(id) } catch (e) { /* ignore */ }
-    try { offEnd0() } catch (e) { /* ignore */ }
-    try { offChunk() } catch (e) { /* ignore */ }
-    try { offEnd() } catch (e) { /* ignore */ }
-    if (signal) signal.removeEventListener('abort', onAbort)
+    cleanupStream()
     return null
   }
   if (!settled.end && !text) {
-    try { offEnd0() } catch (e) { /* ignore */ }
-    try { offChunk() } catch (e) { /* ignore */ }
-    try { offEnd() } catch (e) { /* ignore */ }
-    if (signal) signal.removeEventListener('abort', onAbort)
+    cleanupStream()
     return null
   }
   let incomplete = false
@@ -394,10 +415,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
     // 超时/半截：仍返回文本，但标记不完整
     incomplete = true
   }
-  try { offEnd0() } catch (e) { /* ignore */ }
-  try { offChunk() } catch (e) { /* ignore */ }
-  try { offEnd() } catch (e) { /* ignore */ }
-  if (signal) signal.removeEventListener('abort', onAbort)
+  cleanupStream()
 
   // 零增量失败 → 让上层回退非流式
   const gotText = text.trim().length > 0

@@ -142,15 +142,15 @@ export function applyChanges(S, ch, hooks = {}) {
     }
     if (S.smallEvents.length > 200) S.smallEvents = S.smallEvents.slice(-200)
   }
-  // 兼容 major_event / small_event 单数
+  // 兼容 major_event / small_event 单数（与复数同口径：文本截断防刷屏）
   if (ch.major_event) {
-    S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(ch.major_event) })
-    major.push(String(ch.major_event))
+    S.bigEvents.push({ age: ageLabel(S.ageDays), text: String(ch.major_event).slice(0, 200) })
+    major.push(String(ch.major_event).slice(0, 120))
     if (S.bigEvents.length > 200) S.bigEvents = S.bigEvents.slice(-200)
   }
   if (ch.small_event) {
-    S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(ch.small_event) })
-    minor.push(String(ch.small_event))
+    S.smallEvents.push({ age: ageLabel(S.ageDays), text: String(ch.small_event).slice(0, 200) })
+    minor.push(String(ch.small_event).slice(0, 120))
     if (S.smallEvents.length > 200) S.smallEvents = S.smallEvents.slice(-200)
   }
 

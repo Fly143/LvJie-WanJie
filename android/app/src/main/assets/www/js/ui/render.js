@@ -255,7 +255,9 @@ function contEvent(app, api, content, isRetry) {
         cheatUnlocked: app.cheatUnlocked,
         onState: () => {
           if (app.EV !== ev) return
-          const box = main.querySelector('.ev-text')
+          // 回调可能在 renderScene 之外触发：显式取 #main，勿依赖隐式全局 main
+          const mainEl = document.getElementById('main')
+          const box = mainEl ? mainEl.querySelector('.ev-text') : null
           if (box && ev.resultText) {
             box.textContent = ev.resultText
             return
@@ -286,7 +288,9 @@ function contEvent(app, api, content, isRetry) {
     cheatUnlocked: app.cheatUnlocked,
     onState: () => {
       if (app.EV !== ev) return
-      const box = main.querySelector('.ev-text')
+      // 回调可能在 renderScene 之外触发：显式取 #main，勿依赖隐式全局 main
+      const mainEl = document.getElementById('main')
+      const box = mainEl ? mainEl.querySelector('.ev-text') : null
       if (box && ev.resultText) {
         box.textContent = ev.resultText
         return

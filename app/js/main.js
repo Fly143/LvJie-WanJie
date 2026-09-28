@@ -86,7 +86,7 @@ function applyTheme(pack) {
   applyNavLabels(pack)
   const logo = document.getElementById('hdr-logo')
   if (logo) logo.textContent = `${pack.icon} ${pack.name} · ${t('brand')}`
-  document.title = (pack.gameTitle || pack.name) +  + ' · ' + t('brand')
+  document.title = (pack.gameTitle || pack.name) + ' · ' + t('brand')
 }
 
 function renderHeader() {
@@ -224,9 +224,9 @@ function slotMeta(packId) {
     // 用 progression 的展示需要 S；这里做轻量摘要
     const names = (pack && pack.subNames) || [t('subI'), t('subMid'), t('subHi')]
     const tiers = (pack && pack.tiers) || []
-    const t = tiers[hit.tierIndex] || { name: '' }
+    const tier = tiers[hit.tierIndex] || { name: '' }
     const sn = names[Math.min(hit.sub, names.length - 1)] || ''
-    return { ...hit, levelText: (t.name || '') + sn }
+    return { ...hit, levelText: (tier.name || '') + sn }
   } catch (e) {
     return hit
   }
@@ -556,11 +556,8 @@ function showGame(S) {
   app.selectedPack = S.worldview || defaultPackId()
   setShell('game')
   applyTheme(getPack(S.worldview))
-  try {
-    const rawBgm = Object.prototype.hasOwnProperty.call(S, 'bgmTrack') ? S.bgmTrack : null
-    const track = (rawBgm === 'handpan' || rawBgm === 'universe') ? (BGM_DEFAULT_TRACK || 'm027') : (rawBgm == null ? (BGM_DEFAULT_TRACK || 'm027') : rawBgm)
-    showGamePlay(S)
-  } catch (e) { /* music optional */ }
+  // 曲目解析统一交给 showGamePlay（默认曲走常量；旧 id 由 trackOf 落默认），此处不重复计算
+  try { showGamePlay(S) } catch (e) { /* music optional */ }
   refreshAll()
 }
 

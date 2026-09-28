@@ -1,6 +1,6 @@
 // 背景音乐：内置 mp3/mid + 用户自定义（IndexedDB）
 // 同时最多一个音源；id 为 '' 表示「无音乐」
-import { BGM_TRACKS, BGM_DEFAULT } from '../engine/constants.js'
+import { BGM_TRACKS, BGM_DEFAULT, BGM_DEFAULT_TRACK } from '../engine/constants.js'
 import { MidiPlayer, isMidiFile } from '../engine/midi.js'
 import { listCustomBgm, customTracksFrom, blobUrl, removeCustomBgm, putCustomBgm, fileToTrack } from '../engine/custom-bgm.js'
 
@@ -59,7 +59,7 @@ function trackOf(id) {
   }
   const hit = list.find(t => t.id === id)
   if (hit) return hit
-  const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === 'm027') || list.find(t => t.file) || list[0]
+  const def = list.find(t => t.id === BGM_DEFAULT) || list.find(t => t.id === BGM_DEFAULT_TRACK) || list.find(t => t.file) || list[0]
   return def || { id: '', name: '无音乐', file: '' }
 }
 
@@ -217,6 +217,6 @@ export function showGamePlay(S) {
   try {
     // 存档里显式 '' = 无音乐；undefined/null 用默认
     const raw = S && Object.prototype.hasOwnProperty.call(S, 'bgmTrack') ? S.bgmTrack : null
-    playBgm(raw == null ? 'm027' : raw)
+    playBgm(raw == null ? BGM_DEFAULT_TRACK : raw)
   } catch (e) { /* ignore */ }
 }

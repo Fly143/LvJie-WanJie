@@ -99,6 +99,7 @@ class MainActivity : AppCompatActivity() {
                     var curMethod = methodU
                     var curBody = body
                     var hop = 0
+                    var prevUrl: String? = null
                     while (hop < 5) {
                         val u = URL(curUrl)
                         conn = u.openConnection() as HttpURLConnection
@@ -109,8 +110,15 @@ class MainActivity : AppCompatActivity() {
                         try {
                             val headers = JSONObject(headersJson ?: "{}")
                             val keys = headers.keys()
+                            val sameOrigin = try {
+                                val pu = URL(prevUrl ?: curUrl)
+                                pu.host.equals(u.host, true) && pu.protocol == u.protocol
+                            } catch (_: Exception) { true }
                             while (keys.hasNext()) {
                                 val k = keys.next()
+                                val lk = k.lowercase()
+                                // 跨 origin 剥掉认证头，防 Bearer Key 外带（与 httpRequest 同口径）
+                                if (!sameOrigin && (lk == "authorization" || lk == "cookie" || lk == "proxy-authorization")) continue
                                 conn!!.setRequestProperty(k, headers.optString(k))
                             }
                         } catch (_: Exception) {}
@@ -134,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                                 curBody = null
                             }
                             conn?.disconnect()
+                            prevUrl = curUrl
                             curUrl = next
                             hop++
                             continue

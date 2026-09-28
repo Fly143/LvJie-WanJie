@@ -45,6 +45,7 @@ export function openKeyModal(app, { save, refreshAll }) {
 
   openModal(`
     <h2>${t('apiSettings')}</h2>
+    ${globalThis.__AW_KEYS_PLAINTEXT__ === true ? `<div style="margin:8px 0;padding:10px;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:12px">⚠ 当前环境不支持密钥加密存储（safeStorage 不可用），API Key 以明文保存在本机，请注意设备安全</div>` : ''}
     ${rows || `<div class="empty">${t('noApi')}</div>`}
 
     <h3 style="margin-top:16px">${t('addUpdate')}</h3>
@@ -118,7 +119,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     refreshBtn.disabled = false
     refreshBtn.textContent = old
     if (!r.ok) {
-      modelHint.innerHTML = `<span style="color:var(--red)">t('fetchFailPrefix')${esc(r.error || '')}</span>`
+      modelHint.innerHTML = `<span style="color:var(--red)">${t('fetchFailPrefix')}${esc(r.error || '')}</span>`
       toast(t('fetchFail'))
       return
     }
@@ -324,11 +325,12 @@ function writeKeyStore(data) {
   try { setKeysCache(data) } catch (e) { /* ignore */ }
   const host = window.awHost && window.awHost.secrets
   if (host && host.save) {
-    // 宿主加密仓可用时绝不写明文 localStorage（成功/失败都不写）
+    // 宿主加密仓可用时绝不写明文 localStorage；仅写入成功后才删本地副本，
+    // 失败则保留副本并告警，避免密钥静默丢失
     host.save(data).then(() => {
       try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
     }).catch(() => {
-      try { localStorage.removeItem('agentworlds_apikeys_v1') } catch (e) { /* ignore */ }
+      toast('API Key 已更新，但写入加密仓失败，本地副本已保留')
     })
     return
   }

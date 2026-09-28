@@ -142,9 +142,9 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   }
   if (EV._ctl === ctl) EV._ctl = null
 
-  if (!res.ok) {
+  if (!res || !res.ok) {
     EV.loading = false
-    EV.error = res.error || '调用失败'
+    EV.error = (res && res.error) || '调用失败'
     EV.partial = ''
     // 回滚最后一条 user，允许重试；并恢复上一轮叙事，避免半截残文
     if (EV.history.length && EV.history[EV.history.length - 1].role === 'user') {

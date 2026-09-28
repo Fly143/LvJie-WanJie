@@ -17,6 +17,14 @@ function peekKeysCache() {
 
 /** 设置面板写入时同步引擎缓存，避免两套 Key 库不一致 */
 export function setKeysCache(data) {
+  // 带 encrypted 字段的载荷同时刷新明文降级标志；null = 显式清空
+  if (data && typeof data === 'object' && 'encrypted' in data) {
+    globalThis.__AW_KEYS_PLAINTEXT__ = data.encrypted === false
+  }
+  if (data === null) {
+    _keysCache = null
+    return
+  }
   if (data && Array.isArray(data.keys)) {
     _keysCache = { keys: data.keys.slice(), selected: data.selected }
   }
@@ -75,8 +83,8 @@ function persistPlayerKeysAsync(S) {
     Promise.resolve(host.save(payload)).then(() => {
       try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
     }).catch(e => {
-      console.warn('密钥保存失败（仅保留内存缓存）', e)
-      try { localStorage.removeItem(KEYS_KEY) } catch (e2) { /* ignore */ }
+      // 写宿主仓失败时保留本地副本，避免密钥静默丢失（重启后仍可迁移/恢复）
+      console.warn('密钥保存失败（已保留本地副本）', e)
     })
     return
   }
@@ -111,7 +119,13 @@ export async function hydratePlayerKeysFromHost() {
   const host = secretsHost()
   if (!host || !host.load) return loadPlayerKeys()
   try {
-    const d = await host.load()
+    const res = await host.load()
+    // 宿主返回 { data, encrypted }；兼容旧版直接返回数据本身
+    const d = (res && typeof res === 'object' && 'data' in res) ? res.data : res
+    if (res && typeof res === 'object' && 'encrypted' in res) {
+      // safeStorage 不可用（明文降级）时置位，UI 告警横幅据此显示
+      globalThis.__AW_KEYS_PLAINTEXT__ = res.encrypted === false
+    }
     if (d && Array.isArray(d.keys)) {
       _keysCache = d
       return d
@@ -341,7 +355,7 @@ function migrateSave(s) {
         Promise.resolve(host.save(payload)).then(() => {
           try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
         }).catch(() => {
-          try { localStorage.removeItem(KEYS_KEY) } catch (e) { /* ignore */ }
+          // 迁移失败：保留明文副本，下次启动重试迁移，绝不静默删除
         })
       } else {
         try { localStorage.setItem(KEYS_KEY, JSON.stringify(payload)) } catch (e) { /* ignore */ }

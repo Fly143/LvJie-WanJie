@@ -309,17 +309,18 @@ ipcMain.handle('aw:http:abort', (_e, id) => {
 
 /* ---------- API Key：safeStorage 加密落盘 ---------- */
 ipcMain.handle('aw:secrets:load', () => {
+  const encrypted = safeStorage.isEncryptionAvailable()
   try {
     const p = secretsPath()
-    if (!fs.existsSync(p)) return null
+    if (!fs.existsSync(p)) return { data: null, encrypted }
     const buf = fs.readFileSync(p)
-    const json = safeStorage.isEncryptionAvailable()
+    const json = encrypted
       ? safeStorage.decryptString(buf)
       : buf.toString('utf8')
     const data = JSON.parse(json)
-    return data && typeof data === 'object' ? data : null
+    return { data: (data && typeof data === 'object') ? data : null, encrypted }
   } catch (e) {
-    return null
+    return { data: null, encrypted }
   }
 })
 
