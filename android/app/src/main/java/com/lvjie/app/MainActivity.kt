@@ -379,7 +379,13 @@ class MainActivity : AppCompatActivity() {
                 val input = BufferedReader(InputStreamReader(s.getInputStream(), Charsets.UTF_8))
                 val line = input.readLine() ?: return
                 val path = line.split(" ").getOrNull(1) ?: "/"
-                var rel = path.substringBefore("?").removePrefix("/")
+                // HTTP 请求路径是 %XX 编码的；中文文件名（如 xj-缓-030.mid）必须解码再拼 assets
+                val rel0 = try {
+                    java.net.URLDecoder.decode(path.substringBefore("?"), "UTF-8")
+                } catch (e: Exception) {
+                    path.substringBefore("?")
+                }
+                var rel = rel0.removePrefix("/")
                 if (rel.isEmpty() || rel.endsWith("/")) rel += "index.html"
                 if (rel.contains("..")) {
                     writeResp(s, 400, "text/plain", "bad")

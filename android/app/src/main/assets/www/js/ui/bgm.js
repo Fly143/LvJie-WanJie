@@ -171,7 +171,10 @@ export function playBgm(id) {
         return
       }
       if (r && r.ok) midiPlayer.playing = true
-    }).catch(() => {})
+      else if (typeof console !== 'undefined') console.warn('MIDI 播放失败', t.file, r && r.error)
+    }).catch(e => {
+      if (typeof console !== 'undefined') console.warn('MIDI 异常', t.file, e && e.message)
+    })
     return
   }
   if (seq !== playSeq) return

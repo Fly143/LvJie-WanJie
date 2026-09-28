@@ -238,9 +238,23 @@ export class MidiPlayer {
       } catch (e) { /* fallthrough */ }
     }
     if (!buf) {
-      const res = await fetch(url)
-      if (!res.ok) return { ok: false, error: '读取失败 ' + res.status }
-      buf = await res.arrayBuffer()
+      const candidates = [url, encodeURI(url)]
+      let lastErr = ''
+      for (const u of candidates) {
+        try {
+          const res = await fetch(u)
+          if (res.ok) {
+            buf = await res.arrayBuffer()
+            if (buf && buf.byteLength > 8) break
+            buf = null
+          } else {
+            lastErr = '读取失败 ' + res.status
+          }
+        } catch (e) {
+          lastErr = (e && e.message) || '网络错误'
+        }
+      }
+      if (!buf) return { ok: false, error: lastErr || '读取失败' }
     }
     return this.playArrayBuffer(buf, cacheKey || url)
   }
