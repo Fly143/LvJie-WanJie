@@ -52,8 +52,8 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
     userText += '\n（本轮为外出行动，请尽量在 json.changes.new_locations 添加 1 个新地点及 people/shop）'
   }
-  // 连续回合：历史里是纯正文，需再次钉死 JSON 合同，避免第二轮起吐纯文本
-  if ((EV._turn || 0) >= 1 && !/只输出一个 JSON|narrative/.test(userText)) {
+  // 连续回合 / 强制 JSON：用户侧再钉合同，避免历史纯正文把模型带偏
+  if (forceJsonHintNeeded(EV) && !/只输出一个 JSON|\{"narrative"/.test(userText)) {
     userText += '\n（输出合同：只输出一个 JSON 对象 {"narrative","options","end","changes","thought"}，不要 markdown、不要多余文字。）'
   }
   EV.loading = true
@@ -150,7 +150,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
       EV.history.pop()
     }
     const lastAsst = [...EV.history].reverse().find(h => h && h.role === 'assistant')
-    EV.resultText = (lastAsst && lastAsst.content) || ''
+    EV.resultText = unwrapNarrative((lastAsst && lastAsst.content) || '')
     if (hooks.onState) hooks.onState(EV)
     return
   }
@@ -175,8 +175,11 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   }
   try {
 
-  // history 只存叙事，避免 JSON 撑爆 token
-  EV.history.push({ role: 'assistant', content: narrative || text })
+  // history 只存叙事；用 JSON 形态回放，避免 chat 第二轮起模型吐纯文本
+  const asstContent = (narrative || text)
+    ? JSON.stringify({ narrative: narrative || text }).slice(0, 6000)
+    : (text || '')
+  EV.history.push({ role: 'assistant', content: asstContent })
   // 不裁剪 EV.history：完整对话回放给模型
   EV.count += 1
 
@@ -242,12 +245,18 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
         ? '（本轮未附数据块，已按正文补写奖励）'
         : '（本轮未附数据块，剧情继续；可能少了奖励写入）'
       S.lastEventText = narrative
+    } else if (narrative && String(narrative).trim().length >= 20) {
+      // 有正文没数据块：别硬掐断，给继续选项
+      EV.options = ['继续', '仔细观察四周', '换个话题']
+      EV.ended = false
+      EV.error = (ch && Object.keys(ch).length)
+        ? '（本轮未附数据块，已按正文补写奖励）'
+        : '（本轮未附数据块，已给出继续选项）'
+      S.lastEventText = narrative
     } else if (ch && Object.keys(ch).length) {
       EV.options = null
       EV.ended = true
-      EV.error = (recovered && Object.keys(recovered).length) || (ch && Object.keys(ch).length)
-        ? '（本轮未附数据块，已按正文补写奖励）'
-        : '（未解析到数据块，事件结束）'
+      EV.error = '（本轮未附数据块，已按正文补写奖励）'
       S.lastEventText = narrative
     } else {
       EV.options = null
@@ -289,6 +298,22 @@ export function endEvent(EV) {
   }
   EV._turn = (EV._turn || 0) + 1
   return null
+}
+
+function forceJsonHintNeeded(EV) {
+  // 第 2 轮起（或已有历史）必须提醒；首条已有 system 输出合同
+  return (EV && (EV._turn || 0) >= 1) || (EV && Array.isArray(EV.history) && EV.history.some(h => h && h.role === 'assistant'))
+}
+
+/** 历史里 assistant 存的是 JSON 包装，展示时拆出 narrative */
+function unwrapNarrative(s) {
+  const t = String(s || '')
+  if (!t) return ''
+  try {
+    const j = JSON.parse(t)
+    if (j && typeof j.narrative === 'string') return j.narrative
+  } catch (e) { /* not json */ }
+  return t
 }
 
 function trimHistory(history) {

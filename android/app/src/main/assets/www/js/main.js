@@ -154,6 +154,12 @@ export function startFlow(kind, content, target) {
   app.TAB = 'scene'
   document.body.classList.remove('menu')
   renderMain()
+  try {
+    const mainEl = document.getElementById('main')
+    if (mainEl) mainEl.scrollTop = 0
+    const evBox = document.querySelector('.ev-box')
+    if (evBox && evBox.scrollIntoView) evBox.scrollIntoView({ block: 'start' })
+  } catch (e) { /* ignore */ }
   const ev = app.EV
   runEventTurn(app.S, ev, content, {
     limitOn: app.S.dialogLimit,

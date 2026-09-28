@@ -233,6 +233,15 @@ export function renderScene(app, api) {
   }
 }
 
+function scrollEventTop() {
+  try {
+    const main = document.getElementById('main')
+    if (main) main.scrollTop = 0
+    const evBox = document.querySelector('.ev-box')
+    if (evBox && evBox.scrollIntoView) evBox.scrollIntoView({ block: 'start' })
+  } catch (e) { /* ignore */ }
+}
+
 function contEvent(app, api, content, isRetry) {
   if (!app.EV || app.EV.ended || isRetry) {
     if (app.EV && isRetry) {
@@ -240,6 +249,7 @@ function contEvent(app, api, content, isRetry) {
       const ev = app.EV
       ev.loading = true
       ev.error = ''
+      scrollEventTop()
       runEventTurn(app.S, ev, content, {
         limitOn: app.S.dialogLimit,
         cheatUnlocked: app.cheatUnlocked,
@@ -266,6 +276,11 @@ function contEvent(app, api, content, isRetry) {
   }
   // 继续当前事件
   const ev = app.EV
+  ev.loading = true
+  ev.error = ''
+  ev.partial = ''
+  ev.resultText = ''
+  scrollEventTop()
   runEventTurn(app.S, ev, content, {
     limitOn: app.S.dialogLimit,
     cheatUnlocked: app.cheatUnlocked,
@@ -285,7 +300,6 @@ function contEvent(app, api, content, isRetry) {
       api.refreshAll()
     }
   })
-  ev.loading = true
   api.refreshAll()
 }
 
