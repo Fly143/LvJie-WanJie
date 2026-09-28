@@ -1,5 +1,5 @@
 // 设置面板：自定义 API Key（chat / response）
-import { openModal, closeModal, toast } from './modals.js'
+import { openModal, closeModal, toast, confirmModal } from './modals.js'
 import { normalizeApiKey, endpointOf, maskKey, listModels } from '../engine/llm.js'
 import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
@@ -149,7 +149,7 @@ export function openKeyModal(app, { save, refreshAll }) {
   valEl.oninput = refreshPreview
   refreshPreview()
 
-  document.getElementById('k-add').onclick = () => {
+  document.getElementById('k-add').onclick = async () => {
     const apiStyle = selStyle.value === 'response' ? 'response' : 'chat'
     const baseUrl = baseEl.value.trim().replace(/\/+$/, '')
     const model = modelEl.value.trim()
@@ -202,7 +202,7 @@ export function openKeyModal(app, { save, refreshAll }) {
   }
 
   document.querySelectorAll('[data-del]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.del)
       if (!S || useStandalone) {
         deleteKeyStandalone(i)

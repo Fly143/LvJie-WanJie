@@ -29,7 +29,7 @@ function relBlock(person) {
 import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY, LANGUAGE_OPTIONS } from '../engine/constants.js'
 import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
-import { openModal, closeModal } from './modals.js'
+import { openModal, closeModal, confirmModal } from './modals.js'
 import { t, uiLangName } from '../engine/i18n.js'
 import { openHelp } from './settings-panels.js'
 
@@ -167,13 +167,13 @@ export function renderScene(app, api) {
     b.onclick = () => contEvent(app, api, t('youChallenge') + b.dataset.hunt + t('youChallenge2'))
   })
   main.querySelectorAll('[data-inter]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const x = loc.interactables[Number(b.dataset.inter)]
       contEvent(app, api, t('youView') + x.name + t('youView2') + (x.intro || ''))
     }
   })
   main.querySelectorAll('[data-buy]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const it = loc.shop[Number(b.dataset.buy)]
       if (S.money.main < (it.price || 0)) {
         api.toast(pack.lexicon.money.main + t('notEnough'))
@@ -188,7 +188,7 @@ export function renderScene(app, api) {
   })
 
   main.querySelectorAll('[data-opt]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.opt)
       const label = (app.EV.options || [])[i]
       if (label != null) contEvent(app, api, label)
@@ -363,7 +363,7 @@ export function renderMap(app, api) {
     }
   })
   main.querySelectorAll('[data-go]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const r = travel(S, b.dataset.go)
       if (!r.ok) { api.toast(r.msg); return }
       if (app.EV) { endEvent(app.EV); app.EV = null }
@@ -488,7 +488,7 @@ export function renderFriends(app, api) {
   const nb = document.getElementById('fr-new')
   if (nb) nb.onclick = () => api.startFlow(t('meetFlow'), t('youMeet') + pack.lexicon.companion + '。')
   main.querySelectorAll('[data-grudge]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.grudge)]
       if (!f) return
       openModal(`
@@ -519,7 +519,7 @@ export function renderFriends(app, api) {
     }
   })
   main.querySelectorAll('[data-ungudge]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.ungudge)]
       if (!f) return
       const list = f.grudges || []
@@ -554,7 +554,7 @@ export function renderFriends(app, api) {
     }
   })
   main.querySelectorAll('[data-npcinfo]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const name = b.dataset.npcinfo
       const friend = (S.friends || []).find(x => x.name === name)
       const loc = curLoc(S) || {}
@@ -578,10 +578,11 @@ export function renderFriends(app, api) {
     }
   })
   main.querySelectorAll('[data-marry]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.marry)]
       if (!f) return
-      if (!confirm(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'))) return
+      const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
+      if (!okGo) return
       const res = propose(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -589,10 +590,11 @@ export function renderFriends(app, api) {
     }
   })
   main.querySelectorAll('[data-divorce]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.divorce)]
       if (!f) return
-      if (!confirm(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'))) return
+      const okGo = await confirmModal(esc(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2')), { title: esc(divorceWord(pack)) })
+      if (!okGo) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -600,7 +602,7 @@ export function renderFriends(app, api) {
     }
   })
   main.querySelectorAll('[data-chat]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.chat)]
       if (!f) return
       const at = friendAt(f)
@@ -677,7 +679,7 @@ export function renderMarriage(app, api) {
             return `
               <div class="card">
                 <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button></div>
-                <div class="crealm">${esc(f.realm || '')} · ${t('favor')} ${fmtNum(f.favor || 0)}</div>
+                <div class="crealm">${esc(f.realm || '')} · ${t('favor')} ${fmtNum(f.favor || 0)}${f.gender ? ' · ' + esc(f.gender) : ''}${f.ageDays != null ? ' · ' + ageLabel(f.ageDays) : ''}</div>
                 <div class="cbtn">
                   <button class="btn btn-sm btn-gold" data-mpropose="${idx}" type="button">💍 ${esc(proposeWord(pack))}</button>
                 </div>
@@ -691,10 +693,11 @@ export function renderMarriage(app, api) {
   `
 
   main.querySelectorAll('[data-mpropose]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = S.friends[Number(b.dataset.mpropose)]
       if (!f) return
-      if (!confirm(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'))) return
+      const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
+      if (!okGo) return
       const res = propose(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -702,10 +705,11 @@ export function renderMarriage(app, api) {
     }
   })
   main.querySelectorAll('[data-mdiv]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const f = spouses[Number(b.dataset.mdiv)]
       if (!f) return
-      if (!confirm(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'))) return
+      const okGo = await confirmModal(esc(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2')), { title: esc(divorceWord(pack)) })
+      if (!okGo) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
       api.save()
@@ -713,7 +717,7 @@ export function renderMarriage(app, api) {
     }
   })
   main.querySelectorAll('[data-npcinfo]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const name = b.dataset.npcinfo
       const friend = (S.friends || []).find(x => x.name === name)
       if (!friend) return
@@ -793,7 +797,7 @@ export function renderBag(app, api) {
     </div>
   `
   main.querySelectorAll('[data-equip]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.equip)
       const it = S.inventory[i]
       if (!it) return
@@ -805,7 +809,7 @@ export function renderBag(app, api) {
     }
   })
   main.querySelectorAll('[data-use]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.use)
       const it = S.inventory[i]
       if (!it) return
@@ -829,7 +833,7 @@ export function renderBag(app, api) {
     }
   })
   main.querySelectorAll('[data-learn]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.learn)
       const it = S.inventory[i]
       if (!it) return
@@ -870,7 +874,7 @@ export function renderBag(app, api) {
     }
   })
   main.querySelectorAll('[data-useai]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const it = S.inventory[Number(b.dataset.useai)]
       api.startFlow(t('useItemFlow'), t('youUse') + it.name + t('youUse2') + (it.desc || ''))
     }
@@ -878,16 +882,16 @@ export function renderBag(app, api) {
   main.querySelectorAll('[data-sell]').forEach(b => {
     // sell-guards
 
-    b.onclick = () => {
+    b.onclick = async () => {
       const i = Number(b.dataset.sell)
       const it = S.inventory[i]
       if (!it) return
       const gain = Math.floor((Number(it.price) || 0) * 0.5)
       if (it.equipped) {
-        if (!confirm('「' + it.name + '」' + t('soldEq'))) return
+        if (!(await confirmModal(esc('「' + it.name + '」' + t('soldEq'))))) return
       } else if (gain <= 0) {
-        if (!confirm('「' + it.name + '」' + t('discardQ'))) return
-      } else if (!confirm(t('sellQ1') + ' ' + it.name + t('sellQ2') + ' ' + gain + t('sellQ3'))) {
+        if (!(await confirmModal(esc('「' + it.name + '」' + t('discardQ'))))) return
+      } else if (!(await confirmModal(esc(t('sellQ1') + ' ' + it.name + t('sellQ2') + ' ' + gain + t('sellQ3'))))) {
         return
       }
       S.money.main += gain
@@ -981,7 +985,7 @@ export function renderSettings(app, api) {
   `
 
   main.querySelectorAll('[data-lang]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       S.lang = b.dataset.lang
       api.save()
       api.refreshAll()
@@ -991,16 +995,16 @@ export function renderSettings(app, api) {
     }
   })
   main.querySelectorAll('[data-style]').forEach(b => {
-    b.onclick = () => { S.aiStyle = b.dataset.style; api.save(); api.refreshAll() }
+    b.onclick = async () => { S.aiStyle = b.dataset.style; api.save(); api.refreshAll() }
   })
   main.querySelectorAll('[data-gender]').forEach(b => {
-    b.onclick = () => { S.playerGender = b.dataset.gender; api.save(); api.refreshAll() }
+    b.onclick = async () => { S.playerGender = b.dataset.gender; api.save(); api.refreshAll() }
   })
   main.querySelectorAll('[data-limit]').forEach(b => {
-    b.onclick = () => { S.dialogLimit = b.dataset.limit === '1'; api.save(); api.refreshAll() }
+    b.onclick = async () => { S.dialogLimit = b.dataset.limit === '1'; api.save(); api.refreshAll() }
   })
   main.querySelectorAll('[data-bgm]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       S.bgmTrack = b.dataset.bgm
       playBgm(S.bgmTrack)
       api.save()

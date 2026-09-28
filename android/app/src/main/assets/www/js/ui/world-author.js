@@ -1,5 +1,5 @@
 // 自定义世界：导入 JSON / 从作品或整本小说生成草稿
-import { openModal, closeModal, toast } from './modals.js'
+import { openModal, closeModal, toast, confirmModal } from './modals.js'
 import { openKeyModal } from './settings-panels.js'
 import { esc } from '../engine/util.js'
 import { loadPlayerKeys } from '../engine/state.js'
@@ -401,7 +401,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     }
 
     genCtl = new AbortController()
-    stop.onclick = () => {
+    stop.onclick = async () => {
       try { genCtl.abort() } catch (e) {}
       setProgressTitle(t('waCancelled'))
       STEP_IDS.forEach(s => {
@@ -667,7 +667,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     }
   }
 
-  document.getElementById('cw-validate').onclick = () => {
+  document.getElementById('cw-validate').onclick = async () => {
     const r = parseDraft(jsonEl.value)
     if (!r) { msg.style.color = 'var(--red)'; msg.textContent = t('waJsonFail'); return }
     const v = validatePackDraft(r)
@@ -680,12 +680,12 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     }
   }
 
-  document.getElementById('cw-save').onclick = () => {
+  document.getElementById('cw-save').onclick = async () => {
     const r = parseDraft(jsonEl.value)
     if (!r) { msg.style.color = 'var(--red)'; msg.textContent = t('waJsonFail'); return }
     let saved = saveCustomPackDraft(r, { overwrite: false })
     if (saved.needConfirm) {
-      if (!confirm(t('waOverwrite'))) return
+      if (!(await confirmModal(t('waOverwrite')))) return
       saved = saveCustomPackDraft(r, { overwrite: true })
     }
     if (!saved.ok) {
@@ -700,7 +700,7 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   }
 
   document.querySelectorAll('[data-export]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const id = b.dataset.export
       const draft = loadCustomPackDrafts().find(d => String(d.id || '').toLowerCase() === String(id).toLowerCase())
       if (!draft) return
@@ -711,9 +711,9 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   })
 
   document.querySelectorAll('[data-del]').forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const id = b.dataset.del
-      if (!confirm(t('waDelConfirm') + id + t('waDelConfirm2'))) return
+      if (!(await confirmModal(t('waDelConfirm') + id + t('waDelConfirm2')))) return
       deleteCustomPack(id)
       reloadPacks()
       closeModal()

@@ -14,6 +14,43 @@ export function openModal(html) {
   return mask
 }
 
+/**
+ * 应用内确认框（替代 window.confirm，避免 WebView 弹出 127.0.0.1 系统框）
+ * @returns {Promise<boolean>}
+ */
+export function confirmModal(message, { okText, cancelText, title } = {}) {
+  return new Promise(resolve => {
+    const box = document.getElementById('modals')
+    const mask = document.createElement('div')
+    mask.className = 'modal-mask'
+    const ok = okText || '确定'
+    const cancel = cancelText || '取消'
+    mask.innerHTML = `
+      <div class="modal" style="max-width:360px;text-align:center">
+        ${title ? `<h2 style="font-size:18px;margin-bottom:8px">${title}</h2>` : ''}
+        <p style="color:var(--text);font-size:15px;line-height:1.55;margin:8px 0 18px">${message}</p>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn" type="button" data-close>${cancel}</button>
+          <button class="btn btn-gold" type="button" data-ok>${ok}</button>
+        </div>
+      </div>
+    `
+    let settled = false
+    const done = (v) => {
+      if (settled) return
+      settled = true
+      try { mask.remove() } catch (e) { /* ignore */ }
+      resolve(v)
+    }
+    mask.addEventListener('click', e => {
+      if (e.target === mask) done(false)
+      if (e.target.hasAttribute && e.target.hasAttribute('data-close')) done(false)
+      if (e.target.hasAttribute && e.target.hasAttribute('data-ok')) done(true)
+    })
+    box.appendChild(mask)
+  })
+}
+
 export function closeModal() {
   const box = document.getElementById('modals')
   const masks = box.querySelectorAll('.modal-mask')
