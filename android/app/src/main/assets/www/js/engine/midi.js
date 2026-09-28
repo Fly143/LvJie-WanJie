@@ -225,14 +225,19 @@ export class MidiPlayer {
   }
 
   async playUrl(url, cacheKey) {
-    let buf
+    let buf = null
     const host = globalThis.awHost && globalThis.awHost.asset
+    // 宿主 asset.read 若未实现/失败，必须回退 fetch，否则 MIDI 永远播不了
     if (host && host.read) {
-      const r = await host.read(url)
-      if (!r || !r.ok) return { ok: false, error: (r && r.error) || '读取失败' }
-      const bin = Uint8Array.from(atob(r.data), c => c.charCodeAt(0))
-      buf = bin.buffer
-    } else {
+      try {
+        const r = await host.read(url)
+        if (r && r.ok && r.data) {
+          const bin = Uint8Array.from(atob(r.data), c => c.charCodeAt(0))
+          buf = bin.buffer
+        }
+      } catch (e) { /* fallthrough */ }
+    }
+    if (!buf) {
       const res = await fetch(url)
       if (!res.ok) return { ok: false, error: '读取失败 ' + res.status }
       buf = await res.arrayBuffer()
