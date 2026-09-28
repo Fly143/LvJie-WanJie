@@ -88,20 +88,24 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     </label>
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:8px">${t('waUrls')}</label>
     <input id="cw-urls" type="text" placeholder="${t('waUrlsPh')}" style="width:100%;margin-top:6px">
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn" id="cw-web-only" type="button">${t('waWebOnly')}</button>
-    </div>
-
     <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('waNovel')}</label>
     <input id="cw-file" type="file" accept=".txt,.md,text/plain" style="margin-top:6px;font-size:12px">
     <div id="cw-file-info" style="font-size:12px;color:var(--faint);margin-top:4px">${t('waFileHint')}</div>
     <textarea id="cw-book" rows="4" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder="${t('waBookPh2')}"></textarea>
 
     <div class="btn-row" style="margin-top:10px">
-      <button class="btn btn-gold" id="cw-gen" type="button">${t('waGen')}</button>
+      <button class="btn btn-gold" id="cw-gen" type="button">${t('waGenSmart')}</button>
       <button class="btn" id="cw-gen-stop" type="button" hidden>${t('waCancel')}</button>
     </div>
-    <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:6px">${t('waFlow')}</div>
+    <div style="margin-top:10px">
+      <div id="cw-progress-wrap" style="height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;display:none">
+        <div id="cw-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#d4af37,#e8c46a);transition:width .3s"></div>
+      </div>
+      <div id="cw-step" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${['web','lore','npc','draft'].map(s => `<span id="cw-step-${s}" style="font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line2);color:var(--faint)">${t('step_' + s)}</span>`).join('')}
+      </div>
+      <div id="cw-status" style="font-size:12px;color:var(--faint);margin-top:8px">${t('waFlow')}</div>
+    </div>
 
     <h3 style="margin-top:18px">${t('waStep2')}</h3>
     <textarea id="cw-json" rows="8" style="width:100%;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;font-size:12px" placeholder='${t('waJsonPh')}'></textarea>
@@ -156,7 +160,30 @@ export function openWorldAuthor(app, { onSaved } = {}) {
   }
 
   document.getElementById('cw-gen').onclick = () => runGenerate({ webOnly: false })
-  document.getElementById('cw-web-only').onclick = () => runGenerate({ webOnly: true })
+
+  const setStep = (id, state) => {
+    const el = document.getElementById('cw-step-' + id)
+    if (!el) return
+    const map = { done: ['✓', 'var(--jade)'], run: ['…', 'var(--gold)'], err: ['✗', 'var(--red)'], idle: ['', 'var(--faint)'] }
+    const [mark, color] = map[state] || map.idle
+    el.style.color = color
+    el.style.borderColor = color
+    const label = el.textContent.replace(/^[✓…✗]\s*/, '')
+    el.textContent = (mark ? mark + ' ' : '') + label
+    el.dataset.state = state
+  }
+  const setProgress = (pct, msg) => {
+    const wrap = document.getElementById('cw-progress-wrap')
+    const bar = document.getElementById('cw-progress-bar')
+    const st = document.getElementById('cw-status')
+    if (wrap) wrap.style.display = ''
+    if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + '%'
+    if (st && msg) st.textContent = msg
+  }
+  const resetSteps = () => {
+    ;['web', 'lore', 'npc', 'draft'].forEach(s => setStep(s, 'idle'))
+    setProgress(0, t('waFlow'))
+  }
 
   async function runGenerate({ webOnly }) {
     const f = draftFromForm()
@@ -175,22 +202,43 @@ export function openWorldAuthor(app, { onSaved } = {}) {
     const btn = document.getElementById('cw-gen')
     const stop = document.getElementById('cw-gen-stop')
     btn.disabled = true
-    document.getElementById('cw-web-only').disabled = true
     stop.hidden = false
+    resetSteps()
     genCtl = new AbortController()
-    stop.onclick = () => { try { genCtl.abort() } catch (e) {} }
+    stop.onclick = () => {
+      try { genCtl.abort() } catch (e) {}
+      setProgress(100, t('waCancelled'))
+      ;['web', 'lore', 'npc', 'draft'].forEach(s => {
+        const el = document.getElementById('cw-step-' + s)
+        if (el && el.dataset.state === 'run') setStep(s, 'err')
+      })
+      btn.disabled = false
+      stop.hidden = true
+    }
 
     try {
       let webNotes = []
-      if (f.useWeb || webOnly || f.urls.length) {
+      const wantWeb = f.useWeb || webOnly || f.urls.length
+      if (wantWeb) {
+        setStep('web', 'run')
+        setProgress(10, t('step_web_run'))
         const g = await gatherWebLore({
           title,
           urls: f.urls,
           useWiki: f.useWiki,
-          onProgress: (p) => { status.textContent = p.message || '' }
+          onProgress: (p) => { setProgress(10 + Math.min(25, (webNotes.length || 0) * 8), p.message || '') }
         })
         webNotes = g.ok ? g.notes : []
-        if (!webNotes.length) status.textContent = t('waWebEmpty')
+        if (!webNotes.length) {
+          setStep('web', 'err')
+          setProgress(35, t('waWebEmpty'))
+        } else {
+          setStep('web', 'done')
+          setProgress(35, t('step_web_done'))
+        }
+      } else {
+        setStep('web', 'done')
+        setProgress(35, t('step_web_skip'))
       }
 
       const hasBook = f.bookText.length >= 800
@@ -232,9 +280,13 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         if (f.setting) user += `\n用户补充设定：${f.setting}`
         // webNotes 已并入设定圣经，此处不再重复拼贴，省 token
 
+        setStep('lore', 'done')
+        setProgress(55, t('step_lore_done'))
+
         // 人物 → NPC 种子
         try {
-          status.textContent = t('waNpcSeed')
+          setStep('npc', 'run')
+          setProgress(60, t('waNpcSeed'))
           const chs = await buildCharacterSeeds({
             keyObj,
             title,
@@ -256,9 +308,11 @@ export function openWorldAuthor(app, { onSaved } = {}) {
         } catch (e) {
           // 人物失败不阻断出包
           console.warn('npc seeds', e)
+          setStep('npc', 'err')
         }
 
-        status.textContent = t('waMerged')
+        setStep('npc', 'done')
+        setProgress(75, t('waMerged'))
       } else {
         user = `作品：${title}${f.author ? '（' + f.author + '）' : ''}
 题材风格：${f.style}
@@ -266,9 +320,13 @@ export function openWorldAuthor(app, { onSaved } = {}) {
 等级体系提示：${f.levels || '（请自行设计 5~12 阶）'}
 
 请输出完整世界包 JSON。`
-        status.textContent = t('waGenDraft')
+        setStep('lore', 'done')
+        setStep('npc', 'done')
+        setProgress(70, t('waGenDraft'))
       }
 
+      setStep('draft', 'run')
+      setProgress(80, t('waGenDraft'))
       const res = await callLLM({
         keyObj,
         system: PACK_DRAFT_PROMPT,
@@ -293,14 +351,17 @@ export function openWorldAuthor(app, { onSaved } = {}) {
       jsonEl.value = JSON.stringify(json, null, 2)
       const v = validatePackDraft(json)
       if (v.ok) {
+        setStep('draft', 'done')
+        setProgress(100, t('step_draft_done'))
         status.textContent = `${t('waDraftOk')}${v.pack.name}（${v.pack.tiers.length} ${t('waTiers')} · ${v.pack._decl.map.length} ${t('waLands')}）。${t('waEditable')}`
         msg.textContent = ''
       } else {
-        status.textContent = t('waDraftNeedFix') + v.errors.join('；')
+        setStep('draft', 'err')
+        setProgress(100, t('step_draft_fix'))
+        status.textContent = t('waDraftNeedFix') + v.errors.join('; ')
       }
     } finally {
       btn.disabled = false
-      document.getElementById('cw-web-only').disabled = false
       stop.hidden = true
       genCtl = null
     }
