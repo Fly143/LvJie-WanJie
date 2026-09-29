@@ -10,7 +10,22 @@ try {
 const path = require('path')
 const fs = require('fs')
 
-const gotLock = app.requestSingleInstanceLock()
+
+// 冒烟测试：隔离 userData，避免与用户正式实例抢单实例锁 / 污染真实存档
+if (process.env.XX_SMOKE_TEST) {
+  try {
+    const smokeUd = path.join(app.getPath('temp'), 'agentworlds-smoke-userdata')
+    // 目录必须先存在：单实例锁文件在 userData 下创建，目录缺失时 CreateFile 报
+    // ERROR_PATH_NOT_FOUND(3) / ACCESS_DENIED(5)，会被误判为“已有实例在运行”
+    fs.mkdirSync(smokeUd, { recursive: true })
+    app.setPath('userData', smokeUd)
+  } catch (e) { /* ignore */ }
+}
+
+// 冒烟模式跳过单实例锁：锁文件路径/权限在受限环境下不稳定（ERROR 3/5 误判“已有实例”），
+// 且冒烟进程本就无需与用户实例互斥（userData 已隔离，不会碰真实存档）
+const smokeMode = !!process.env.XX_SMOKE_TEST
+const gotLock = smokeMode ? true : app.requestSingleInstanceLock()
 if (!gotLock) {
   console.error('[AgentWorlds] 已有实例在运行，本进程退出（单实例锁）')
   app.quit()
@@ -26,8 +41,14 @@ if (!gotLock) {
 }
 
 function resolveIndex() {
-  const p = path.join(__dirname, 'index.html')
-  return fs.existsSync(p) ? p : path.join(__dirname, 'app', 'index.html')
+  // 开发布局（main.js 在仓库根）优先 app/index.html，根 index.html 原型永不加载；
+  // 打包布局（main.js 在 resources/app）回退到同级 index.html
+  const candidates = [
+    path.join(__dirname, 'app', 'index.html'),
+    path.join(__dirname, 'index.html')
+  ]
+  for (const p of candidates) if (fs.existsSync(p)) return p
+  return candidates[0]
 }
 
 function resolveIcon() {
@@ -57,8 +78,11 @@ ipcMain.handle('aw:asset:read', async (_e, rel) => {
   try {
     const clean = String(rel || '').replace(/\\/g, '/').replace(/^\/+/, '')
     if (!clean || clean.includes('..')) return { ok: false, error: '非法路径' }
-    // 仅允许 assets/ 与 music/ 资源，禁止读源码
-    if (!/^(assets|music|audio)\//i.test(clean) && !/\.(png|jpg|jpeg|svg|ico|mp3|wav|ogg|m4a|mid|ttf|woff2?)$/i.test(clean)) {
+    // 目录前缀 + 扩展名双白名单，两者同时命中才放行（禁止借此读源码/任意文件）
+    if (!/^(assets|music|audio)\//i.test(clean)) {
+      return { ok: false, error: '资源目录不被允许' }
+    }
+    if (!/\.(png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg|m4a|mid|json|ttf|woff2?)$/i.test(clean)) {
       return { ok: false, error: '资源类型不被允许' }
     }
     const base = __dirname

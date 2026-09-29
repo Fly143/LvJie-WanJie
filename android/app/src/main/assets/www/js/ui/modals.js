@@ -6,10 +6,10 @@ export function openModal(html) {
   mask.className = 'modal-mask'
   mask.innerHTML = `<div class="modal">${html}</div>`
   mask.addEventListener('click', e => {
-    if (e.target === mask) closeModal()
-    if (e.target.hasAttribute && e.target.hasAttribute('data-close')) closeModal()
+    if (e.target === mask) closeModal(mask)
+    if (e.target.hasAttribute && e.target.hasAttribute('data-close')) closeModal(mask)
   })
-  mask.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal))
+  mask.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(mask)))
   box.appendChild(mask)
   return mask
 }
@@ -25,13 +25,14 @@ export function confirmModal(message, { okText, cancelText, title } = {}) {
     mask.className = 'modal-mask'
     const ok = okText || '确定'
     const cancel = cancelText || '取消'
+    // 文案默认按纯文本转义，防 LLM/存档字段 XSS；确需 HTML 用 confirmModalHtml
     mask.innerHTML = `
       <div class="modal" style="max-width:360px;text-align:center">
-        ${title ? `<h2 style="font-size:18px;margin-bottom:8px">${title}</h2>` : ''}
-        <p style="color:var(--text);font-size:15px;line-height:1.55;margin:8px 0 18px">${message}</p>
+        ${title ? `<h2 style="font-size:18px;margin-bottom:8px">${escapeText(title)}</h2>` : ''}
+        <p style="color:var(--text);font-size:15px;line-height:1.55;margin:8px 0 18px">${escapeText(message)}</p>
         <div class="btn-row" style="justify-content:center">
-          <button class="btn" type="button" data-close>${cancel}</button>
-          <button class="btn btn-gold" type="button" data-ok>${ok}</button>
+          <button class="btn" type="button" data-close>${escapeText(cancel)}</button>
+          <button class="btn btn-gold" type="button" data-ok>${escapeText(ok)}</button>
         </div>
       </div>
     `
@@ -51,8 +52,14 @@ export function confirmModal(message, { okText, cancelText, title } = {}) {
   })
 }
 
-export function closeModal() {
+/** 关闭指定弹窗；无参时关闭最上层（兼容旧调用） */
+export function closeModal(mask) {
   const box = document.getElementById('modals')
+  const target = (mask && mask.classList && mask.classList.contains('modal-mask')) ? mask : null
+  if (target) {
+    target.remove()
+    return
+  }
   const masks = box.querySelectorAll('.modal-mask')
   if (masks.length > 1) {
     masks[masks.length - 1].remove()

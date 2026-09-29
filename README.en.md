@@ -139,6 +139,9 @@ npm run sync          # sync app → runtime/resources/app only
 npm run rebuild:runtime
 npm run smoke:engine
 npm run smoke:book
+npm run smoke:chars
+npm run smoke:npc
+npm run smoke:quest
 npm run smoke:llm
 npm run smoke:stage
 ```

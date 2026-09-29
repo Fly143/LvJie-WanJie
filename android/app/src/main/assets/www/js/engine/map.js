@@ -1,5 +1,6 @@
 // 地图：旅行、解锁、AI 扩图
 import { packOf, speedMult } from './progression.js'
+import { normalizeUseEffect, normalizeItemType, normalizeUsable } from './worldpack.js'
 
 export function curLoc(S) {
   return (S && S.map && S.map.find(l => l.id === S.currentLoc)) || (S && S.map && S.map[0]) || null
@@ -106,26 +107,27 @@ function normalizeWorld(pack, w, fallback) {
 function normPerson(p) {
   const power = Math.abs(Number(p.power) || 0)
   return {
-    name: String(p.name || '无名氏'),
-    realm: String(p.realm || ''),
+    name: String(p.name || '无名氏').slice(0, 24),
+    realm: String(p.realm || '').slice(0, 24),
     power: Math.min(1e7, power),
-    intro: String(p.intro || ''),
-    gender: p.gender === '女' ? '女' : p.gender === '男' ? '男' : (p.gender || ''),
+    intro: String(p.intro || '').slice(0, 200),
+    gender: p.gender === '女' ? '女' : p.gender === '男' ? '男' : String(p.gender || '').slice(0, 8),
     relations: Array.isArray(p.relations) ? p.relations.filter(r => r && typeof r === 'object' && r.to).slice(0, 12) : [],
     grudges: Array.isArray(p.grudges) ? p.grudges.filter(g => g && typeof g === 'object').slice(0, 8) : []
   }
 }
 
 function normShop(S, pack, x) {
+  const ri = x.realm_index != null ? Number(x.realm_index) : NaN
   return {
-    name: String(x.name || '未知商品'),
-    desc: String(x.desc || ''),
-    type: x.type || 'special',
-    realm_index: x.realm_index != null ? Number(x.realm_index) : undefined,
+    name: String(x.name || '未知商品').slice(0, 24),
+    desc: String(x.desc || '').slice(0, 80),
+    type: normalizeItemType(x.type),
+    realm_index: Number.isFinite(ri) ? Math.round(ri) : undefined,
     grade: x.grade != null ? String(x.grade) : undefined,
     price: Math.max(0, Math.round(Number(x.price) || 0)),
-    usable: x.usable,
-    use_effect: x.use_effect || undefined,
+    usable: normalizeUsable(x.usable),
+    use_effect: normalizeUseEffect(x.use_effect),
     levels: x.levels,
     level_costs: x.level_costs,
     level_powers: x.level_powers
@@ -134,10 +136,10 @@ function normShop(S, pack, x) {
 
 function normBeast(b) {
   return {
-    name: String(b.name || '未知生物'),
-    realm: String(b.realm || ''),
+    name: String(b.name || '未知生物').slice(0, 24),
+    realm: String(b.realm || '').slice(0, 24),
     power: Number(b.power) || 0,
-    drops: String(b.drops || '')
+    drops: String(b.drops || '').slice(0, 80)
   }
 }
 

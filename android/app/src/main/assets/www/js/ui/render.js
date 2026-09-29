@@ -587,7 +587,7 @@ export function renderFriends(app, api) {
     b.onclick = async () => {
       const f = S.friends[Number(b.dataset.marry)]
       if (!f) return
-      const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
+      const okGo = await confirmModal(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'), { title: '💍 ' + proposeWord(pack) })
       if (!okGo) return
       const res = propose(S, f, pack)
       if (res && res.code === 'low_favor') {
@@ -611,7 +611,7 @@ export function renderFriends(app, api) {
     b.onclick = async () => {
       const f = S.friends[Number(b.dataset.divorce)]
       if (!f) return
-      const okGo = await confirmModal(esc(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2')), { title: esc(divorceWord(pack)) })
+      const okGo = await confirmModal(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'), { title: divorceWord(pack) })
       if (!okGo) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
@@ -728,7 +728,7 @@ export function renderMarriage(app, api) {
     b.onclick = async () => {
       const f = S.friends[Number(b.dataset.mpropose)]
       if (!f) return
-      const okGo = await confirmModal(esc(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2')), { title: '💍 ' + esc(proposeWord(pack)) })
+      const okGo = await confirmModal(t('confirmPropose') + ' ' + f.name + ' ' + proposeWord(pack) + t('confirmPropose2'), { title: '💍 ' + proposeWord(pack) })
       if (!okGo) return
       const res = propose(S, f, pack)
       if (res && res.code === 'low_favor') {
@@ -752,7 +752,7 @@ export function renderMarriage(app, api) {
     b.onclick = async () => {
       const f = spouses[Number(b.dataset.mdiv)]
       if (!f) return
-      const okGo = await confirmModal(esc(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2')), { title: esc(divorceWord(pack)) })
+      const okGo = await confirmModal(t('confirmDivorce') + ' ' + f.name + ' ' + divorceWord(pack) + t('confirmPropose2'), { title: divorceWord(pack) })
       if (!okGo) return
       const res = divorce(S, f, pack)
       api.toast(res.msg)
@@ -932,10 +932,10 @@ export function renderBag(app, api) {
       if (!it) return
       const gain = Math.floor((Number(it.price) || 0) * 0.5)
       if (it.equipped) {
-        if (!(await confirmModal(esc('「' + it.name + '」' + t('soldEq'))))) return
+        if (!(await confirmModal('「' + it.name + '」' + t('soldEq')))) return
       } else if (gain <= 0) {
-        if (!(await confirmModal(esc('「' + it.name + '」' + t('discardQ'))))) return
-      } else if (!(await confirmModal(esc(t('sellQ1') + ' ' + it.name + t('sellQ2') + ' ' + gain + t('sellQ3'))))) {
+        if (!(await confirmModal('「' + it.name + '」' + t('discardQ')))) return
+      } else if (!(await confirmModal(t('sellQ1') + ' ' + it.name + t('sellQ2') + ' ' + gain + t('sellQ3')))) {
         return
       }
       S.money.main += gain

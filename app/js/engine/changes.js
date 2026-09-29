@@ -8,6 +8,13 @@ import { syncReverseRelations } from './npc-memory.js'
 import { forceDivorce, syncFavorToRelations } from './marriage.js'
 import { normalizeRelType } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
+import { normalizeUseEffect } from './worldpack.js'
+
+/** friends 文本字段截断（防 AI 刷爆存档/提示词） */
+const FRIEND_TEXT_CAPS = { realm: 24, intro: 200, mem: 300 }
+const normText = (v, max) => String(v == null ? '' : v).slice(0, max)
+/** gender 只收敛到 '男' / '女' / '' 三值 */
+const normGender = (g) => (g === '女' ? '女' : g === '男' ? '男' : '')
 
 /** 单轮熔断：防 AI 刷爆数值 */
 export const CHANGE_CAPS = {
@@ -38,6 +45,36 @@ function capAbs(v, lim) {
 function capCount(v, lim) {
   const n = Math.round(Number(v) || 0)
   return Math.max(0, Math.min(lim, n))
+}
+
+/**
+ * add_items 落库白名单：逐字段构建对象（绝不 Object.assign(raw)），防 __proto__/constructor/prototype 键污染。
+ * 仅保留 {name, desc, count, type, grade, realm_index, price, use_effect}。
+ */
+function normAddItem(raw, pack) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const name = String(raw.name == null ? '' : raw.name).trim().slice(0, 24)
+  if (!name) return null
+  const it = {
+    name,
+    desc: String(raw.desc == null ? '' : raw.desc).slice(0, 80),
+    count: capCount(raw.count || 1, CHANGE_CAPS.item_count),
+    type: normalizeType(raw.type)
+  }
+  if (raw.grade != null && String(raw.grade) !== '') it.grade = String(raw.grade).slice(0, 12)
+  if (raw.realm_index != null) {
+    const ri = Number(raw.realm_index)
+    const maxIdx = ((pack && pack.tiers) || []).length - 1
+    if (Number.isFinite(ri) && maxIdx >= 0) it.realm_index = Math.max(0, Math.min(maxIdx, Math.round(ri)))
+  }
+  if (raw.price != null) {
+    const p = Number(raw.price)
+    if (Number.isFinite(p)) it.price = Math.max(0, Math.round(p))
+  }
+  // use_effect 只接受 worldpack 白名单归一结果（type 白名单 + |value| ≤ 1e6）
+  const ue = normalizeUseEffect(raw.use_effect)
+  if (ue) it.use_effect = ue
+  return it
 }
 
 /**
@@ -108,11 +145,10 @@ export function applyChanges(S, ch, hooks = {}) {
 
   if (Array.isArray(ch.add_items)) {
     for (const raw of ch.add_items.slice(0, CHANGE_CAPS.add_items)) {
-      if (!raw || !raw.name) continue
-      const it = Object.assign({}, raw, { type: normalizeType(raw.type) })
-      const n = capCount(raw.count || 1, CHANGE_CAPS.item_count)
-      addItem(S, it, n)
-      major.push(`获得 ${raw.name}×${n}`)
+      const it = normAddItem(raw, pack)
+      if (!it) continue
+      addItem(S, it, it.count)
+      major.push(`获得 ${it.name}×${it.count}`)
     }
   }
 
@@ -171,17 +207,17 @@ export function applyChanges(S, ch, hooks = {}) {
     for (const raw of ch.friends.slice(0, CHANGE_CAPS.friends)) {
       if (!raw || !raw.name) continue
       let f = S.friends.find(x => x.name === raw.name)
-      const rankStr = String(raw.realm || raw.rank || tierLabel(S))
+      const rankStr = normText(raw.realm || raw.rank || tierLabel(S), FRIEND_TEXT_CAPS.realm)
       if (!f) {
         f = {
           name: String(raw.name),
           realm: rankStr,
-          gender: raw.gender === '女' ? '女' : raw.gender === '男' ? '男' : '',
+          gender: normGender(raw.gender),
           ageDays: raw.age_days != null ? Math.max(0, Math.round(Number(raw.age_days) || 0))
             : (raw.ageDays != null ? Math.max(0, Math.round(Number(raw.ageDays) || 0)) : null),
           power: Math.abs(Math.round(Number(raw.power) || 0)) > CHANGE_CAPS.power_abs ? CHANGE_CAPS.power_abs : Math.abs(Math.round(Number(raw.power) || 0)),
-          intro: String(raw.intro || ''),
-          mem: String(raw.mem || ''),
+          intro: normText(raw.intro, FRIEND_TEXT_CAPS.intro),
+          mem: normText(raw.mem, FRIEND_TEXT_CAPS.mem),
           favor: 0,
           lastDay: '',
           talkCount: 0,
@@ -194,11 +230,11 @@ export function applyChanges(S, ch, hooks = {}) {
         S.friends.push(f)
         major.push(`结识 ${f.name}`)
       } else {
-        if (raw.realm || raw.rank) f.realm = String(raw.realm || raw.rank)
+        if (raw.realm || raw.rank) f.realm = normText(raw.realm || raw.rank, FRIEND_TEXT_CAPS.realm)
         if (raw.power != null) f.power = Math.abs(Math.round(capAbs(Number(raw.power) || f.power, CHANGE_CAPS.power_abs)))
-        if (raw.intro) f.intro = String(raw.intro)
-        if (raw.mem) f.mem = String(raw.mem)
-        if (raw.gender) f.gender = raw.gender
+        if (raw.intro) f.intro = normText(raw.intro, FRIEND_TEXT_CAPS.intro)
+        if (raw.mem) f.mem = normText(raw.mem, FRIEND_TEXT_CAPS.mem)
+        if (raw.gender) f.gender = normGender(raw.gender)
         if (raw.age_days != null || raw.ageDays != null) {
           f.ageDays = Math.max(0, Math.round(Number(raw.age_days != null ? raw.age_days : raw.ageDays) || 0))
         }

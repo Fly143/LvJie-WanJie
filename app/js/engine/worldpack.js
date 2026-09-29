@@ -1,5 +1,6 @@
 // 声明式世界包 → 运行时 pack
 // 自定义包为纯数据（可 JSON 导入/LLM 生成）；内置包仍为 JS 函数式
+import { cssColor } from './util.js'
 
 const DEFAULT_THEME = {
   accent: '#7aa2c8',
@@ -33,6 +34,65 @@ const DEFAULT_TYPE_NAMES = {
   technique: '秘籍',
   material: '材料',
   special: '特殊'
+}
+
+const SHOP_TYPES = ['consumable', 'equip', 'technique', 'material', 'special']
+const USABLE_VALUES = ['direct', 'ai']
+const USE_EFFECT_TYPES = ['progress', 'cultivation', 'money_main', 'money_mid', 'money_high', 'ling_shi', 'shang_pin', 'xian_yuan', 'age_days']
+const THEME_COLOR_KEYS = ['accent', 'accent2', 'accentDim', 'glow', 'bg', 'bg2', 'bg3', 'panel', 'panel2', 'line', 'line2', 'text', 'dim', 'faint', 'jade', 'blue', 'red', 'purple', 'cardBg']
+const THEME_FONT_KEYS = ['fontDisplay', 'fontBody', 'fontEvent']
+const THEME_FONT_RE = /^[a-zA-Z0-9 ,"'-]+$/
+const THEME_RADIUS_RE = /^\d{1,3}px$/
+const THEME_DECO_BAD_RE = /url\s*\(|expression\s*\(|@import|;|\{|\}|\\|<\/?/i
+
+/** use_effect 结构化归一（导入 / AI 扩图 / LLM 变更共用）：type 白名单 + value 有限数且 |v| ≤ 1e6 */
+export function normalizeUseEffect(ue) {
+  if (!ue || typeof ue !== 'object' || !ue.type) return undefined
+  const type = String(ue.type).trim()
+  if (!USE_EFFECT_TYPES.includes(type)) return undefined
+  const raw = ue.value == null ? 0 : Number(ue.value)
+  if (!Number.isFinite(raw)) return undefined
+  return { type, value: Math.max(-1e6, Math.min(1e6, raw)) }
+}
+
+export function normalizeItemType(t) {
+  const v = String(t == null ? '' : t).trim()
+  return SHOP_TYPES.includes(v) ? v : 'special'
+}
+
+export function normalizeUsable(u) {
+  const v = u == null ? '' : String(u).trim()
+  return USABLE_VALUES.includes(v) ? v : undefined
+}
+
+/** theme 白名单过滤：颜色过 cssColor、字体/radius/deco 限安全字符集 */
+function sanitizeTheme(raw) {
+  const out = Object.assign({}, DEFAULT_THEME)
+  const t = raw && typeof raw === 'object' ? raw : {}
+  for (const k of THEME_COLOR_KEYS) {
+    if (t[k] != null) out[k] = cssColor(t[k])
+  }
+  for (const k of THEME_FONT_KEYS) {
+    const v = t[k] != null ? String(t[k]) : ''
+    out[k] = v && THEME_FONT_RE.test(v) ? v : DEFAULT_THEME[k]
+  }
+  if (t.radius != null) {
+    const r = String(t.radius).trim()
+    if (THEME_RADIUS_RE.test(r)) out.radius = r
+  }
+  const deco = t.deco != null ? String(t.deco) : ''
+  out.deco = deco && !THEME_DECO_BAD_RE.test(deco) ? deco.slice(0, 300) : ''
+  return out
+}
+
+/** subPower 与 subNames 长度对齐：不足按最后一值补齐，超出截断，非有限回退 1 */
+function alignSubPower(arr, names) {
+  const vals = (Array.isArray(arr) ? arr : []).map(Number).map(v => (Number.isFinite(v) ? v : 1))
+  const n = Math.max(1, Array.isArray(names) ? names.length : 1)
+  const out = vals.slice(0, n)
+  if (!out.length) out.push(1)
+  while (out.length < n) out.push(out[out.length - 1])
+  return out
 }
 
 export const PACK_DRAFT_PROMPT = `你是开放世界文字游戏的世界观架构师。根据用户提供的作品设定，输出一份可导入游戏的「世界包」JSON。
@@ -150,7 +210,7 @@ export function validatePackDraft(raw) {
     icon: String(d.icon || '🌍'),
     tagline: String(d.tagline || '自定义世界观'),
     gameTitle: String(d.gameTitle || d.name || '自定义世界'),
-    theme: Object.assign({}, DEFAULT_THEME, d.theme || {}),
+    theme: sanitizeTheme(d.theme),
     defaultName: String(d.defaultName || '旅人'),
     startText: String(d.startText || '故事开始了。'),
     features: Object.assign({
@@ -170,9 +230,14 @@ export function validatePackDraft(raw) {
     }, d.ui || {}),
     sceneActions: normalizeActions(d.sceneActions),
     worlds,
-    worldMaxTier: d.worldMaxTier && typeof d.worldMaxTier === 'object' ? d.worldMaxTier : {},
+    worldMaxTier: d.worldMaxTier && typeof d.worldMaxTier === 'object'
+      ? Object.fromEntries(Object.entries(d.worldMaxTier).map(([k, v]) => [String(k), Math.max(0, Math.round(Number(v) || 0))]))
+      : {},
     subNames: Array.isArray(d.subNames) && d.subNames.length ? d.subNames.map(String) : ['初期', '中期', '后期'],
-    subPower: Array.isArray(d.subPower) && d.subPower.length ? d.subPower.map(Number) : [1, 1.25, 1.6],
+    subPower: alignSubPower(
+      Array.isArray(d.subPower) && d.subPower.length ? d.subPower : [1, 1.25, 1.6],
+      Array.isArray(d.subNames) && d.subNames.length ? d.subNames : ['初期', '中期', '后期']
+    ),
     lexicon: normalizeLexicon(d.lexicon),
     skills: Array.isArray(d.skills) ? d.skills.map((s, i) => ({
       id: String(s.id || 'sk' + i),
@@ -183,7 +248,7 @@ export function validatePackDraft(raw) {
     talentNames: d.talentNames || {},
     tiers: (d.tiers || []).map(t => ({
       name: String(t.name || '?'),
-      lifespan: t.lifespan === 'Infinity' || t.lifespan === Infinity ? Infinity : (t.lifespan != null ? Number(t.lifespan) : 100),
+      lifespan: t.lifespan === 'Infinity' || t.lifespan === Infinity ? Infinity : (t.lifespan != null && Number.isFinite(Number(t.lifespan)) ? Number(t.lifespan) : 100),
       subNames: Array.isArray(t.subNames) ? t.subNames.map(String) : null
     })),
     startLoc,
@@ -195,24 +260,10 @@ export function validatePackDraft(raw) {
       init: d.init && typeof d.init === 'object' ? d.init : null
     },
     createMap: () => JSON.parse(JSON.stringify(map)),
-    buildRules: () => normalizeRules(d.rules),
-    gateRules(from, to) {
-      const order = (d.worldOrder && d.worldOrder.length ? d.worldOrder.map(String) : worlds)
-      const req = (d.worldTierReq && typeof d.worldTierReq === 'object') ? d.worldTierReq : {}
-      if (!from || !from.world || !to || !to.world) return null
-      if (from.world === to.world) return null
-      const fi = order.indexOf(from.world)
-      const ti = order.indexOf(to.world)
-      if (fi >= 0 && ti >= 0 && ti > fi + 1) return '需逐级前往相邻区域'
-      const need = Number(req[to.world])
-      if (Number.isFinite(need) && need > 0) {
-        // 传入的 S 在 gateRules(from,to,S) 第三参；此处用闭包外的调用方
-      }
-      return null
-    }
+    buildRules: () => normalizeRules(d.rules)
   }
 
-  // 真正读 S 的门槛（覆盖上面占位）
+  // 读 S 的通行门槛
   pack.gateRules = function (from, to, S) {
     const order = (d.worldOrder && d.worldOrder.length ? d.worldOrder.map(String) : worlds)
     const req = (d.worldTierReq && typeof d.worldTierReq === 'object') ? d.worldTierReq : {}
@@ -249,6 +300,7 @@ export function validatePackDraft(raw) {
 function normalizeLoc(l, i, d) {
   const worlds = Array.isArray(d.worlds) && d.worlds.length ? d.worlds.map(String) : []
   const world = String(l.world || worlds[0] || '主世界')
+  const maxTier = Math.max(0, (Array.isArray(d.tiers) ? d.tiers.length : 1) - 1)
   return {
     id: String(l.id || 'm' + (i + 1)),
     name: String(l.name || '未命名之地'),
@@ -259,25 +311,23 @@ function normalizeLoc(l, i, d) {
     people: Array.isArray(l.people) ? l.people.map(p => ({
       name: String(p.name || '无名氏'),
       realm: String(p.realm || ''),
-      power: Number(p.power) || 0,
+      power: Math.min(1e7, Math.abs(Number(p.power) || 0)),
       intro: String(p.intro || ''),
       gender: p.gender === '男' || p.gender === '女' ? p.gender : ''
     })) : [],
-    shop: Array.isArray(l.shop) ? l.shop.map(s => ({
-      name: String(s.name || '物品'),
-      desc: String(s.desc || ''),
-      type: s.type || 'special',
-      realm_index: s.realm_index != null ? Number(s.realm_index) : undefined,
-      grade: s.grade != null ? String(s.grade) : undefined,
-      price: Math.max(0, Number(s.price) || 0),
-      usable: s.usable || undefined,
-      use_effect: s.use_effect && typeof s.use_effect === 'object' && s.use_effect.type
-        ? {
-            type: String(s.use_effect.type).slice(0, 24),
-            value: Number(s.use_effect.value) || 0
-          }
-        : undefined
-    })) : [],
+    shop: Array.isArray(l.shop) ? l.shop.map(s => {
+      const ri = s.realm_index != null ? Number(s.realm_index) : NaN
+      return {
+        name: String(s.name || '物品'),
+        desc: String(s.desc || ''),
+        type: normalizeItemType(s.type),
+        realm_index: Number.isFinite(ri) ? Math.max(0, Math.min(maxTier, Math.round(ri))) : undefined,
+        grade: s.grade != null ? String(s.grade) : undefined,
+        price: Math.max(0, Number(s.price) || 0),
+        usable: normalizeUsable(s.usable),
+        use_effect: normalizeUseEffect(s.use_effect)
+      }
+    }) : [],
     beasts: Array.isArray(l.beasts) ? l.beasts.map(b => ({
       name: String(b.name || '生物'),
       realm: String(b.realm || ''),
@@ -359,6 +409,7 @@ export function packToDraft(pack) {
       lexicon: pack.lexicon,
       skills: pack.skills,
       typeNames: pack.typeNames,
+      talentNames: pack.talentNames,
       tiers: pack.tiers.map(t => ({ name: t.name, lifespan: t.lifespan === Infinity ? 'Infinity' : t.lifespan, subNames: t.subNames })),
       startLoc: pack.startLoc,
       map: pack._decl.map,
@@ -388,6 +439,7 @@ export function packToDraft(pack) {
     lexicon: pack.lexicon,
     skills: pack.skills,
     typeNames: pack.typeNames,
+    talentNames: pack.talentNames,
     tiers: pack.tiers.map(t => ({ name: t.name, lifespan: t.lifespan === Infinity ? 'Infinity' : t.lifespan })),
     startLoc: pack.startLoc,
     map: pack.createMap ? pack.createMap() : [],

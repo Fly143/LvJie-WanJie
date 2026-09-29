@@ -2,12 +2,19 @@
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON, narrativeFromStream } from './llm-bridge.js'
 import { stripOptPrefix } from './util.js'
-import { applyChanges, syncGiftsWithNarrative, extractGiftNames } from './changes.js'
+import { applyChanges } from './changes.js'
 import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
-const MAX_HISTORY_MSGS = 40
 const MAX_USER_LEN = 2000
+// lastEventText 会进存档并被 prompt/changes 读取：无条件截断，防无 JSON 回合无限堆叠
+const MAX_LAST_EVENT_TEXT = 4000
+// 连续无数据块回合上限：超过即强制收束，防无限续写 / 状态空转
+const MAX_NO_JSON_TURNS = 2
+
+function setLastEventText(S, narrative) {
+  S.lastEventText = String(narrative == null ? '' : narrative).slice(0, MAX_LAST_EVENT_TEXT)
+}
 
 /**
  * EV 结构：
@@ -193,6 +200,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   if (res && res.responseId) EV._respId = res.responseId
   let changesBrief = null
   if (json && !incomplete) {
+    EV._noJsonStreak = 0 // 拿到数据块即清零连击
     if (Array.isArray(json.options) && json.options.length && !json.end) {
       EV.options = json.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
     } else {
@@ -202,63 +210,34 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
     if (json.end) EV.ended = true
     if (json.changes) {
       try {
-        syncGiftsWithNarrative(json.changes, narrative)
         changesBrief = applyChanges(S, json.changes, hooks)
         EV.changesBrief = changesBrief
       } catch (e) {
         EV.error = '数据写入失败'
       }
-      S.lastEventText = narrative
-    } else if (giftMentioned(narrative)) {
-      try {
-        const ch = syncGiftsWithNarrative({}, narrative)
-        changesBrief = applyChanges(S, ch, hooks)
-        EV.changesBrief = changesBrief
-      } catch (e) { /* ignore */ }
-      S.lastEventText = narrative
+      setLastEventText(S, narrative)
     }
   } else if (!incomplete) {
-    // 无 json：从正文补奖励，并尽量向模型要一次 json（recover 期间保持 loading，防并发）
-    let recovered = null
-    try {
-      recovered = await recoverChangesFromLLM({ keyObj, narrative, S, signal: ctl.signal })
-    } catch (e) { recovered = null }
-    if (EV._turn !== turn) {
-      EV.loading = false
-      return // recover 期间被 endEvent/新回合作废
-    }
-    if (EV.ended && EV._endedByUser) {
-      EV.loading = false
-      return
-    }
-    const ch = recovered || inferLite(narrative)
-    if (ch && Object.keys(ch).length) {
-      try {
-        changesBrief = applyChanges(S, ch, hooks)
-        EV.changesBrief = changesBrief
-      } catch (e) { /* ignore */ }
-    }
+    // 无 json：不做任何猜测性数据写入，仅保留剧情并给出继续选项。
+    // 连续无数据块回合设上限，防止模型永久脱离输出合同导致事件永不收束。
+    const streak = (EV._noJsonStreak = (EV._noJsonStreak || 0) + 1)
     const opts = parseOptionsFromText(narrative)
-    if (opts.length) {
-      EV.options = opts
-      EV.ended = false
-      EV.error = (recovered && Object.keys(recovered).length) || (ch && Object.keys(ch).length)
-        ? '（本轮未附数据块，已按正文补写奖励）'
-        : '（本轮未附数据块，剧情继续；可能少了奖励写入）'
-      S.lastEventText = narrative
-    } else if (narrative && String(narrative).trim().length >= 20) {
-      // 有正文没数据块：别硬掐断，给继续选项
-      EV.options = ['继续', '仔细观察四周', '换个话题']
-      EV.ended = false
-      EV.error = (ch && Object.keys(ch).length)
-        ? '（本轮未附数据块，已按正文补写奖励）'
-        : '（本轮未附数据块，已给出继续选项）'
-      S.lastEventText = narrative
-    } else if (ch && Object.keys(ch).length) {
+    if (streak >= MAX_NO_JSON_TURNS) {
+      // 连续无数据块达上限：强制收束，防事件无限空转
       EV.options = null
       EV.ended = true
-      EV.error = '（本轮未附数据块，已按正文补写奖励）'
-      S.lastEventText = narrative
+      EV.error = '（连续未附数据块，事件强制收束）'
+      setLastEventText(S, narrative)
+    } else if (opts.length) {
+      EV.options = opts
+      EV.ended = false
+      EV.error = '（本轮未附数据块，剧情继续；数据未写入）'
+      setLastEventText(S, narrative)
+    } else if (narrative && String(narrative).trim().length >= 20) {
+      EV.options = ['继续', '仔细观察四周', '换个话题']
+      EV.ended = false
+      EV.error = '（本轮未附数据块，剧情继续；数据未写入）'
+      setLastEventText(S, narrative)
     } else {
       EV.options = null
       EV.ended = true
@@ -267,7 +246,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   } else {
     EV.options = null
     EV.ended = true
-    S.lastEventText = narrative
+    setLastEventText(S, narrative)
   }
 
     EV.resultText = narrative

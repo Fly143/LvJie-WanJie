@@ -85,7 +85,7 @@ export const apocalypsePack = {
   artPriceK: 90,
   breakthroughPriceK: 24,
   artPower: { 破损: 0.1, 标准: 0.18, 军规: 0.32, 稀有: 0.55 },
-  cultYears: [1, 10, 40, 120, 400, 1500, 5000, 20000, 80000, 300000],
+  cultYears: [1, 10, 40, 120, 400, 1500, 5000, 20000, 80000, 300000, 1200000],
   startLoc: 'a_shelter',
   tiers: [
     { name: '未觉醒', lifespan: 50, subNames: ['初期', '中期', '后期', '巅峰'] },

@@ -5,10 +5,13 @@ import { fmtNum } from './util.js'
 
 const ART_SUM_DECAY = 0.6
 
+/** 境界索引有限数守卫：非有限回退 0 */
+const finTier = v => (Number.isFinite(v) ? v : 0)
+
 export function artPowerF(S, it) {
   const pack = packOf(S)
   const gradeMul = (pack.artPower && pack.artPower[it.grade]) || 0.1
-  const ri = it.realm_index == null ? S.tierIndex : it.realm_index
+  const ri = it.realm_index == null ? S.tierIndex : finTier(it.realm_index)
   const raw = gradeMul * tierBase(S, ri)
   // 已装备至少 +1，无品级也给保底
   return Math.max(1, Math.round(raw * 10) / 10)
@@ -101,13 +104,15 @@ export function consumableEffect(S, it) {
   const pack = packOf(S)
   const pct = (pack.pillPct && pack.pillPct[it.grade]) || 5
   if (!pct) return 0
-  let eff = tierBase(S, it.realm_index || 0) * pct / 100
-  const gap = S.tierIndex - (it.realm_index || 0)
+  const ri = finTier(it.realm_index)
+  let eff = tierBase(S, ri) * pct / 100
+  const gap = S.tierIndex - ri
   if (gap > 0) eff *= Math.pow(0.25, gap)
   return Math.round(eff * 10) / 10
 }
 
 export function consumablePrice(S, ri, grade) {
+  ri = finTier(ri)
   const pack = packOf(S)
   const k = pack.pillPriceK != null ? pack.pillPriceK : 20
   const bt = pack.breakthroughGrade
@@ -121,6 +126,7 @@ export function consumablePrice(S, ri, grade) {
 }
 
 export function equipPrice(S, ri, grade) {
+  ri = finTier(ri)
   const pack = packOf(S)
   const k = pack.artPriceK != null ? pack.artPriceK : 100
   const mul = (pack.artPower && pack.artPower[grade]) || 0.1
