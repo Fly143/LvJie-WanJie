@@ -31,6 +31,8 @@ out/
 # 可选：若要提交打包产物再打开
 # release/
 
+# 一次性迁移脚本归档（含本机绝对路径，仅本地留存，不入库）
+scripts/migrations-archive/
 
 # Android build
 android/.gradle/
