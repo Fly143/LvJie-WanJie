@@ -119,7 +119,7 @@ export function buildSystemPrompt(S, opts = {}) {
   }))
   // 同伴 mem 完整放入；点名档案见下方按需块
 
-  const styleKey = (S.aiStyle === 'cheat' && !opts.cheatUnlocked) ? 'normal' : (S.aiStyle || 'normal')
+  const styleKey = S.aiStyle || 'normal'
   const styleBlock = TALENT_BLOCK[styleKey] || TALENT_BLOCK.normal
   const cheatOn = styleKey === 'cheat'
   const styleCaveat = cheatOn

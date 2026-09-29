@@ -24,7 +24,6 @@ export const app = {
   TAB: 'scene',
   EV: null,
   selectedPack: defaultPackId(),
-  cheatUnlocked: false,
   packMoreOpen: false
 }
 
@@ -173,7 +172,6 @@ export function startFlow(kind, content, target) {
   const ev = app.EV
   runEventTurn(app.S, ev, content, {
     limitOn: app.S.dialogLimit,
-    cheatUnlocked: app.cheatUnlocked,
     onState: () => {
       if (app.EV === ev) renderMain()
     },

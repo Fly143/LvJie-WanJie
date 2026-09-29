@@ -81,7 +81,6 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
 
   const system = buildSystemPrompt(S, {
     limitOn: hooks.limitOn !== false,
-    cheatUnlocked: !!hooks.cheatUnlocked,
     lang: S.lang,
     focusText: userText,
     focusNames: EV.target ? [String(EV.target)] : []

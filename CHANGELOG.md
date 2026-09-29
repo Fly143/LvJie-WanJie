@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09
+
+### Added
+- 「开挂」AI 风格真实生效：移除 `cheatUnlocked` 死门槛，四档风格（开挂/慷慨/正常/艰难）全部按设置生效
+- 冒烟脚本体系：`smoke:engine/book/chars/npc/quest` 五连 + `smoke:llm` 端点探测 + `smoke:stage` 启动探测
+
+### Changed
+- 版本号规范固定为三段式 `主.次.补丁`，不再使用四位版本；0.1.0 作为「安全加固完成」里程碑基线
+- 一次性迁移脚本归档不再入库（本地留存于 `scripts/migrations-archive/`）
+
+### Security
+- main.js 五项安全加固：fetchChecked 逐跳校验、资产读取双白名单、跨域敏感头剥离、safeStorage 密钥持久化、SSRF 防护
+- 世界包导入原型污染防护（`__proto__` / `constructor` 键过滤）
+
+### Fixed
+- 数值通道 NaN 防御；relType 与婚姻状态解耦；toast / i18n 转义修复
+- 引擎稳定性批修：空指针防御、changes 单轮熔断、流式超时
+
 ## [0.0.7.1] - 2025-09
 
 ### Fixed
@@ -98,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...v0.1.0
 [0.0.7.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...v0.0.7.1
 [0.0.7]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.5...v0.0.6

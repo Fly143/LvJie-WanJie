@@ -252,7 +252,6 @@ function contEvent(app, api, content, isRetry) {
       scrollEventTop()
       runEventTurn(app.S, ev, content, {
         limitOn: app.S.dialogLimit,
-        cheatUnlocked: app.cheatUnlocked,
         onState: () => {
           if (app.EV !== ev) return
           // 回调可能在 renderScene 之外触发：显式取 #main，勿依赖隐式全局 main
@@ -285,7 +284,6 @@ function contEvent(app, api, content, isRetry) {
   scrollEventTop()
   runEventTurn(app.S, ev, content, {
     limitOn: app.S.dialogLimit,
-    cheatUnlocked: app.cheatUnlocked,
     onState: () => {
       if (app.EV !== ev) return
       // 回调可能在 renderScene 之外触发：显式取 #main，勿依赖隐式全局 main

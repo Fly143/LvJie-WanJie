@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-blue.svg)](https://github.com/Fly143/LvJie-WanJie/releases)
-[![Release](https://img.shields.io/badge/release-v0.0.7.1-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg)](https://www.electronjs.org/)
 
 选择修仙 / 玄幻 / 武侠 / 职场 / 末世 / 西幻，接入自定义大模型 API，实时生成剧情与数据变化。
@@ -24,6 +24,7 @@
 - 自定义模型接入：Base URL + API Key + 模型，协议支持 **chat** / **response**
 - 可「刷新模型列表」从 `GET {Base URL}/models` 拉取选用
 - 事件循环：行动 / 选项 / 自由输入 → JSON `changes` 自动落库（货币、进度、物品、地图、同伴、任务）
+- AI 风格四档可调：开挂 / 慷慨 / 正常 / 艰难（设置里切换，实时改变判定松紧与奖励厚薄）
 - 委托任务可追踪：接取/完成/失败进侧栏「任务」，奖励同步写入数值
 - 背景音乐支持 mp3 与 **MIDI**（Web Audio 合成）
 - chat 协议流式输出；changes 单轮数值熔断；设置里可导出/导入存档 JSON（不含 Key）
