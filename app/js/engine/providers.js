@@ -247,6 +247,20 @@ export function orderModelsForPick(items, hint) {
   return arr.slice().sort((a, b) => rank(a) - rank(b) || b.created - a.created || versionOf(b.id) - versionOf(a.id) || a.id.localeCompare(b.id))
 }
 
+/**
+ * 决定最终用哪个模型：**玩家手填的优先**（刷新列表不会把 pro 覆盖回 flash），
+ * 没手填时才用 autoModel 自动挑的最新档，其次用预设给的默认值。
+ * @returns {{model:string, manual:boolean, autoPick:string}}
+ */
+export function resolvePresetModel({ manual = '', lastAutoPick = '', autoModel = false, hint = '', items = [] } = {}) {
+  const autoPick = pickLatestModel(items, hint)
+  const m = String(manual || '').trim()
+  const keepManual = !!(m && m !== lastAutoPick)
+  if (keepManual) return { model: m, manual: true, autoPick }
+  const model = autoModel ? autoPick : (m || autoPick)
+  return { model, manual: false, autoPick: model || autoPick }
+}
+
 export function findPreset(baseUrl) {
   const b = String(baseUrl || '').trim().replace(/\/+$/, '').toLowerCase()
   if (!b) return null

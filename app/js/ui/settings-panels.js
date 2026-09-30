@@ -6,7 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
-import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick } from '../engine/providers.js'
+import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel } from '../engine/providers.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -383,8 +383,11 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       `</details>`
   }
 
-  // 拉取该服务商的模型列表；autoModel 的预设会自动挑最新的（如 flash 档）
+  // 拉取该服务商的模型列表；autoModel 的预设会自动挑最新的（如 flash 档），
+  // 但**不会覆盖玩家手填的模型**（手填 ≠ 上次自动挑中的值 时保留手填值）
   let presetFetching = false
+  let lastAutoPick = ''
+  let presetFetchedFor = ''
   async function fetchPresetModels({ auto } = {}) {
     const p = currentPreset()
     const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
@@ -401,32 +404,50 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     }
     const items = r.items && r.items.length ? r.items : (r.models || []).map(id => ({ id, created: 0 }))
     const ordered = orderModelsForPick(items, p.modelHint)
+    presetFetchedFor = p.id
     if (presetModelsEl) {
       presetModelsEl.innerHTML = `<option value="">— ${t('modelListN')} ${ordered.length} ${t('modelListPick')} —</option>` +
         ordered.map(x => `<option value="${esc(x.id)}">${esc(x.id)}</option>`).join('')
       presetModelsEl.style.display = ''
     }
-    const picked = p.autoModel ? pickLatestModel(items, p.modelHint) : (presetModelEl.value.trim() || pickLatestModel(items, p.modelHint))
+    const manual = (presetModelEl && presetModelEl.value.trim()) || ''
+    // 手填过（和上次自动挑的不一样）就保留手填值，刷新只补列表不覆盖
+    const res = resolvePresetModel({
+      manual,
+      lastAutoPick,
+      autoModel: !!p.autoModel,
+      hint: p.modelHint || '',
+      items
+    })
+    const picked = res.model
+    if (!res.manual) lastAutoPick = res.autoPick || picked
     if (presetModelEl && picked) presetModelEl.value = picked
-    if (presetModelsEl && picked) presetModelsEl.value = picked
+    if (presetModelsEl) presetModelsEl.value = ordered.some(x => x.id === picked) ? picked : ''
     if (presetModelHint) {
-      presetModelHint.textContent = (picked ? t('presetAutoPicked') + picked + ' · ' : '') +
-        `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')}`
+      presetModelHint.textContent = (res.manual
+        ? t('presetManualKept') + picked
+        : (picked ? t('presetAutoPicked') + picked : '')) +
+        ' · ' + `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')}`
     }
     if (!auto) toast(`${t('fetchedN')} ${ordered.length}${t('modelsN')}`)
   }
 
-  if (presetSel) presetSel.onchange = () => renderPreset({ clearKey: true })
+  if (presetSel) presetSel.onchange = () => { lastAutoPick = ''; presetFetchedFor = ''; renderPreset({ clearKey: true }) }
   renderPreset({ clearKey: true })
   if (presetRefreshBtn) presetRefreshBtn.onclick = () => fetchPresetModels({ auto: false })
   if (presetKeyEl) {
-    // 粘完 Key 自动取一次：autoModel 的预设直接带上最新的 flash 档
+    // 粘完 Key 自动取一次列表（同一个服务商只自动取一次，不会反复刷）
     presetKeyEl.onblur = () => {
       const p = currentPreset()
-      if (p && p.autoModel && presetKeyEl.value.trim() && !presetModelEl.value.trim()) fetchPresetModels({ auto: true })
+      if (p && p.autoModel && presetKeyEl.value.trim() && presetFetchedFor !== p.id) fetchPresetModels({ auto: true })
     }
   }
-  if (presetModelsEl) presetModelsEl.onchange = () => { if (presetModelEl) presetModelEl.value = presetModelsEl.value }
+  if (presetModelsEl) presetModelsEl.onchange = () => {
+    if (presetModelEl) presetModelEl.value = presetModelsEl.value
+    // 从下拉里手动选定 → 记住这是手填，后续刷新不覆盖
+    lastAutoPick = ''
+  }
+  if (presetModelEl) presetModelEl.oninput = () => { if (presetModelEl.value.trim() !== lastAutoPick) lastAutoPick = '' }
 
 
   const presetSaveBtn = document.getElementById('k-preset-save')

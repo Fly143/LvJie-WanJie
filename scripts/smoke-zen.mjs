@@ -359,6 +359,24 @@ ok('zenConfig 形状正确', (() => {
   ok('orderModelsForPick 命中关键字的排前面', (() => {
     const r = prov.orderModelsForPick([{ id: 'zz-pro' }, { id: 'aa-flash' }, { id: 'bb-flash' }], 'flash')
     return r[0].id.indexOf('flash') >= 0 && r[r.length - 1].id === 'zz-pro'
+  })())
+  // 手填的模型不能被刷新覆盖（想用 pro 就填 pro）
+  const dsItems = [{ id: 'deepseek-flash', created: 300 }, { id: 'deepseek-v4-pro', created: 100 }]
+  ok('手填 pro 后刷新列表不会覆盖', (() => {
+    const r = prov.resolvePresetModel({ manual: 'deepseek-v4-pro', lastAutoPick: 'deepseek-flash', autoModel: true, hint: 'flash', items: dsItems })
+    return r.model === 'deepseek-v4-pro' && r.manual === true
+  })())
+  ok('没手填时自动挑最新 flash', (() => {
+    const r = prov.resolvePresetModel({ manual: '', lastAutoPick: '', autoModel: true, hint: 'flash', items: dsItems })
+    return r.model === 'deepseek-flash' && r.manual === false
+  })())
+  ok('值等于上次自动挑中的 → 不算手填（继续自动）', (() => {
+    const r = prov.resolvePresetModel({ manual: 'deepseek-flash', lastAutoPick: 'deepseek-flash', autoModel: true, hint: 'flash', items: dsItems })
+    return r.manual === false && r.model === 'deepseek-flash'
+  })())
+  ok('非 autoModel 预设也保留手填值', (() => {
+    const r = prov.resolvePresetModel({ manual: 'mimo-v2.6-pro', lastAutoPick: '', autoModel: false, hint: 'flash', items: [{ id: 'mimo-v2.6-flash' }] })
+    return r.model === 'mimo-v2.6-pro' && r.manual === true
   })())  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
   const FREE_IDS = ['intern', 'spark', 'zhipu']
   const others = list.filter(p => !FREE_IDS.includes(p.id))
@@ -427,7 +445,7 @@ ok('zenConfig 形状正确', (() => {
   ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
   ok('预设下拉选项渲染免费标记', src.includes('p.tag ?'))
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
-  ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('pickLatestModel') && src.includes('orderModelsForPick'))
+  ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('resolvePresetModel'))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
   ok('已保存列表可编辑载入自定义接口', src.includes('data-edit=') && src.includes("setMode('custom')"))
   ok('自定义接口 tab 保留自由表单', declared.has('custom-panel') && ['k-base', 'k-value', 'k-model', 'k-style', 'k-add'].every(id => declared.has(id)))
@@ -440,7 +458,7 @@ ok('zenConfig 形状正确', (() => {
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'fillModel']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）
