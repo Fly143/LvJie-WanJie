@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09
+
+### Fixed
+- API 设置：切换已保存配置后点「保存并选用」会回到原来那条 —— 弹窗打开后表单没有跟着切换走，保存时按旧表单内容匹配并把选择改了回来；现在切换即同步表单，且表单未改动时只切换选用、不再重复写库
+- API 设置：手机窄屏下「已保存 · 不显示」被压成一字一行（竖排）、卡片拥挤 —— 改为两行结构 + `nowrap`/省略号，备注名与模型名过长自动截断（无头排版校验：修复前 6×125px 竖排 → 修复后 81×18px 横排）
+- 配置匹配忽略 Base URL 结尾斜杠、兼容旧 `style` 字段，避免同一配置被存成重复条目
+
+### Added
+- `smoke:keys` 回归脚本：配置切换/匹配判定 18 个用例
+- `scripts/ui-layout-check.js`：用系统 Edge 无头渲染，量化校验窄屏排版（含复刻旧样式的对照组）
+
 ## [0.2.0] - 2026-09
 
 ### Added
@@ -127,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...v0.1.0
 [0.0.7.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...v0.0.7.1

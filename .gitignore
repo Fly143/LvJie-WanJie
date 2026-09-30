@@ -2,6 +2,7 @@
 node_modules/
 runtime/
 .smoke-stage/
+.smoke-uitest/
 .smoke-out.txt
 .smoke-err.txt
 electron-out.log

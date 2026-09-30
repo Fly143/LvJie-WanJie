@@ -4,6 +4,7 @@ import { normalizeApiKey, endpointOf, maskKey, listModels } from '../engine/llm.
 import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
+import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -30,17 +31,23 @@ export function openKeyModal(app, { save, refreshAll }) {
       <div class="key-row">
         <label>
           <input type="radio" name="selkey" value="${i}" ${selected === i ? 'checked' : ''}>
-          <b>${esc(n.name || t('cfgN') + (i + 1))}</b>
-          <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
-          <span class="masktext">${esc(n.model || '')}</span>
-          <span class="masktext">${(n.key || n.value) ? t('savedHidden') : t('unset')}</span>
+          <span class="key-lines">
+            <span class="key-top">
+              <b>${esc(n.name || t('cfgN') + (i + 1))}</b>
+              <span class="ctype">${style}</span>
+            </span>
+            <span class="key-sub">
+              <span class="masktext">${esc(n.model || '')}</span>
+              <span class="masktext key-state">${(n.key || n.value) ? t('savedHidden') : t('unset')}</span>
+            </span>
+          </span>
         </label>
         <button class="btn btn-sm btn-danger" data-del="${i}" type="button">${t('delete')}</button>
       </div>
     `
   }).join('')
 
-  const cur = keys[selected] && normalizeApiKey(keys[selected])
+  let cur = keys[selected] && normalizeApiKey(keys[selected])
   const curStyle = (cur && cur.apiStyle === 'response') ? 'response' : 'chat'
 
   openModal(`
@@ -150,6 +157,18 @@ export function openKeyModal(app, { save, refreshAll }) {
   valEl.oninput = refreshPreview
   refreshPreview()
 
+  // 切换已保存配置时把表单同步成那一条，否则「保存并选用」会拿旧表单内容匹配回原来那条
+  function syncFormToEntry(i) {
+    const src = keys[i] ? (normalizeApiKey(keys[i]) || keys[i]) : null
+    cur = src
+    selStyle.value = (src && src.apiStyle === 'response') ? 'response' : 'chat'
+    baseEl.value = src ? (src.baseUrl || '') : ''
+    modelEl.value = src ? (src.model || '') : ''
+    nameEl.value = src ? (src.name || '') : ''
+    valEl.value = ''
+    refreshPreview()
+  }
+
   document.getElementById('k-add').onclick = async () => {
     const apiStyle = selStyle.value === 'response' ? 'response' : 'chat'
     const baseUrl = baseEl.value.trim().replace(/\/+$/, '')
@@ -159,6 +178,21 @@ export function openKeyModal(app, { save, refreshAll }) {
     const selNow = (S && typeof S.selectedKey === 'number') ? S.selectedKey : selected
     if (!baseUrl || !model) {
       toast(t('fillBaseModel'))
+      return
+    }
+    // 表单没改动 → 只是「切换选用」，不要再按旧表单内容 upsert（否则会把选择改回原来那条）
+    const dirty = formDirty({ baseUrl, model, name, apiStyle, key: keyInput }, cur)
+    if (!dirty) {
+      const pick = (typeof selected === 'number') ? selected : 0
+      if (!S || useStandalone) {
+        selectKeyStandalone(pick)
+      } else {
+        S.selectedKey = pick
+      }
+      save()
+      refreshAll()
+      closeModal()
+      toast(t('apiSaved'))
       return
     }
     let key = keyInput
@@ -237,6 +271,7 @@ export function openKeyModal(app, { save, refreshAll }) {
     r.onchange = () => {
       if (!r.checked) return
       const idx = Number(r.value)
+      syncFormToEntry(idx)
       if (!S || useStandalone) {
         selectKeyStandalone(idx)
         selected = idx
@@ -267,13 +302,6 @@ export function openHelp(app) {
     <p style="color:var(--faint);font-size:12px">${t('helpProto')}</p>
     <div class="btn-row"><button class="btn btn-gold" data-close type="button">${t('ok')}</button></div>
   `)
-}
-
-function sameKeyEntry(a, b) {
-  if (!a || !b) return false
-  return String(a.baseUrl || '') === String(b.baseUrl || '')
-    && String(a.model || '') === String(b.model || '')
-    && String(a.apiStyle || a.style || '') === String(b.apiStyle || b.style || '')
 }
 
 function persistKeysStandalone(rec, selNow, keyInput) {
