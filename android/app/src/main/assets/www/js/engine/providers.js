@@ -90,15 +90,16 @@ export const PROVIDER_PRESETS = [
     id: 'deepseek',
     name: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
-    model: 'deepseek-flash',
+    // 不写死模型名：粘好 Key 后自动拉官方模型列表，挑最新的 flash 档
+    autoModel: true,
+    modelHint: 'flash',
     apiStyle: 'chat',
     keyUrl: 'https://platform.deepseek.com/api_keys',
     loginUrl: 'https://platform.deepseek.com/',
-    models: ['deepseek-flash', 'deepseek-v4-pro'],
     howto: [
       '① 打开 {key} 登录 DeepSeek 开放平台（需先注册并充值）',
       '② 点「创建 API key」并复制（只显示一次）',
-      '③ 回到本页粘贴到「API Key」；模型默认 deepseek-flash（官方当前在售的 Flash 档），想用更强推理可选 deepseek-v4-pro —— 旧的 deepseek-chat / deepseek-reasoner 已不在官方价格表中，别再用',
+      '③ 回到本页粘贴到「API Key」，模型会自动从官方模型列表里取最新的 flash 档（也可点「刷新模型列表」自己挑）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -205,6 +206,45 @@ export function presetSteps(preset) {
   return (preset.howto || []).map(s => String(s)
     .replace(/\{key\}/g, preset.keyUrl || '')
     .replace(/\{login\}/g, preset.loginUrl || preset.keyUrl || ''))
+}
+
+/** 模型名里的大版本号（v4.1 → 4.1），用于没有 created 时比较新旧 */
+function versionOf(id) {
+  const m = /(?:^|[^\d.])v?(\d+(?:\.\d+)?)/i.exec(String(id || ''))
+  return m ? Number(m[1]) : 0
+}
+
+/**
+ * 从服务商返回的模型列表里挑「最新」的那个。
+ * 有 created 时按创建时间取最新；没有就按名字里的版本号比大小。
+ * @param {Array<{id:string,created?:number}>} items
+ * @param {string} hint 关键字/正则（如 'flash'）：只在这个范围内挑，挑不到再退回全量
+ */
+export function pickLatestModel(items, hint) {
+  const arr = (items || []).filter(x => x && x.id).map(x => ({ id: String(x.id), created: Number(x.created) || 0 }))
+  if (!arr.length) return ''
+  let pool = arr
+  if (hint) {
+    try {
+      const re = new RegExp(hint, 'i')
+      const hit = arr.filter(x => re.test(x.id))
+      if (hit.length) pool = hit
+    } catch (e) { /* hint 不是合法正则就当没有 */ }
+  }
+  const timed = pool.filter(x => x.created > 0)
+  if (timed.length) {
+    return timed.slice().sort((a, b) => b.created - a.created || versionOf(b.id) - versionOf(a.id))[0].id
+  }
+  return pool.slice().sort((a, b) => versionOf(b.id) - versionOf(a.id) || a.id.localeCompare(b.id))[0].id
+}
+
+/** 模型列表排序：命中关键字的排前面，其余按新旧 */
+export function orderModelsForPick(items, hint) {
+  const arr = (items || []).filter(x => x && x.id).map(x => ({ id: String(x.id), created: Number(x.created) || 0 }))
+  let re = null
+  if (hint) { try { re = new RegExp(hint, 'i') } catch (e) { re = null } }
+  const rank = (x) => (re && re.test(x.id) ? 0 : 1)
+  return arr.slice().sort((a, b) => rank(a) - rank(b) || b.created - a.created || versionOf(b.id) - versionOf(a.id) || a.id.localeCompare(b.id))
 }
 
 export function findPreset(baseUrl) {

@@ -463,6 +463,7 @@ function createWindow() {
           legacyPresetButtons: document.querySelectorAll('[data-preset]').length,
           stepsFolded: !!(det && !det.open),
           hasPresetKey: !!document.getElementById('k-preset-key'),
+          hasPresetModel: !!document.getElementById('k-preset-model') && !!document.getElementById('k-preset-refresh'),
           customForm: !!document.getElementById('k-base') && !!document.getElementById('k-model'),
           savedRows: document.querySelectorAll('.key-row').length
         }

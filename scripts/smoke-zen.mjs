@@ -299,7 +299,7 @@ ok('zenConfig 形状正确', (() => {
   ok('预设 id 唯一', new Set(list.map(p => p.id)).size === list.length)
   ok('预设 baseUrl 唯一', new Set(list.map(p => p.baseUrl)).size === list.length)
   ok('预设都是 https 的 chat 端点', list.every(p => /^https:\/\//.test(p.baseUrl) && p.apiStyle === 'chat'), list.map(p => p.baseUrl))
-  ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl), list)
+  ok('预设字段齐全', list.every(p => p.id && p.name && p.keyUrl && (p.model || (p.models && p.models.length) || p.autoModel)), list.map(p => p.id))
   // 备注只给「免费政策容易过期」的书生·浦语与讯飞星火，其他家不写备注
   const noteIds = list.filter(p => p.note).map(p => p.id)
   ok('备注只给书生与讯飞', noteIds.length === 2 && noteIds.includes('intern') && noteIds.includes('spark'), noteIds)
@@ -314,7 +314,7 @@ ok('zenConfig 形状正确', (() => {
     const u = new URL(p.keyUrl)
     return u.pathname !== '/' || p.keyUrl.includes('#/') || p.keyUrl.includes('?')
   }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
-  ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
+  ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length) || p.autoModel), list.map(p => p.id))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
   // 免费区：书生·浦语 / 讯飞星火 / 智谱 GLM 三家，其余不带免费标记
   const idxOf = (id) => list.findIndex(p => p.id === id)
@@ -340,9 +340,26 @@ ok('zenConfig 形状正确', (() => {
   ok('MiMo 默认用 flash 档', mimoP.model === 'mimo-v2.6-flash', mimoP.model)
   ok('MiMo 候选里去掉 ultraspeed', !(mimoP.models || []).some(m => /ultraspeed/i.test(m)), mimoP.models)
   const dsP = list.find(p => p.id === 'deepseek')
-  ok('DeepSeek 默认用当前在售的 deepseek-flash', dsP.model === 'deepseek-flash', dsP.model)
-  ok('DeepSeek 不再列旧模型名', !['deepseek-chat', 'deepseek-reasoner'].some(m => (dsP.models || []).includes(m)), dsP.models)
-  ok('DeepSeek 教程提醒旧名已不可用', /deepseek-chat \/ deepseek-reasoner 已不在/.test((dsP.howto || []).join(' ')))  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
+  ok('DeepSeek 不写死模型名（改为拉列表自动取）', dsP.autoModel === true && !dsP.model && !(dsP.models || []).length, { autoModel: dsP.autoModel, model: dsP.model, models: dsP.models })
+  ok('DeepSeek 自动取的是 flash 档', dsP.modelHint === 'flash', dsP.modelHint)
+  ok('DeepSeek 教程说明会自动取最新', /自动/.test((dsP.howto || []).join(' ')))
+  // 自动挑模型：有 created 按时间，没有就按名字里的版本号
+  ok('pickLatestModel 在 flash 范围内取最新（按 created）', prov.pickLatestModel([
+    { id: 'deepseek-v4-pro', created: 100 },
+    { id: 'deepseek-flash', created: 300 },
+    { id: 'deepseek-v4.1-flash', created: 200 }
+  ], 'flash') === 'deepseek-flash')
+  ok('pickLatestModel 无 created 时按版本号取最新', prov.pickLatestModel([
+    { id: 'deepseek-v4-pro' }, { id: 'deepseek-v4.1-flash' }, { id: 'deepseek-flash' }
+  ], 'flash') === 'deepseek-v4.1-flash')
+  ok('pickLatestModel 命中关键字优先于非命中', prov.pickLatestModel([
+    { id: 'some-pro-9000', created: 999 }, { id: 'x-flash', created: 1 }
+  ], 'flash') === 'x-flash')
+  ok('pickLatestModel 空列表返回空', prov.pickLatestModel([], 'flash') === '')
+  ok('orderModelsForPick 命中关键字的排前面', (() => {
+    const r = prov.orderModelsForPick([{ id: 'zz-pro' }, { id: 'aa-flash' }, { id: 'bb-flash' }], 'flash')
+    return r[0].id.indexOf('flash') >= 0 && r[r.length - 1].id === 'zz-pro'
+  })())  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
   const FREE_IDS = ['intern', 'spark', 'zhipu']
   const others = list.filter(p => !FREE_IDS.includes(p.id))
   ok('其余家教程不谈免费政策', others.every(p => !/免费|白嫖|额度/.test((p.howto || []).join(' '))), others.filter(p => /免费|白嫖|额度/.test((p.howto || []).join(' '))).map(p => p.id))
@@ -410,6 +427,7 @@ ok('zenConfig 形状正确', (() => {
   ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
   ok('预设下拉选项渲染免费标记', src.includes('p.tag ?'))
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
+  ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('pickLatestModel') && src.includes('orderModelsForPick'))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
   ok('已保存列表可编辑载入自定义接口', src.includes('data-edit=') && src.includes("setMode('custom')"))
   ok('自定义接口 tab 保留自由表单', declared.has('custom-panel') && ['k-base', 'k-value', 'k-model', 'k-style', 'k-add'].every(id => declared.has(id)))
@@ -422,7 +440,7 @@ ok('zenConfig 形状正确', (() => {
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'fillModel']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）
@@ -485,6 +503,34 @@ ok('zenConfig 形状正确', (() => {
   ok('实际用的是探测到的模型', bodies.length >= 1 && bodies[bodies.length - 1].model === 'discovered-free', bodies.map(b => b.model))
   delete globalThis.awHost
   resetCache()
+}
+
+// —— listModels 要带回 created（自动挑最新档依赖它） ——
+{
+  const { listModels } = await import(base + '/engine/llm.js')
+  const stub = globalThis.fetch
+  globalThis.awHost = {
+    http: {
+      request: async () => ({
+        ok: true,
+        status: 200,
+        text: JSON.stringify({
+          object: 'list',
+          data: [
+            { id: 'deepseek-v4-pro', object: 'model', created: 100 },
+            { id: 'deepseek-flash', object: 'model', created: 300 },
+            { id: 'dup', object: 'model' }
+          ]
+        })
+      })
+    }
+  }
+  const r = await listModels({ baseUrl: 'https://api.deepseek.com/v1', key: 'sk-test' })
+  ok('listModels 返回 items（含 created）', r.ok === true && Array.isArray(r.items) && r.items.length === 3, r.items)
+  ok('listModels 的 created 被保留', !!(r.items || []).find(x => x.id === 'deepseek-flash' && x.created === 300), r.items)
+  ok('listModels 仍兼容 models 字段', Array.isArray(r.models) && r.models.length === 3, r.models)
+  delete globalThis.awHost
+  globalThis.fetch = stub
 }
 
 // —— 可选：真实联网探测 ——

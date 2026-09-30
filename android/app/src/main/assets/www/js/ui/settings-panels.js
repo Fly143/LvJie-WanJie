@@ -6,7 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
-import { PROVIDER_PRESETS, presetSteps } from '../engine/providers.js'
+import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick } from '../engine/providers.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -122,6 +122,15 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       <div id="k-preset-box" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('apiKey')}</label>
       <input id="k-preset-key" type="password" placeholder="sk-…" autocomplete="off" value="">
+      <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('model')}</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <input id="k-preset-model" type="text" style="margin-top:0;flex:1" placeholder="${t('presetModelPh')}" value="">
+        <button class="btn btn-sm" id="k-preset-refresh" type="button" title="GET {Base URL}/models">${t('refreshModels')}</button>
+      </div>
+      <select id="k-preset-models" style="width:100%;margin-top:8px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px;display:none">
+        <option value="">${t('pickFromList')}</option>
+      </select>
+      <div id="k-preset-model-hint" style="font-size:12px;color:var(--faint);margin-top:4px"></div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-gold" id="k-preset-save" type="button">${t('saveUse')}</button>
         <button class="btn btn-sm" id="k-preset-test" type="button">${t('testConn')}</button>
@@ -338,48 +347,101 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const presetBox = document.getElementById('k-preset-box')
   const presetKeyEl = document.getElementById('k-preset-key')
   const presetHint = document.getElementById('k-preset-hint')
-  let presetModel = ''
+  const presetModelEl = document.getElementById('k-preset-model')
+  const presetModelsEl = document.getElementById('k-preset-models')
+  const presetModelHint = document.getElementById('k-preset-model-hint')
+  const presetRefreshBtn = document.getElementById('k-preset-refresh')
 
   const currentPreset = () => (presetSel && PROVIDER_PRESETS.find(p => p.id === presetSel.value)) || PROVIDER_PRESETS[0]
 
   function renderPreset({ clearKey } = {}) {
     const p = currentPreset()
     if (!p) return
-    presetModel = p.model || ''
     if (presetHint) presetHint.textContent = t('providerPresetHint')
     if (clearKey && presetKeyEl) presetKeyEl.value = ''
+    // 模型：预设给了候选就先填候选；标了 autoModel 的留空，等拉列表自动挑
+    if (presetModelEl) presetModelEl.value = p.model || ''
+    if (presetModelsEl) {
+      if (p.models && p.models.length) {
+        presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>` +
+          p.models.map(m => `<option value="${esc(m)}" ${m === presetModelEl.value ? 'selected' : ''}>${esc(m)}</option>`).join('')
+        presetModelsEl.style.display = ''
+      } else {
+        presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>`
+        presetModelsEl.style.display = 'none'
+      }
+    }
+    if (presetModelHint) presetModelHint.textContent = p.autoModel ? t('presetAutoModelHint') : ''
     if (!presetBox) return
-    const modelSel = (p.models && p.models.length)
-      ? `<div style="margin-top:6px">${t('model')}：<select id="k-preset-models" style="margin-top:4px">` +
-        p.models.map(m => `<option value="${esc(m)}" ${m === presetModel ? 'selected' : ''}>${esc(m)}</option>`).join('') +
-        '</select></div>'
-      : ''
     presetBox.innerHTML =
       `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}` +
-      modelSel +
       // 教程默认折叠：需要时再点开，避免一屏全是步骤
       `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent)">${t('providerShowSteps')}</summary>` +
       `<div style="margin-top:4px">${presetSteps(p).map(s => esc(s)).join('<br>')}</div>` +
       `<div style="margin-top:6px">${t('providerGetKey')}` +
       `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>` +
       `</details>`
-    const msel = document.getElementById('k-preset-models')
-    if (msel) msel.onchange = () => { presetModel = msel.value }
   }
+
+  // 拉取该服务商的模型列表；autoModel 的预设会自动挑最新的（如 flash 档）
+  let presetFetching = false
+  async function fetchPresetModels({ auto } = {}) {
+    const p = currentPreset()
+    const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
+    if (presetFetching) return
+    if (!key) { if (!auto) toast(t('fillApiKey')); return }
+    presetFetching = true
+    if (presetModelHint) presetModelHint.textContent = t('requestingModels')
+    const r = await listModels({ baseUrl: p.baseUrl, key })
+    presetFetching = false
+    if (!r.ok) {
+      if (presetModelHint) presetModelHint.innerHTML = `<span style="color:var(--red)">${t('fetchFailPrefix')}${esc(r.error || '')}</span>`
+      if (!auto) toast(t('fetchFail'))
+      return
+    }
+    const items = r.items && r.items.length ? r.items : (r.models || []).map(id => ({ id, created: 0 }))
+    const ordered = orderModelsForPick(items, p.modelHint)
+    if (presetModelsEl) {
+      presetModelsEl.innerHTML = `<option value="">— ${t('modelListN')} ${ordered.length} ${t('modelListPick')} —</option>` +
+        ordered.map(x => `<option value="${esc(x.id)}">${esc(x.id)}</option>`).join('')
+      presetModelsEl.style.display = ''
+    }
+    const picked = p.autoModel ? pickLatestModel(items, p.modelHint) : (presetModelEl.value.trim() || pickLatestModel(items, p.modelHint))
+    if (presetModelEl && picked) presetModelEl.value = picked
+    if (presetModelsEl && picked) presetModelsEl.value = picked
+    if (presetModelHint) {
+      presetModelHint.textContent = (picked ? t('presetAutoPicked') + picked + ' · ' : '') +
+        `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')}`
+    }
+    if (!auto) toast(`${t('fetchedN')} ${ordered.length}${t('modelsN')}`)
+  }
+
   if (presetSel) presetSel.onchange = () => renderPreset({ clearKey: true })
   renderPreset({ clearKey: true })
+  if (presetRefreshBtn) presetRefreshBtn.onclick = () => fetchPresetModels({ auto: false })
+  if (presetKeyEl) {
+    // 粘完 Key 自动取一次：autoModel 的预设直接带上最新的 flash 档
+    presetKeyEl.onblur = () => {
+      const p = currentPreset()
+      if (p && p.autoModel && presetKeyEl.value.trim() && !presetModelEl.value.trim()) fetchPresetModels({ auto: true })
+    }
+  }
+  if (presetModelsEl) presetModelsEl.onchange = () => { if (presetModelEl) presetModelEl.value = presetModelsEl.value }
+
 
   const presetSaveBtn = document.getElementById('k-preset-save')
   if (presetSaveBtn) {
     presetSaveBtn.onclick = () => {
       const p = currentPreset()
       const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
+      const model = (presetModelEl && presetModelEl.value.trim()) || ''
       if (!key) { toast(t('fillApiKey')); return }
+      if (!model) { toast(t('fillModel')); return }
       activate({
         name: p.name,
         baseUrl: p.baseUrl,
         key,
-        model: presetModel || p.model,
+        model,
         apiStyle: p.apiStyle === 'response' ? 'response' : 'chat'
       })
       closeModal()
@@ -393,6 +455,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     presetTestBtn.onclick = async () => {
       const p = currentPreset()
       const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
+      const model = (presetModelEl && presetModelEl.value.trim()) || ''
       if (!key) { toast(t('fillApiKey')); return }
       const old = presetTestBtn.textContent
       presetTestBtn.disabled = true
@@ -403,7 +466,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
         r = await testConnection({
           baseUrl: p.baseUrl,
           key,
-          model: presetModel || p.model,
+          model,
           apiStyle: p.apiStyle === 'response' ? 'response' : 'chat'
         })
       } catch (e) {

@@ -100,6 +100,7 @@ else {
   if (ui.legacyPresetButtons !== 0) uiErrs.push('预设仍是全部铺开的按钮: ' + ui.legacyPresetButtons)
   if (!ui.stepsFolded) uiErrs.push('教程没有默认折叠')
   if (!ui.hasPresetKey) uiErrs.push('预设面板缺少 Key 输入框')
+  if (!ui.hasPresetModel) uiErrs.push('预设面板缺少模型输入 / 刷新按钮')
   if (!ui.customForm) uiErrs.push('自定义接口表单缺失')
 }
 if (uiErrs.length) {

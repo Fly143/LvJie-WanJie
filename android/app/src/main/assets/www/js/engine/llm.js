@@ -628,6 +628,7 @@ export async function listModels({ baseUrl, key }) {
     try { data = JSON.parse(raw) } catch (e) { return { ok: false, error: '响应不是合法 JSON', url } }
 
     const ids = []
+    const items = []
     const list = Array.isArray(data) ? data
       : Array.isArray(data.data) ? data.data
       : Array.isArray(data.models) ? data.models
@@ -635,11 +636,15 @@ export async function listModels({ baseUrl, key }) {
       : []
     for (const m of list) {
       const id = typeof m === 'string' ? m : (m && (m.id || m.model || m.name))
-      if (id && ids.indexOf(String(id)) < 0) ids.push(String(id))
+      if (id && ids.indexOf(String(id)) < 0) {
+        ids.push(String(id))
+        // created 用于判断哪个模型更新（自动挑最新档时要用）
+        items.push({ id: String(id), created: Number(m && m.created) || 0 })
+      }
     }
     if (!ids.length) return { ok: false, error: '未解析到模型 id', url }
     ids.sort()
-    return { ok: true, models: ids, url }
+    return { ok: true, models: ids, items, url }
   } catch (e) {
     return { ok: false, error: (e && e.message) || '网络错误' }
   }
