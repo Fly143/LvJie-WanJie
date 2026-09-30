@@ -4,7 +4,7 @@ import { normalizeApiKey, endpointOf, maskKey, listModels, testConnection } from
 import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
-import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
+import { formDirty, upsertKeyEntry, isZenEntry } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel } from '../engine/providers.js'
 import { upgradeSelect, setSelectVisible } from './picker.js'
@@ -27,8 +27,11 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const keys = S && Array.isArray(S.playerKeys) && S.playerKeys.length ? S.playerKeys : (store.keys || [])
   const useStandalone = !(S && Array.isArray(S.playerKeys) && S.playerKeys.length)
 
-  const rows = keys.map((k, i) => {
-    const n = normalizeApiKey(k) || k
+  // 「已保存」只列玩家自己添加的接口：内置免费通道在「内置免费」tab 里管理，
+  // 不占用这里（也不会因为换模型而多出一条）
+  const customEntries = keys.map((k, i) => ({ n: normalizeApiKey(k) || k, i })).filter(x => !isZenBase(x.n.baseUrl))
+  const savedCount = customEntries.length
+  const rows = customEntries.map(({ n, i }) => {
     const style = (n.apiStyle === 'response') ? 'response' : 'chat'
     return `
       <div class="key-row">
@@ -38,7 +41,6 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
             <span class="key-top">
               <b>${esc(n.name || t('cfgN') + (i + 1))}</b>
               <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
-          ${isZenBase(n.baseUrl) ? `<span class="ctype">${t('zenBuiltinBadge')}</span>` : ''}
             </span>
             <span class="key-sub">
               <span class="masktext">${esc(n.model || '')}</span>
@@ -82,11 +84,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     if (!S || useStandalone) {
       persistKeysStandalone(rec, null, rec.key || '')
     } else {
-      S.playerKeys = S.playerKeys || []
-      let i = S.playerKeys.findIndex(k => sameKeyEntry(k, rec))
-      if (i >= 0) S.playerKeys[i] = Object.assign({}, S.playerKeys[i], rec)
-      else { S.playerKeys.push(rec); i = S.playerKeys.length - 1 }
-      S.selectedKey = i
+      // 内置免费通道只保留一条：换模型时更新那一条，不会越存越多
+      const r = upsertKeyEntry(S.playerKeys || [], rec)
+      S.playerKeys = r.list
+      S.selectedKey = r.index
     }
     save()
     refreshAll()
@@ -98,7 +99,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     <div class="btn-row" style="margin-top:8px;flex-wrap:wrap">
       <button class="btn btn-sm" id="mode-zen" type="button">${t('zenModeFree')}</button>
       <button class="btn btn-sm" id="mode-preset" type="button">${t('tabPreset')}</button>
-      <button class="btn btn-sm" id="mode-saved" type="button">${t('tabSaved')}${keys.length ? ' (' + keys.length + ')' : ''}</button>
+      <button class="btn btn-sm" id="mode-saved" type="button">${t('tabSaved')}${savedCount ? ' (' + savedCount + ')' : ''}</button>
       <button class="btn btn-sm" id="mode-custom" type="button">${t('tabCustom')}</button>
     </div>
 
@@ -324,31 +325,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       toast(t('apiSaved'))
       return
     }
-    S.playerKeys = S.playerKeys || []
-    // 同 base+model+协议 才更新；chat / response 分条保存
-    let upsert = S.playerKeys.findIndex(k => sameKeyEntry(k, rec))
-    if (upsert < 0 && !keyInput && typeof selNow === 'number' && S.playerKeys[selNow]) {
-      upsert = selNow
-    } else if (upsert < 0 && keyInput && typeof selNow === 'number' && S.playerKeys[selNow]
-      && keyInput === (S.playerKeys[selNow].key || S.playerKeys[selNow].value)
-      && sameKeyEntry(S.playerKeys[selNow], rec)) {
-      upsert = selNow
-    }
-    if (upsert >= 0) {
-      const old = S.playerKeys[upsert] || {}
-      S.playerKeys[upsert] = Object.assign({}, old, rec, {
-        key: rec.key || old.key || old.value || ''
-      })
-      S.selectedKey = upsert
-    } else {
-      S.playerKeys.push(rec)
-      S.selectedKey = S.playerKeys.length - 1
-    }
-    if (typeof S.selectedKey === 'number' && S.playerKeys[S.selectedKey]) {
-      // 保持选用
-    } else {
-      S.selectedKey = S.playerKeys.length - 1
-    }
+    const r = upsertKeyEntry(S.playerKeys || [], rec, {
+      selNow: typeof selNow === 'number' ? selNow : -1,
+      keyInput
+    })
+    S.playerKeys = r.list
+    S.selectedKey = r.index
     save()
     refreshAll()
     closeModal()
@@ -747,21 +729,11 @@ export function openHelp(app) {  const S = app.S
 function persistKeysStandalone(rec, selNow, keyInput) {
   try {
     const data = loadKeyStore()
-    // 同 base+model+协议 才更新；chat/response 即便同 Key 也各存一条
-    let idx = data.keys.findIndex(k => sameKeyEntry(k, rec))
-    if (idx < 0 && !keyInput && typeof selNow === 'number' && data.keys[selNow]) {
-      idx = selNow // 沿用原 Key 的编辑
-    }
-    if (idx >= 0) {
-      const old = data.keys[idx] || {}
-      data.keys[idx] = Object.assign({}, old, rec, {
-        key: rec.key || old.key || old.value || ''
-      })
-      data.selected = idx
-    } else {
-      data.keys.push(rec)
-      data.selected = data.keys.length - 1
-    }
+    // 同 base+model+协议 才更新；chat/response 即便同 Key 也各存一条；
+    // 内置免费通道只保留一条（切换模型时更新，不再新增）
+    const r = upsertKeyEntry(data.keys, rec, { selNow: typeof selNow === 'number' ? selNow : -1, keyInput })
+    data.keys = r.list
+    data.selected = r.index
     writeKeyStore(data)
   } catch (e) { /* ignore */ }
 }

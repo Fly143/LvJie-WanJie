@@ -321,10 +321,13 @@ ok('zenConfig 形状正确', (() => {
   const freeIds = list.filter(p => p.tag).map(p => p.id)
   ok('免费标记只给这三家', freeIds.length === 3 && ['intern', 'spark', 'zhipu'].every(id => freeIds.includes(id)), freeIds)
   ok('书生·浦语排第一', idxOf('intern') === 0)
-  // 名字就叫「书生」，不再带「·浦语」
+  // 名字格式：中文名（英文名）
   const internP = list.find(p => p.id === 'intern')
-  ok('服务商名是「书生」', internP.name === '书生', internP.name)
-  ok('名字里不再出现浦语', !/浦语/.test(internP.name))
+  ok('服务商名是「书生（Intern-AI）」', internP.name === '书生（Intern-AI）', internP.name)
+  ok('Kimi 名字是「月之暗面（Kimi）」', list.find(p => p.id === 'kimi').name === '月之暗面（Kimi）', list.find(p => p.id === 'kimi').name)
+  // 命名风格统一：中文名（English）
+  ok('全部服务商名统一为「中文（English）」', list.every(p => /^[^（]+（[A-Za-z][A-Za-z0-9 .\-]*）$/.test(p.name)), list.filter(p => !/^[^（]+（[A-Za-z][A-Za-z0-9 .\-]*）$/.test(p.name)).map(p => p.name))
+  ok('用户指定的四家名字正确', ['书生（Intern-AI）', '月之暗面（Kimi）', '小米（MiMo）', '深度求索（DeepSeek）'].every(n => list.some(p => p.name === n)), list.map(p => p.name))
   ok('厂商信息放进了备注', /Intern-AI|上海人工智能实验室/.test(internP.note || ''), internP.note)
   // 智谱：免费的是 flash 档，但要求账号有余额
   const zhipu = list.find(p => p.id === 'zhipu')
@@ -463,6 +466,8 @@ ok('zenConfig 形状正确', (() => {
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
   ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('resolvePresetModel'))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
+  ok('已保存只列自定义（内置不占位）', src.includes('!isZenBase(x.n.baseUrl)') && src.includes('savedCount'))
+  ok('写入列表统一走 upsertKeyEntry', src.includes('upsertKeyEntry(') && !src.includes('S.playerKeys.findIndex(k => sameKeyEntry'))
   ok('已保存列表可编辑载入自定义接口', src.includes('data-edit=') && src.includes("setMode('custom')"))
   ok('自定义接口 tab 保留自由表单', declared.has('custom-panel') && ['k-base', 'k-value', 'k-model', 'k-style', 'k-add'].every(id => declared.has(id)))
   // 自定义接口必须是空白新增表单（不预填当前选中的配置）

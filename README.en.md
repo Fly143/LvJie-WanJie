@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # LvJie (旅界)
 
@@ -114,9 +114,9 @@ The **Custom** panel starts with presets for common providers. One tap will:
 | | **Zhipu GLM** (free `glm-4.7-flash`, **needs a non-zero balance**) | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
 | **Other mainstream providers** | Xiaomi MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | https://platform.xiaomimimo.com/#/console/api-keys |
 | | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | https://platform.deepseek.com/api_keys |
-| | Alibaba Qwen (Bailian) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
+| | Qwen (Tongyi Bailian) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | Moonshot Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
-| | ByteDance Doubao (Ark) | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
+| | Doubao (ByteDance Ark) | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
 | | SiliconFlow | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
 | | SenseNova | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ (then "API Key" in the left menu) |
 | | Tencent Hunyuan (TokenHub) | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |

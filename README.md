@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # 旅界（LvJie）
 
@@ -109,17 +109,17 @@ API 设置里是两种使用方式，顶部切换：
 
 | 类别 | 服务商 | Base URL | 默认模型 | 申请 Key（点进去创建后复制） |
 | --- | --- | --- | --- | --- |
-| **免费** | **书生·浦语（Intern-AI）** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
-| | **讯飞星火**（免费档 `lite`） | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
-| | **智谱 GLM**（免费档 `glm-4.7-flash`，**需账号有余额**） | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
-| **其他主流服务商** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | https://platform.xiaomimimo.com/#/console/api-keys |
-| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | https://platform.deepseek.com/api_keys |
-| | 阿里通义千问（百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
-| | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
-| | 字节豆包（火山方舟） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
-| | 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
-| | 商汤日日新 | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
-| | 腾讯混元（TokenHub） | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
+| **免费** | **书生（Intern-AI）** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
+| | **讯飞星火（Spark）**（免费档 `lite`） | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | **智谱（GLM）**（免费档 `glm-4.7-flash`，**需账号有余额**） | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
+| **其他主流服务商** | 小米（MiMo） | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | https://platform.xiaomimimo.com/#/console/api-keys |
+| | 深度求索（DeepSeek） | `https://api.deepseek.com/v1` | `deepseek-flash` | https://platform.deepseek.com/api_keys |
+| | 通义千问（Qwen） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
+| | 月之暗面（Kimi） | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
+| | 豆包（Doubao） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
+| | 硅基流动（SiliconFlow） | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
+| | 商汤日日新（SenseNova） | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
+| | 腾讯混元（Hunyuan） | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
 
 > 游戏内只有**免费三家（书生·浦语、讯飞星火、智谱 GLM）**写了详细的免费说明：免费的是哪个模型、要不要充值、充多少（例如**智谱的免费 Flash 档要求账号有余额**，余额为 0 会报「余额不足或无可用资源包」，去「财务/充值」用自定义金额充一点点即可，余额只当门槛、用免费模型不扣）。其余服务商只保留标准四步：打开申请页 → 创建并复制 Key → 粘贴到「API Key」→「测试连接」。各家额度以官方公告与定价页为准。
 

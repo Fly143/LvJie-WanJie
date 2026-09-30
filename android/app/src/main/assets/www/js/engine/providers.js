@@ -1,4 +1,4 @@
-// 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
+﻿// 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
 // 都必须是 OpenAI 兼容的 chat/completions 端点（我们只用这一种协议接第三方）。
 //
 // 维护说明：URL 与模型名按各家官方文档核对（2026-09）。改动时请同步更新 howto/keyUrl。
@@ -11,7 +11,7 @@
 export const PROVIDER_PRESETS = [
   {
     id: 'intern',
-    name: '书生',
+    name: '书生（Intern-AI）',
     tag: '免费',
     baseUrl: 'https://chat.intern-ai.org.cn/api/v1',
     model: 'intern-latest',
@@ -34,7 +34,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'spark',
-    name: '讯飞星火',
+    name: '讯飞星火（Spark）',
     tag: '免费',
     baseUrl: 'https://spark-api-open.xf-yun.com/v1',
     model: 'lite',
@@ -53,7 +53,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'zhipu',
-    name: '智谱 GLM',
+    name: '智谱（GLM）',
     tag: '免费',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4.7-flash',
@@ -72,7 +72,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'mimo',
-    name: '小米 MiMo',
+    name: '小米（MiMo）',
     baseUrl: 'https://api.xiaomimimo.com/v1',
     model: 'mimo-v2.6-flash',
     apiStyle: 'chat',
@@ -88,7 +88,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'deepseek',
-    name: 'DeepSeek',
+    name: '深度求索（DeepSeek）',
     baseUrl: 'https://api.deepseek.com/v1',
     // 不写死模型名：粘好 Key 后自动拉官方模型列表，挑最新的 flash 档
     autoModel: true,
@@ -105,7 +105,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'qwen',
-    name: '阿里通义千问（百炼）',
+    name: '通义千问（Qwen）',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     model: 'qwen-plus',
     apiStyle: 'chat',
@@ -121,7 +121,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'kimi',
-    name: '月之暗面 Kimi',
+    name: '月之暗面（Kimi）',
     baseUrl: 'https://api.moonshot.cn/v1',
     model: 'kimi-k2.6',
     apiStyle: 'chat',
@@ -137,7 +137,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'doubao',
-    name: '字节豆包（火山方舟）',
+    name: '豆包（Doubao）',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     model: 'doubao-2.0-pro',
     apiStyle: 'chat',
@@ -184,7 +184,7 @@ export const PROVIDER_PRESETS = [
   },
   {
     id: 'hunyuan',
-    name: '腾讯混元（TokenHub）',
+    name: '腾讯混元（Hunyuan）',
     baseUrl: 'https://tokenhub.tencentmaas.com/v1',
     model: 'hy3',
     apiStyle: 'chat',
