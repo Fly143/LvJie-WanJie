@@ -23,13 +23,17 @@ internal static class Launcher
 {
     private const int FastExitMs = 4000;
 
+    // 内部主程序名：故意起得不像“要点的那一个”，避免玩家直接双击它（它需要 --no-sandbox 才能起）
+    private const string CoreName = "AgentWorlds-core（内部程序·勿直接运行）.exe";
+
     private static int Main(string[] args)
     {
         string dir = AppDomain.CurrentDomain.BaseDirectory;
-        string core = Path.Combine(dir, "AgentWorlds-core.exe");
+        string core = Path.Combine(dir, CoreName);
         if (!File.Exists(core))
         {
-            Say("[x] AgentWorlds-core.exe not found next to this launcher." + Environment.NewLine);
+            Say("[x] " + CoreName + " not found next to this launcher." + Environment.NewLine);
+            Say("    Please run AgentWorlds.exe (this launcher) instead." + Environment.NewLine);
             return 1;
         }
 
@@ -82,7 +86,7 @@ internal static class Launcher
         }
         catch (Exception e)
         {
-            if (!quiet) Say("[x] failed to start AgentWorlds-core.exe: " + e.Message + Environment.NewLine);
+            if (!quiet) Say("[x] failed to start " + CoreName + ": " + e.Message + Environment.NewLine);
             return null;
         }
     }

@@ -9,6 +9,8 @@ const ROOT = path.join(__dirname, '..')
 const SRC = path.join(ROOT, 'tools', 'launcher', 'AgentWorldsLauncher.cs')
 const OUT_DIR = path.resolve(process.argv[2] || path.join(ROOT, 'runtime'))
 const OUT = path.join(OUT_DIR, 'AgentWorlds.exe')
+// 内部主程序名：故意起得不像"要点的那一个"
+const CORE_NAME = 'AgentWorlds-core（内部程序·勿直接运行）.exe'
 
 function findCsc() {
   const win = process.env.WINDIR || 'C:\\Windows'
@@ -29,12 +31,12 @@ if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true })
 const csc = findCsc()
 if (!csc) {
   console.error('未找到 csc.exe（需要 .NET Framework 4.x，Windows 自带）。')
-  console.error('可跳过本步骤直接运行 AgentWorlds-core.exe（但受限会话下可能需要 --no-sandbox）。')
+  console.error('可跳过本步骤直接运行内部主程序（但受限会话下可能需要 --no-sandbox）。')
   process.exit(1)
 }
 
 // 先备份已有的 AgentWorlds.exe（若它还是原始 Electron 二进制而非本壳）
-const core = path.join(OUT_DIR, 'AgentWorlds-core.exe')
+const core = path.join(OUT_DIR, CORE_NAME)
 const existing = fs.existsSync(OUT)
 let existingIsShim = false
 if (fs.existsSync(OUT)) {
@@ -46,10 +48,10 @@ if (fs.existsSync(OUT)) {
 }
 if (!existingIsShim && fs.existsSync(OUT) && !fs.existsSync(core)) {
   fs.renameSync(OUT, core)
-  console.log('已把原始主程序改名为 AgentWorlds-core.exe')
+  console.log('已把原始主程序改名为 ' + CORE_NAME)
 }
 if (!fs.existsSync(core)) {
-  console.error('未找到 AgentWorlds-core.exe —— 请先准备好 runtime/（完整 Electron 发行版）再编译启动器。')
+  console.error('未找到 ' + CORE_NAME + ' —— 请先准备好 runtime/（完整 Electron 发行版）再编译启动器。')
   process.exit(1)
 }
 

@@ -48,7 +48,11 @@ fs.mkdirSync(RUNTIME, { recursive: true })
 
 // 可选：把主程序改名并编译启动器壳（受限会话下 Chromium 沙箱不可用也能双击启动）
 const BUILD_LAUNCHER = process.env.AW_BUILD_LAUNCHER === '1'
-const EXE_NAME = BUILD_LAUNCHER ? 'AgentWorlds-core.exe' : 'AgentWorlds.exe'
+// 内部主程序名故意起得不像“要点的那一个”，避免玩家直接双击它
+const CORE_NAME = 'AgentWorlds-core（内部程序·勿直接运行）.exe'
+const EXE_NAME = BUILD_LAUNCHER ? CORE_NAME : 'AgentWorlds.exe'
+// 玩家要点的那一个（有壳时是壳，没壳时就是主程序本身）
+const RUN_EXE = 'AgentWorlds.exe'
 
 for (const ent of fs.readdirSync(dist, { withFileTypes: true })) {
   if (ent.name === 'resources') continue
@@ -93,7 +97,7 @@ const CMD_SMART = [
   'rem usable in some restricted/remote sessions and the app quits silently), retry',
   'rem once with --no-sandbox.',
   'setlocal',
-  'set "EXE=%~dp0' + EXE_NAME + '"',
+  'set "EXE=%~dp0' + RUN_EXE + '"',
   'if not exist "%EXE%" (',
   '  echo [x] %EXE% not found - please extract the whole ZIP first.',
   '  pause',
@@ -108,7 +112,7 @@ const CMD_COMPAT = [
   '@echo off',
   'rem ASCII-only on purpose. Always launches with --no-sandbox.',
   'setlocal',
-  'set "EXE=%~dp0' + EXE_NAME + '"',
+  'set "EXE=%~dp0' + RUN_EXE + '"',
   'if not exist "%EXE%" (',
   '  echo [x] %EXE% not found - please extract the whole ZIP first.',
   '  pause',
@@ -151,6 +155,34 @@ fs.writeFileSync(path.join(RUNTIME, '启动游戏.cmd'), CMD_SMART)
 fs.writeFileSync(path.join(RUNTIME, '启动游戏（兼容模式）.cmd'), CMD_COMPAT)
 fs.writeFileSync(path.join(RUNTIME, '修复启动.cmd'), CMD_FIX)
 
+// 一眼能看懂的启动说明（放在最外层，避免玩家点错那个大体积的内部主程序）
+fs.writeFileSync(
+  path.join(RUNTIME, '★ 请双击这里启动.txt'),
+  BUILD_LAUNCHER
+    ? [
+        '双击本目录下的  AgentWorlds.exe  即可启动（几 KB 的那个）。',
+        '',
+        '不要把文件名里带「内部程序·勿直接运行」的那个大文件（200+ MB）当作游戏去双击：',
+        '它是真正的 Electron 主程序，在部分受限/远程会话里需要 --no-sandbox 才能启动，',
+        'AgentWorlds.exe（启动器壳）会自动帮你加上这个参数。',
+        '',
+        '如果双击 AgentWorlds.exe 没有任何反应：',
+        '  1) 先运行 修复启动.cmd  再试（清理上次异常退出残留的实例锁）；',
+        '  2) 仍不行就用 启动游戏（兼容模式）.cmd（始终带 --no-sandbox）；',
+        '  3) 首次运行若弹「无法验证发布者 / Windows 已保护你的电脑」，点「运行」或「更多信息 → 仍要运行」。',
+        '',
+        '存档与 API Key 位置：%APPDATA%\\旅界\\',
+        ''
+      ].join('\r\n')
+    : [
+        '双击本目录下的  AgentWorlds.exe  即可启动。',
+        '',
+        '如果双击没有任何反应：先运行 修复启动.cmd，再用 启动游戏（兼容模式）.cmd。',
+        '存档与 API Key 位置：%APPDATA%\\旅界\\',
+        ''
+      ].join('\r\n')
+)
+
 fs.writeFileSync(
   path.join(RUNTIME, 'README.md'),
   [
@@ -160,7 +192,7 @@ fs.writeFileSync(
     '',
     '1. **先把整个压缩包完整解压**到一个文件夹（例如 `D:\\旅界\\`）。',
     '   ⚠️ 不要直接在压缩包预览里双击 exe —— 那样只会解出一个 exe，游戏本体（`resources\\`）不在旁边，必然打不开。',
-    '2. 进入解压后的文件夹，双击 **`' + EXE_NAME + '`**。',
+    '2. 进入解压后的文件夹，双击 **`' + RUN_EXE + '`**' + (BUILD_LAUNCHER ? '（几 KB 的那个启动器壳；带「内部程序·勿直接运行」字样的不要点，它需要 --no-sandbox 才能起）' : '') + '。',
     '3. 若双击没反应，再双击 **`启动游戏.cmd`**（会自动改用兼容模式重试），或 **`启动游戏（兼容模式）.cmd`**。',
     '',
     '## 打不开时按顺序排查',
@@ -180,7 +212,7 @@ fs.writeFileSync(
     '',
     '本目录是**官方 Electron 发行版**（见 `version` / `PROVENANCE.txt`）+ 同步后的游戏本体。',
     '',
-    '- 启动（开发）：`npm start` → `runtime/' + EXE_NAME + '`',
+    '- 启动（开发）：`npm start` → `runtime/' + RUN_EXE + '`',
     '- 游戏本体在 `runtime/resources/app/`（由 `app/` + `main.js` + `preload.js` + `assets/` 同步）',
     '- 重建：`node scripts/rebuild-runtime.js`（可设 `AW_ELECTRON_ZIP` 指向官方 zip；`AW_BUILD_LAUNCHER=1` 额外编译启动器壳）',
     '- 不要把 `node_modules/electron` 整包拷进来当 runtime',
