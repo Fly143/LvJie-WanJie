@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09
+
+### Added
+- **内置免费通道（开箱即用）**：没有任何 API 配置时，启动会自动拉取上游免费模型名单并逐个探测，取第一个可用的作为默认，无需自备 Key
+  - 调用失败（403/426/429 等）自动切换到下一个免费模型，并就地更新配置，下一轮直接用新模型
+  - 免费名单由上游随时更换，故**每次启动重新探测**；可用模型与名单缓存 6 小时
+  - 设置页新增「使用内置免费通道」与「通道自检」；配置列表里内置通道带「内置」标记；**已有自己 Key 的用户不会被覆盖**
+  - 上游只接受流式请求：非流式调用会在客户端把 SSE 聚合回 JSON；同时用 `tool_choice:"none"` 压住上游强制的工具定义，保证游戏的正文/JSON 契约不被工具调用污染
+- `smoke:zen` 回归脚本（38 例，含 `AW_ZEN_LIVE=1` 真实联网探测）
+
+### Notes
+- 内置通道通过注入客户端指纹工作，属**实验性**：上游调整校验即可能整体失效，届时会提示改用自己的 API Key
+
 ## [0.3.0] - 2026-09
 
 ### Added
@@ -153,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...v0.2.0

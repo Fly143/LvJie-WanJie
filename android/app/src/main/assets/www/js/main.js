@@ -1,6 +1,6 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
-import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang } from './engine/state.js'
+import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang, loadPlayerKeys } from './engine/state.js'
 import { LANGUAGE_OPTIONS, langPack } from './engine/constants.js'
 import { t, setUiLang, getUiLang, uiLangName } from './engine/i18n.js'
 import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
@@ -13,7 +13,7 @@ import { startEvent, runEventTurn, endEvent } from './engine/event.js'
 import { applyThemeTokens } from './engine/theme.js'
 import { renderScene, renderMap, renderProfile, renderFriends, renderBag, renderSettings, renderQuests, renderMarriage } from './ui/render.js'
 import { openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml } from './ui/modals.js'
-import { openKeyModal, openHelp } from './ui/settings-panels.js'
+import { openKeyModal, openHelp, ensureBuiltinZenDefault } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm, hydrateCustomBgm, showGamePlay } from './ui/bgm.js'
 import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
@@ -636,6 +636,35 @@ function startApp() {
     setShell('welcome')
     renderWelcome()
   }
+  // 内置免费通道：没有任何配置时自动探测并启用（免费模型会被上游更换，所以启动即探测）
+  autoZenDefault().catch(() => {})
+}
+
+/** 启动时自动启用内置免费通道（已有用户自己的 Key 则不动） */
+async function autoZenDefault() {
+  let r = null
+  try {
+    r = await ensureBuiltinZenDefault({
+      onStatus: (m) => { try { console.log('[zen]', m) } catch (e) { /* ignore */ } }
+    })
+  } catch (e) {
+    return
+  }
+  if (!r) return
+  if (!r.ok) { toast(t('zenUnavailable')); return }
+  if (!r.enabled) return
+  // Key 库已写好；有存档时同步进存档并落盘
+  try {
+    const kd = loadPlayerKeys()
+    if (app.S && kd && Array.isArray(kd.keys) && kd.keys.length) {
+      app.S.playerKeys = kd.keys
+      app.S.selectedKey = typeof kd.selected === 'number' ? kd.selected : 0
+      normalizePlayerKeys(app.S)
+      save()
+    }
+  } catch (e) { /* ignore */ }
+  try { refreshAll() } catch (e) { /* ignore */ }
+  toast(t('zenEnabled') + r.model)
 }
 
 window.addEventListener('beforeunload', () => {

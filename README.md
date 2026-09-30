@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-blue.svg)](https://github.com/Fly143/LvJie-WanJie/releases)
-[![Release](https://img.shields.io/badge/release-v0.3.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
+[![Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg)](https://www.electronjs.org/)
 
 选择修仙 / 玄幻 / 武侠 / 职场 / 末世 / 西幻，接入自定义大模型 API，实时生成剧情与数据变化。
@@ -22,6 +22,7 @@
 - 六套完整世界观包：等级表、货币、场景行动、升级动词、主题皮肤、AI 铁律
 - **自定义世界包**：JSON 导入，或按书名/设定用 AI 生成草稿（欢迎页「🛠 自定义世界」）
 - 自定义模型接入：Base URL + API Key + 模型，协议支持 **chat** / **response**
+- **内置免费通道**：无配置时自动探测可用免费模型并开箱即用；自己填 Key 时不会被覆盖
 - 可「刷新模型列表」从 `GET {Base URL}/models` 拉取选用
 - 事件循环：行动 / 选项 / 自由输入 → JSON `changes` 自动落库（货币、进度、物品、地图、同伴、任务）
 - AI 风格四档可调：开挂 / 慷慨 / 正常 / 艰难（设置里切换，实时改变判定松紧与奖励厚薄）
@@ -77,7 +78,11 @@ npm start    # 同步 app/ → runtime/resources/app/ 并拉起 AgentWorlds.exe
 
 ## API 配置
 
-顶栏 **🔑 API**：
+**开箱即用：内置免费通道**。首次启动且没有任何配置时，应用会自动拉取上游免费模型名单并逐个探测，取第一个可用的作为默认——无需自备 Key。调用失败（403/426/429 等）会自动切换到下一个免费模型。免费名单由上游随时更换，所以**每次启动都会重新探测**；设置页也有「使用内置免费通道」与「通道自检」两个按钮。
+
+> 该通道通过注入客户端指纹工作，属**实验性**：上游一调整校验就可能整体失效，届时请改用自己的 API Key。内置通道可用时也建议自备 Key（更稳、模型可选）。
+
+用自己的模型时，顶栏 **🔑 API**：
 
 1. 选择协议
    - `chat` → `POST {Base URL}/chat/completions`
@@ -85,7 +90,7 @@ npm start    # 同步 app/ → runtime/resources/app/ 并拉起 AgentWorlds.exe
 2. 填写 Base URL、模型名、API Key
 3. 需要时点 **刷新模型列表**（`GET {Base URL}/models`）
 
-不附带任何内置 Key。Key 优先经系统安全存储加密落盘，不会写入存档 JSON。
+已有自己的配置时，内置通道不会覆盖它。Key 优先经系统安全存储加密落盘，不会写入存档 JSON。
 
 ## 自定义世界
 

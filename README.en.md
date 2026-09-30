@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-blue.svg)](https://github.com/Fly143/LvJie-WanJie/releases)
-[![Release](https://img.shields.io/badge/release-v0.3.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
+[![Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg)](https://www.electronjs.org/)
 
 Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western Fantasy — plug in your own LLM API, and play a story that writes and updates game state in real time.
@@ -22,6 +22,7 @@ Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western F
 - Six complete world packs: level tables, currencies, scene actions, advancement verbs, theme skins, AI house rules
 - **Custom world packs**: import JSON, or generate a draft from a book title / setting via AI (Welcome → "🛠 Custom World")
 - Bring your own model: Base URL + API Key + model; **chat** / **response** protocols
+- **Built-in free channel**: with no configuration, the app probes upstream free models at startup and works out of the box; your own keys are never overridden
 - Pull model lists from `GET {Base URL}/models`
 - Event loop: actions / options / free text → JSON `changes` auto-applied (money, progress, items, map, companions, quests)
 - Four adjustable AI play-styles: Cheat / Generous / Normal / Hard (switch in Settings; tunes judgment strictness and reward generosity)
@@ -77,7 +78,11 @@ During development, refresh assets only: `npm run sync`
 
 ## API setup
 
-Top bar **🔑 API**:
+**Works out of the box via the built-in free channel.** On first launch with no configuration, the app fetches the upstream free-model list and probes them in order, using the first one that responds — no API key needed. If a call fails (403/426/429 …) it automatically switches to the next free model. The free list rotates upstream, so the app **re-probes on every start**; Settings also has "Use built-in free channel" and "Test channel".
+
+> This channel works by injecting a client fingerprint and is **experimental**: upstream tightening can break it at any time — then just enter your own API key. Using your own key is recommended even when it works (more stable, more model choice).
+
+With your own model, top bar **🔑 API**:
 
 1. Choose protocol
    - `chat` → `POST {Base URL}/chat/completions`
@@ -85,7 +90,7 @@ Top bar **🔑 API**:
 2. Fill in Base URL, model name, API Key
 3. Optionally hit **Refresh models** (`GET {Base URL}/models`)
 
-No built-in keys. Keys are stored via the platform secure store when available and never written into save JSON.
+Existing user configuration is never overridden by the built-in channel. Keys are stored via the platform secure store when available and never written into save JSON.
 
 ## Custom worlds
 

@@ -2,6 +2,7 @@
 // apiStyle: 'chat'     → POST {base}/chat/completions   (OpenAI Chat Completions)
 //           'response' → POST {base}/responses          (OpenAI Responses API)
 // 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
+import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModel, zenActiveModel, writeZenCache } from './zen.js'
 
 const DEFAULT_TIMEOUT_MS = 120000
 const MAX_TOKENS = 4000
@@ -111,10 +112,40 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
 }
 
 /**
- * 调用一次 LLM。
- * @returns {Promise<{ok:boolean, text?:string, error?:string, aborted?:boolean}>}
+ * 对外的调用入口：内置免费通道失败时自动换下一个免费模型重试。
  */
-export async function callLLM({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId, forceJson }) {
+export async function callLLM(opts = {}) {
+  const k0 = normalizeApiKey(opts.keyObj)
+  if (!isZenKey(k0)) return callLLMOnce(opts)
+  let model = k0.model || zenActiveModel()
+  let last = null
+  for (let i = 0; i < 3; i++) {
+    const keyObj = Object.assign({}, opts.keyObj, { model })
+    const r = await callLLMOnce(Object.assign({}, opts, { keyObj }))
+    if (r && r.ok) {
+      writeZenCache({ working: model, at: Date.now() })
+      if (i > 0) {
+        try { opts.keyObj.model = model } catch (e) { /* ignore */ }
+        return Object.assign({}, r, { zenSwitched: model, zenFrom: k0.model })
+      }
+      return r
+    }
+    last = r
+    if (r && r.aborted) return r
+    const err = String((r && r.error) || '')
+    // 只有「通道/模型本身不可用」才换模型；网络波动交给上层既有重试
+    if (!/HTTP (400|401|403|404|422|426|429)|FreeTier|free tier|not found|未找到/i.test(err)) return r
+    const next = zenNextModel(model)
+    if (!next || next === model) {
+      return Object.assign({}, r, { error: err + '（内置免费通道暂无其它可用模型）' })
+    }
+    model = next
+  }
+  return last || { ok: false, error: '内置免费通道调用失败' }
+}
+
+/** 单次调用（不含内置通道的换模型重试） */
+async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId, forceJson }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -130,7 +161,9 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
-  const isChat = k.apiStyle !== 'response'
+  // 内置免费通道：上游只有 chat/completions，且强制 stream:true
+  const zen = isZenKey(k)
+  const isChat = zen ? true : (k.apiStyle !== 'response')
   // Responses API：有 prevResponseId 时走服务端链（只发增量）
   const useChain = !isChat && !!prevResponseId
   let body
@@ -170,6 +203,8 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
 
   // 流式：chat / response 均支持；宿主 stream + 增量回调
   const canStream = typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream && globalThis.awHost.http.onChunk && globalThis.awHost.http.onEnd
+  // 内置通道：补齐上游要求的 tools 与 stream，并用 tool_choice:none 压住工具调用
+  if (zen) body = zenPatchBody(body, !!canStream)
   if (canStream) {
     body.stream = true
     let streamed = null
@@ -178,19 +213,21 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
     } catch (e) {
       streamed = null
     }
-    // 启动失败或零增量失败 → 回退非流式
+    // 启动失败或零增量失败 → 回退非流式（内置通道必须保持 stream:true，否则上游 403）
     if (streamed) return streamed
-    delete body.stream
+    if (!zen) delete body.stream
   }
 
   // 部分网关不支持 response_format：4xx 时去掉该字段重试一次
   const sendOnce = () => httpSend({
     url,
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + k.key
-    },
+    headers: zen
+      ? zenHeaders({ 'Content-Type': 'application/json', 'Accept': 'text/event-stream' })
+      : {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + k.key
+        },
     body: JSON.stringify(body),
     timeoutMs: DEFAULT_TIMEOUT_MS,
     signal
@@ -202,7 +239,9 @@ export async function callLLM({ keyObj, system, user, history = [], signal, onDe
       if (body.text) delete body.text
       res = await sendOnce()
     }
-    const raw = res.text || ''
+    let raw = res.text || ''
+    // 内置通道上游只回 SSE：非流式调用方在这里聚合回 JSON
+    if (zen && raw && !/^\s*[\[{]/.test(raw) && /data:\s*\{/.test(raw)) raw = zenSseAggregate(raw)
     if (res.status < 200 || res.status >= 300) {
       let msg = raw.slice(0, 400)
       try {
@@ -325,11 +364,13 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
   const started = await host.stream({
     url,
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + k.key,
-      'Accept': 'text/event-stream'
-    },
+    headers: isZenKey(k)
+      ? zenHeaders({ 'Content-Type': 'application/json', 'Accept': 'text/event-stream' })
+      : {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + k.key,
+          'Accept': 'text/event-stream'
+        },
     body: JSON.stringify(body),
     timeoutMs: DEFAULT_TIMEOUT_MS
   })
@@ -495,10 +536,12 @@ export async function listModels({ baseUrl, key }) {
     const res = await httpSend({
       url,
       method: 'GET',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
+      headers: isZenBase(base)
+        ? zenHeaders({ 'Content-Type': 'application/json' })
+        : {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
       timeoutMs: 30000
     })
     const raw = res.text || ''

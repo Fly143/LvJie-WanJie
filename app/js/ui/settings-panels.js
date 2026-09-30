@@ -5,6 +5,7 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
+import { ensureZenReady, zenConfig, isZenBase, ZEN_BASE, ZEN_KEY, ZEN_NAME } from '../engine/zen.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -34,7 +35,8 @@ export function openKeyModal(app, { save, refreshAll }) {
           <span class="key-lines">
             <span class="key-top">
               <b>${esc(n.name || t('cfgN') + (i + 1))}</b>
-              <span class="ctype">${style}</span>
+              <span class="ctype">${style === 'response' ? 'response' : 'chat'}</span>
+          ${isZenBase(n.baseUrl) ? `<span class="ctype">${t('zenBuiltinBadge')}</span>` : ''}
             </span>
             <span class="key-sub">
               <span class="masktext">${esc(n.model || '')}</span>
@@ -88,6 +90,11 @@ export function openKeyModal(app, { save, refreshAll }) {
       <button class="btn btn-gold" id="k-add" type="button">${t('saveUse')}</button>
       <button class="btn" data-close type="button">${t('close')}</button>
     </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-sm" id="k-zen" type="button">${t('zenUse')}</button>
+      <button class="btn btn-sm" id="k-zen-test" type="button">${t('zenTest')}</button>
+    </div>
+    <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${t('zenHint')}${isZenBase(cur && cur.baseUrl) ? t('zenReady') + esc((cur && cur.model) || '') : ''}</div>
   `)
 
   const selStyle = document.getElementById('k-style')
@@ -267,8 +274,48 @@ export function openKeyModal(app, { save, refreshAll }) {
     }
   })
 
-  document.querySelectorAll('input[name=selkey]').forEach(r => {
-    r.onchange = () => {
+  // —— 内置免费通道：一键探测并填入（免费模型会被上游更换，故先探测再选第一个通的） ——
+  const zenStatus = document.getElementById('k-zen-status')
+  const runZenProbe = async () => {
+    if (zenStatus) zenStatus.textContent = t('zenProbing')
+    return await ensureZenReady({
+      force: true,
+      onStatus: (m) => { if (zenStatus) zenStatus.textContent = m }
+    })
+  }
+  const zenBtn = document.getElementById('k-zen')
+  if (zenBtn) {
+    zenBtn.onclick = async () => {
+      const r = await runZenProbe()
+      if (!r.ok) {
+        if (zenStatus) zenStatus.textContent = t('zenUnavailable')
+        toast(t('zenUnavailable'))
+        return
+      }
+      selStyle.value = 'chat'
+      baseEl.value = ZEN_BASE
+      modelEl.value = r.model
+      nameEl.value = ZEN_NAME
+      valEl.value = ZEN_KEY
+      cur = null
+      refreshPreview()
+      if (zenStatus) zenStatus.textContent = t('zenReady') + r.model
+      toast(t('zenEnabled') + r.model)
+      const add = document.getElementById('k-add')
+      if (add) add.click()
+    }
+  }
+  const zenTestBtn = document.getElementById('k-zen-test')
+  if (zenTestBtn) {
+    zenTestBtn.onclick = async () => {
+      const r = await runZenProbe()
+      const msg = r.ok ? (t('zenReady') + r.model) : t('zenUnavailable')
+      if (zenStatus) zenStatus.textContent = msg
+      toast(msg)
+    }
+  }
+
+  document.querySelectorAll('input[name=selkey]').forEach(r => {    r.onchange = () => {
       if (!r.checked) return
       const idx = Number(r.value)
       syncFormToEntry(idx)
@@ -287,8 +334,33 @@ export function openKeyModal(app, { save, refreshAll }) {
   })
 }
 
-export function openHelp(app) {
-  const S = app.S
+/**
+ * 启动时确保「内置免费通道」可用并作为默认。
+ * - 已配置用户自己的 Key 且未选中内置通道 → 什么都不做（尊重用户配置）
+ * - 否则探测免费模型：通了的第一个写回 Key 库并选中（免费名单会被上游随机更换）
+ * @returns {Promise<{ok:boolean, enabled:boolean, model?:string, reason?:string, error?:string}>}
+ */
+export async function ensureBuiltinZenDefault({ onStatus } = {}) {
+  let store
+  try { store = loadKeyStore() } catch (e) { store = { keys: [], selected: 0 } }
+  const keys = Array.isArray(store.keys) ? store.keys.slice() : []
+  const zenIdx = keys.findIndex(k => isZenBase(k && k.baseUrl))
+  const userKeys = keys.filter(k => !isZenBase(k && k.baseUrl))
+  const selectedIsZen = zenIdx >= 0 && Number(store.selected) === zenIdx
+  if (userKeys.length && !selectedIsZen) return { ok: true, enabled: false, reason: 'has-user-key' }
+
+  const r = await ensureZenReady({ force: true, onStatus })
+  if (!r.ok) return { ok: false, enabled: false, error: r.error || '不可用' }
+  const rec = zenConfig(r.model)
+  const next = keys.slice()
+  let idx = next.findIndex(k => isZenBase(k && k.baseUrl))
+  if (idx >= 0) next[idx] = Object.assign({}, next[idx], rec)
+  else { next.push(rec); idx = next.length - 1 }
+  writeKeyStore({ keys: next, selected: idx })
+  return { ok: true, enabled: true, model: r.model, index: idx }
+}
+
+export function openHelp(app) {  const S = app.S
   const pack = S ? (globalThis.__AW_PACKS__[S.worldview]) : null
   const ui = pack && pack.ui ? pack.ui : { advanceBtn: t('advance') }
   openModal(`
