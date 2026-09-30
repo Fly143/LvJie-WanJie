@@ -6,7 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_DAILY_LIMIT } from '../engine/zen.js'
-import { PROVIDER_PRESETS } from '../engine/providers.js'
+import { PROVIDER_PRESETS, presetSteps } from '../engine/providers.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -113,6 +113,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       ${PROVIDER_PRESETS.map(p => `<button class="btn btn-sm" data-preset="${esc(p.id)}" type="button" title="${esc(p.note)}">${esc(p.name)}</button>`).join('')}
     </div>
     <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
+    <div id="k-preset-box" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
     ${rows || `<div class="empty">${t('noApi')}</div>`}
 
     <h3 style="margin-top:16px">${t('addUpdate')}</h3>
@@ -324,9 +325,23 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       valEl.value = ''
       cur = null
       refreshPreview()
-      if (presetHint) {
-        presetHint.innerHTML = esc(p.note) +
-          `<br>${t('providerGetKey')}<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px">`
+      if (presetHint) presetHint.textContent = t('providerPresetHint')
+      const box = document.getElementById('k-preset-box')
+      if (box) {
+        const modelSel = (p.models && p.models.length)
+          ? `<div style="margin-top:6px">${t('model')}：<select id="k-preset-models" style="margin-top:4px">` +
+            p.models.map(m => `<option value="${esc(m)}" ${m === modelEl.value ? 'selected' : ''}>${esc(m)}</option>`).join('') +
+            '</select></div>'
+          : ''
+        box.innerHTML =
+          `<b>${esc(p.name)}</b> · ${esc(p.note)}<br>` +
+          presetSteps(p).map(s => esc(s)).join('<br>') +
+          modelSel +
+          `<div style="margin-top:6px">${t('providerGetKey')}` +
+          `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>`
+        box.style.display = ''
+        const msel = document.getElementById('k-preset-models')
+        if (msel) msel.onchange = () => { modelEl.value = msel.value; refreshPreview() }
       }
       try { valEl.focus() } catch (e) { /* ignore */ }
       toast(t('providerFilled') + p.name)

@@ -101,9 +101,29 @@ Existing user configuration is never overridden by the built-in channel. Keys ar
 
 ### One-tap provider presets
 
-The **Custom** panel starts with presets for common providers: **Intern-AI (Shanghai AI Lab)**, SenseNova, DeepSeek, Zhipu GLM, SiliconFlow. One tap fills the Base URL and model; you only paste your own API key (the panel shows where to get one), then hit "Test connection".
+The **Custom** panel starts with presets for common providers: **Intern-AI (Shanghai AI Lab)**, SenseNova, DeepSeek, Zhipu GLM, SiliconFlow. One tap will:
 
-> **Intern-AI** is an officially free API (about 30 RPM, 90M tokens/month — see their announcements; get a token from the console after signing up). Being an official endpoint it is far more stable than the experimental built-in channel, so it is the recommended first choice. That endpoint does not accept `response_format`, so the app skips that field automatically (the prompt contract plus the recovery chain cover it), avoiding wasted retries.
+1. fill protocol / Base URL / model / display name
+2. expand that provider's **step-by-step instructions** (which site to open, what to click, where to paste, how to choose a model)
+3. show the key page URL in a read-only field for easy copying
+
+Then just paste your API key → "Test connection" → "Save & use".
+
+#### Intern-AI: getting a key
+
+> Officially free, **recommended first choice** (far more stable than the experimental built-in channel).
+
+1. Open **https://sso.openxlab.org.cn/login** — register and sign in with your phone number
+2. Open the API console: **https://internlm.intern-ai.org.cn/api/access-token**
+3. Click "Create / Generate API Token" and **copy the full token**: it is shown in full only once, and is **valid for 6 months**
+4. In the game: **Settings → 🔑 API → Custom → tap "书生·浦语 (Intern-AI)"**, then paste the token into the "API Key" field (do **not** add a `Bearer` prefix; the app adds it)
+5. **Choosing a model**:
+   - default `intern-latest` — per the docs it always points at the newest model (currently `intern-s2`)
+   - pin a version with the built-in dropdown: `intern-s2` / `intern-s1-pro` / `intern-s1` / `intern-s1-mini` / `internvl-latest`
+   - for the full list hit "**Refresh models**" — it calls the official `GET https://chat.intern-ai.org.cn/api/v1/models` and returns the whole 书生 series
+6. Hit "Test connection" (shows latency and the model's reply) → "Save & use"
+
+> Quota: not documented officially; third-party notes say about **30 RPM, 90M tokens/month** — check their announcements. This endpoint does **not** accept `response_format`, so the app skips that field automatically (the prompt contract plus the recovery chain cover it).
 
 ## Custom worlds
 

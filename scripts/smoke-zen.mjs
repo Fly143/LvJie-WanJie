@@ -301,6 +301,16 @@ ok('zenConfig 形状正确', (() => {
   ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl && p.note), list)
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
+  // 申请引导：每家都要有分步说明与申请地址
+  ok('每家预设都有 howto 分步说明', list.every(p => Array.isArray(p.howto) && p.howto.length >= 3), list.map(p => p.id + '=' + ((p.howto || []).length)))
+  ok('howto 占位符能被替换', (() => {
+    const intern = list.find(p => p.id === 'intern')
+    const steps = prov.presetSteps(intern).join(' ')
+    return !/\{key\}|\{login\}/.test(steps) && steps.includes('sso.openxlab.org.cn/login') && steps.includes('access-token')
+  })())
+  const intern = list.find(p => p.id === 'intern')
+  ok('书生·浦语给出整个系列可选模型', Array.isArray(intern.models) && intern.models.length >= 4 && intern.models.includes('intern-latest') && intern.models.includes('intern-s2'), intern.models)
+  ok('书生·浦语 token 有效期已写明', /6 个月/.test(intern.note) && intern.howto.join(' ').includes('6 个月'))
 
   ok('findPreset 命中（忽略结尾斜杠与大小写）', !!prov.findPreset('https://Chat.Intern-AI.org.cn/api/v1/'))
   ok('findPreset 未命中返回 null', prov.findPreset('https://api.deepseek.com/v2') === null)
@@ -344,6 +354,7 @@ ok('zenConfig 形状正确', (() => {
   ok('测试连接按钮与状态位都在', testIds.every(id => declared.has(id)), testIds.filter(id => !declared.has(id)))
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
   ok('服务商预设 UI 存在', src.includes('data-preset=') && src.includes('k-preset-hint') && src.includes('PROVIDER_PRESETS'))
+  ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
 
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
