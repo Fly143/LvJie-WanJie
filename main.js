@@ -2,7 +2,7 @@
 // 由 runtime/AgentWorlds.exe 加载；require('electron') 为内建 API
 if (process.env.ELECTRON_RUN_AS_NODE) delete process.env.ELECTRON_RUN_AS_NODE
 
-const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog } = require('electron')
 // 允许程序化启动 BGM（需在 app 使用前声明，但必须在 require 之后）
 try {
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
@@ -25,12 +25,93 @@ if (process.env.XX_SMOKE_TEST) {
 // 冒烟模式跳过单实例锁：锁文件路径/权限在受限环境下不稳定（ERROR 3/5 误判“已有实例”），
 // 且冒烟进程本就无需与用户实例互斥（userData 已隔离，不会碰真实存档）
 const smokeMode = !!process.env.XX_SMOKE_TEST
+
+function pidAlive(pid) {
+  try { process.kill(pid, 0); return true } catch (e) { return !!(e && e.code === 'EPERM') }
+}
+
+/**
+ * 单实例锁自愈：Chromium 的 SingletonLock 是指向 "hostname-pid" 的符号链接。
+ * 上次异常退出/被强杀时可能残留，导致下次启动 CreateFile 失败（ERROR 5 拒绝访问），
+ * requestSingleInstanceLock() 返回 false —— 应用会误以为“已有实例在运行”而静默退出
+ * （用户看到的就是“双击没反应”）。这里先判断锁的持有者是否真的还活着：
+ *   - 还活着 → 记录 lockOwnerAlive，交给 second-instance 逻辑聚焦已有窗口
+ *   - 已消失 → 直接删掉残留锁，让本次启动能正常加锁
+ */
+let lockOwnerAlive = false
+function inspectAndCleanSingletonLocks() {
+  const ud = app.getPath('userData')
+  for (const name of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    const file = path.join(ud, name)
+    let st = null
+    try { st = fs.lstatSync(file) } catch (e) { continue } // 不存在 → 跳过
+    let alive = false
+    if (st.isSymbolicLink()) {
+      let target = ''
+      try { target = String(fs.readlinkSync(file)) } catch (e) { target = '' }
+      const pid = Number((target.split('-').pop() || '').trim())
+      alive = pid > 0 && pidAlive(pid)
+    }
+    if (alive) { lockOwnerAlive = true; continue }
+    try { fs.rmSync(file, { force: true }) } catch (e) { /* ignore */ }
+  }
+}
+
+// 自己维护的实例锁（不依赖 Chromium 的符号链接锁）：文件里写 pid，
+// 启动时若发现该 pid 仍活着就认为已有实例；否则接管并覆盖。
+// 这样即使在“符号链接不可用”的受限环境里，也能既判断出真·重复启动，又不至于打不开游戏。
+const ownLockFile = () => path.join(app.getPath('userData'), 'aw-instance.json')
+function readOwnLock() {
+  try {
+    const d = JSON.parse(fs.readFileSync(ownLockFile(), 'utf8'))
+    if (d && Number(d.pid) > 0) return { pid: Number(d.pid), startedAt: Number(d.startedAt) || 0 }
+  } catch (e) { /* 不存在或损坏 → 视为没有实例 */ }
+  return null
+}
+function writeOwnLock() {
+  try { fs.writeFileSync(ownLockFile(), JSON.stringify({ pid: process.pid, startedAt: Date.now() }), 'utf8') } catch (e) { /* ignore */ }
+}
+function clearOwnLock() {
+  try {
+    const d = readOwnLock()
+    if (d && d.pid === process.pid) fs.rmSync(ownLockFile(), { force: true })
+  } catch (e) { /* ignore */ }
+}
+
+let instanceRunning = false
+if (!smokeMode) {
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }) } catch (e) { /* ignore */ }
+  try { inspectAndCleanSingletonLocks() } catch (e) { /* ignore */ }
+  const prev = readOwnLock()
+  if (prev && prev.pid !== process.pid && pidAlive(prev.pid)) instanceRunning = true
+  else writeOwnLock()
+}
+
 const gotLock = smokeMode ? true : app.requestSingleInstanceLock()
-if (!gotLock) {
-  console.error('[AgentWorlds] 已有实例在运行，本进程退出（单实例锁）')
+let startDegraded = false
+if (instanceRunning) {
+  // 真·重复启动：交给已有实例（若 Chromium 锁可用，会触发 second-instance 聚焦窗口）
+  console.error('[AgentWorlds] 已有实例在运行（pid ' + (readOwnLock() || {}).pid + '），本进程退出')
+  if (!smokeMode) {
+    try {
+      dialog.showMessageBoxSync({
+        type: 'info',
+        title: '旅界',
+        message: '旅界已经在运行',
+        detail: '如果你没看到游戏窗口，请检查任务栏 / 最小化的窗口；\n也可以先结束所有「旅界 / AgentWorlds」进程，再重新启动。',
+        buttons: ['知道了']
+      })
+    } catch (e) { /* ignore */ }
+  }
   app.quit()
-  // 不再注册窗口逻辑
-} else {
+} else if (!gotLock) {
+  // 没有活着的实例，但 Chromium 的单实例锁建不起来（受限环境下符号链接被拒，ERROR 5）。
+  // 这不该拦住玩家：降级为“无 Chromium 锁”继续启动（重复启动由上面的 pid 锁负责拦截）。
+  startDegraded = true
+  console.warn('[AgentWorlds] Chromium 单实例锁不可用（常见于符号链接权限受限），已降级启动')
+}
+
+if (!instanceRunning) {
   app.on('second-instance', () => {
     const w = BrowserWindow.getAllWindows()[0]
     if (w) {
@@ -38,6 +119,7 @@ if (!gotLock) {
       w.focus()
     }
   })
+  app.on('will-quit', () => clearOwnLock())
 }
 
 function resolveIndex() {
@@ -508,7 +590,9 @@ function createWindow() {
   })
 }
 
-if (gotLock) {
+// 注意用 instanceRunning 而不是 gotLock：Chromium 锁不可用时是“降级启动”，窗口照常开
+if (!instanceRunning) {
+  if (startDegraded) console.log('[AgentWorlds] 以降级模式启动（无 Chromium 单实例锁，重复启动由 pid 锁拦截）')
   app.whenReady().then(createWindow)
 }
 app.on('window-all-closed', () => app.quit())

@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 旅界（LvJie）
 
@@ -55,7 +55,12 @@
 
 ### Windows（免构建）
 
-从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-win-x64.zip`，解压后双击 **`AgentWorlds.exe`**。
+从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-win-x64.zip`，**先完整解压**，然后双击解压目录里的 **`启动游戏.cmd`**。
+
+> 为什么不直接双击 `AgentWorlds.exe`？部分受限/远程会话里 Chromium 沙箱初始化会失败，进程在加载游戏代码之前就静默退出（表现为"双击没反应"）。启动器会先常规启动，5 秒内若退出就自动加 `--no-sandbox` 重试。
+> - 打不开时先运行 **`修复启动.cmd`**（清理上次异常退出残留的实例锁）
+> - 也可以直接用 **`启动游戏（兼容模式）.cmd`**（始终加 `--no-sandbox`）
+> - 首次运行可能弹「Windows 已保护你的电脑 / 无法验证发布者」：点「更多信息 → 仍要运行」或「运行」即可（未做代码签名）
 
 ### Linux / 开发机（免打包）
 
@@ -71,6 +76,10 @@ npx electron .
 ```bash
 npm start    # 同步 app/ → runtime/resources/app/ 并拉起 AgentWorlds.exe
 ```
+
+也可以直接双击仓库根目录的 **`启动游戏.cmd`**（等价于 `npm start`，同样带沙箱回退）。
+
+`npm start` 会自动清掉 `ELECTRON_RUN_AS_NODE`、并在秒退时回退 `--no-sandbox`。
 
 若缺少 `runtime/`：`npm run rebuild:runtime`（可用 `AW_ELECTRON_ZIP` 指定官方 Electron zip）。
 
