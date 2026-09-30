@@ -496,6 +496,10 @@ ok('zenConfig 形状正确', (() => {
   const mainSrc = fs.readFileSync(new URL('../app/js/main.js', import.meta.url), 'utf8')
   ok('欢迎页有内置通道额度提示', mainSrc.includes('zenWelcomeHint(') && mainSrc.includes("t('zenWelcomeLimit')"))
   ok('欢迎页提示含按 IP 共享说明', mainSrc.includes("t('zenShared')"))
+  // 欢迎页把 语言 / API / 帮助 收进一个「设置」入口
+  ok('欢迎页只有「设置」入口', mainSrc.includes('id="w-settings"') && !/id="w-(key|lang|help)"/.test(mainSrc))
+  ok('欢迎设置里有语言/API/帮助', mainSrc.includes('openWelcomeSettings') && mainSrc.includes('id="ws-key"') && mainSrc.includes('id="ws-help"') && mainSrc.includes('data-wlang='))
+  ok('旧的语言弹窗已并入设置', !mainSrc.includes('function openLangModal'))
   ok('自定义模式仍然保留原有表单节点', ['k-add', 'k-base', 'k-value', 'k-model', 'k-style'].every(id => declared.has(id)))
 }
 

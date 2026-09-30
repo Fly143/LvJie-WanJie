@@ -93,6 +93,11 @@ const uiErrs = []
 if (!ui) uiErrs.push('无法解析 SMOKE_UI')
 else {
   if (!ui.modal) uiErrs.push('设置弹窗没打开')
+  if (!ui.welcomeSettings) uiErrs.push('欢迎页缺少「设置」入口')
+  if (!(ui.welcomeSettingsLangs >= 2)) uiErrs.push('欢迎页设置里的语言选项过少: ' + ui.welcomeSettingsLangs)
+  if (!ui.welcomeSettingsKey) uiErrs.push('欢迎页设置里缺少「切换 API Key」')
+  if (!ui.welcomeSettingsHelp) uiErrs.push('欢迎页设置里缺少「帮助」')
+  if (ui.legacyWelcomeButtons !== 0) uiErrs.push('欢迎页仍有旧的 API/语言/帮助 独立按钮: ' + ui.legacyWelcomeButtons)
   for (const k of ['zen', 'preset', 'saved', 'custom']) {
     if (!ui.tabs || ui.tabs[k] !== 'ok') uiErrs.push('tab ' + k + ' 切换异常: ' + (ui.tabs && ui.tabs[k]))
   }

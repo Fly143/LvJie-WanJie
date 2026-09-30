@@ -518,9 +518,22 @@ function createWindow() {
       // API 设置面板：四个 tab 能否正确切换 + 预设是否为下拉（而不是全铺开）
       const uiJs = `(async () => {
         const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-        const open = document.getElementById('w-key') || document.getElementById('btn-key')
-        if (open) open.click()
-        await sleep(500)
+        // 欢迎页：设置入口 → 语言 / API / 帮助 都在里面
+        const entry = document.getElementById('w-settings')
+        const legacyBtns = ['w-key', 'w-lang', 'w-help'].filter(id => document.getElementById(id)).length
+        let wsLangs = 0
+        let wsHas = { key: false, help: false }
+        if (entry) {
+          entry.click(); await sleep(400)
+          wsLangs = document.querySelectorAll('[data-wlang]').length
+          wsHas = { key: !!document.getElementById('ws-key'), help: !!document.getElementById('ws-help') }
+          const k = document.getElementById('ws-key')
+          if (k) { k.click(); await sleep(500) }
+        } else {
+          const open = document.getElementById('btn-key')
+          if (open) open.click()
+          await sleep(500)
+        }
         const panels = { zen: 'zen-panel', preset: 'preset-panel', saved: 'saved-panel', custom: 'custom-panel' }
         const visible = () => Object.keys(panels).filter(k => {
           const el = document.getElementById(panels[k])
@@ -558,6 +571,11 @@ function createWindow() {
         }
         return {
           modal: !!document.getElementById('mode-preset'),
+          welcomeSettings: !!entry,
+          welcomeSettingsLangs: wsLangs,
+          welcomeSettingsKey: wsHas.key,
+          welcomeSettingsHelp: wsHas.help,
+          legacyWelcomeButtons: legacyBtns,
           tabs: tabs,
           presetOptions: sel ? sel.options.length : 0,
           legacyPresetButtons: document.querySelectorAll('[data-preset]').length,

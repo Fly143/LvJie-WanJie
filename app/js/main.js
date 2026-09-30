@@ -273,19 +273,36 @@ function startBtnLabel(pack) {
   return (pack.lexicon && pack.lexicon.startBtn) || t('enterWorld')
 }
 
-function openLangModal() {
+/**
+ * 欢迎页的「设置」：语言 / API / 帮助 都收在这里。
+ * 与游戏内「设置」同源：语言是全局的（新开局与界面都用它），API 与帮助复用同一个弹窗。
+ */
+function openWelcomeSettings() {
   const cur = getGlobalLang()
   openModal(`
-    <h2>${t('storyLang')}</h2>
+    <h2>⚙️ ${t('navSettings')}</h2>
+
+    <h4>${t('storyLang')}</h4>
     <div class="btn-row">
       ${LANGUAGE_OPTIONS.map(l => `
         <button class="btn btn-sm ${cur === l.id ? 'btn-gold' : ''}" data-wlang="${l.id}" type="button">${esc(uiLangName(l.id))}</button>
       `).join('')}
     </div>
-    <div style="font-size:12px;color:var(--faint);margin-top:10px">
-      ${t('langModalHint')}
+    <div style="font-size:12px;color:var(--faint)">${t('langModalHint')}</div>
+
+    <h4>${t('api')}</h4>
+    <div class="btn-row">
+      <button class="btn" id="ws-key" type="button">🔑 ${t('switchApiKey')}</button>
     </div>
-    <div class="btn-row"><button class="btn btn-gold" data-close type="button">${t('ok')}</button></div>
+
+    <h4>${t('help')}</h4>
+    <div class="btn-row">
+      <button class="btn" id="ws-help" type="button">📖 ${t('help')}</button>
+    </div>
+
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gold" data-close type="button">${t('ok')}</button>
+    </div>
   `)
   document.querySelectorAll('[data-wlang]').forEach(b => {
     b.onclick = () => {
@@ -296,6 +313,10 @@ function openLangModal() {
       toast(t('langSet') + ' ' + uiLangName(id))
     }
   })
+  const wk = document.getElementById('ws-key')
+  if (wk) wk.onclick = () => { closeModal(); openKeyModal(app, { save, refreshAll }) }
+  const wh = document.getElementById('ws-help')
+  if (wh) wh.onclick = () => { closeModal(); openHelp(app) }
 }
 
 /** 欢迎页的内置免费通道提示：额度只有 100 次/天、按 IP 共享，先说清楚 */
@@ -387,9 +408,7 @@ function renderWelcome() {  const root = document.getElementById('welcome')
           <button class="btn btn-gold" id="w-start" type="button">${t('start')}</button>
           <button class="btn" id="w-new" type="button" hidden>${t('newGame')}</button>
           <button class="btn" id="w-author" type="button">🛠 ${t('customWorld')}</button>
-          <button class="btn" id="w-key" type="button">🔑 ${t('api')}</button>
-          <button class="btn" id="w-lang" type="button">🌐 ${t('lang')}</button>
-          <button class="btn" id="w-help" type="button">📖 ${t('help')}</button>
+          <button class="btn" id="w-settings" type="button">⚙️ ${t('navSettings')}</button>
         </div>
         <div class="hint">${t('welcomeHint')}</div>
         ${zenWelcomeHint()}
@@ -509,12 +528,9 @@ function renderWelcome() {  const root = document.getElementById('welcome')
       }
     })
   }
-  const wk = document.getElementById('w-key')
-  if (wk) wk.onclick = () => openKeyModal(app, { save, refreshAll })
-  const wl = document.getElementById('w-lang')
-  if (wl) wl.onclick = () => openLangModal()
-  const wh = document.getElementById('w-help')
-  if (wh) wh.onclick = () => openHelp(app)
+  // 欢迎页设置：语言 / API / 帮助 统一收进这个入口
+  const ws = document.getElementById('w-settings')
+  if (ws) ws.onclick = () => openWelcomeSettings()
 
   syncActions()
   applyTheme(getPack(sel))
