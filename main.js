@@ -433,7 +433,46 @@ function createWindow() {
       )
         .then(r => console.log('SMOKE=' + JSON.stringify(r)))
         .catch(e => console.log('SMOKE_ERR=' + e.message))
-      setTimeout(() => app.exit(0), 5000)
+      // API 设置面板：四个 tab 能否正确切换 + 预设是否为下拉（而不是全铺开）
+      const uiJs = `(async () => {
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+        const open = document.getElementById('w-key') || document.getElementById('btn-key')
+        if (open) open.click()
+        await sleep(500)
+        const panels = { zen: 'zen-panel', preset: 'preset-panel', saved: 'saved-panel', custom: 'custom-panel' }
+        const visible = () => Object.keys(panels).filter(k => {
+          const el = document.getElementById(panels[k])
+          return el && el.style.display !== 'none'
+        })
+        const tabs = {}
+        for (const k of Object.keys(panels)) {
+          const b = document.getElementById('mode-' + k)
+          if (!b) { tabs[k] = 'missing'; continue }
+          b.click(); await sleep(40)
+          const v = visible()
+          tabs[k] = (v.length === 1 && v[0] === k) ? 'ok' : (v.join('+') || 'none')
+        }
+        document.getElementById('mode-preset').click(); await sleep(40)
+        const sel = document.getElementById('k-preset')
+        const box = document.getElementById('k-preset-box')
+        const det = box && box.querySelector('details')
+        return {
+          modal: !!document.getElementById('mode-preset'),
+          tabs: tabs,
+          presetOptions: sel ? sel.options.length : 0,
+          legacyPresetButtons: document.querySelectorAll('[data-preset]').length,
+          stepsFolded: !!(det && !det.open),
+          hasPresetKey: !!document.getElementById('k-preset-key'),
+          customForm: !!document.getElementById('k-base') && !!document.getElementById('k-model'),
+          savedRows: document.querySelectorAll('.key-row').length
+        }
+      })()`
+      setTimeout(() => {
+        win.webContents.executeJavaScript(uiJs)
+          .then(r => console.log('SMOKE_UI=' + JSON.stringify(r)))
+          .catch(e => console.log('SMOKE_UI_ERR=' + e.message))
+      }, 800)
+      setTimeout(() => app.exit(0), 6500)
     }
   })
 }

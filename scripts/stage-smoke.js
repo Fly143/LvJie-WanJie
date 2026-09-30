@@ -80,4 +80,31 @@ if (!packsOk) {
   console.error('SMOKE_FAIL')
   process.exit(1)
 }
+
+// API 设置面板：四个 tab 的切换与预设下拉（真实 Electron DOM 里点一遍）
+const uiLine = out.split(/\r?\n/).find(l => l.startsWith('SMOKE_UI='))
+if (!uiLine) {
+  console.error('SMOKE_UI_MISSING')
+  process.exit(1)
+}
+let ui = null
+try { ui = JSON.parse(uiLine.slice('SMOKE_UI='.length)) } catch (e) { ui = null }
+const uiErrs = []
+if (!ui) uiErrs.push('无法解析 SMOKE_UI')
+else {
+  if (!ui.modal) uiErrs.push('设置弹窗没打开')
+  for (const k of ['zen', 'preset', 'saved', 'custom']) {
+    if (!ui.tabs || ui.tabs[k] !== 'ok') uiErrs.push('tab ' + k + ' 切换异常: ' + (ui.tabs && ui.tabs[k]))
+  }
+  if (!(ui.presetOptions >= 5)) uiErrs.push('预设下拉选项过少: ' + ui.presetOptions)
+  if (ui.legacyPresetButtons !== 0) uiErrs.push('预设仍是全部铺开的按钮: ' + ui.legacyPresetButtons)
+  if (!ui.stepsFolded) uiErrs.push('教程没有默认折叠')
+  if (!ui.hasPresetKey) uiErrs.push('预设面板缺少 Key 输入框')
+  if (!ui.customForm) uiErrs.push('自定义接口表单缺失')
+}
+if (uiErrs.length) {
+  console.error('SMOKE_UI_FAIL ' + uiErrs.join(' | '))
+  process.exit(1)
+}
+console.log('SMOKE_UI_OK tabs=' + JSON.stringify(ui.tabs) + ' presetOptions=' + ui.presetOptions)
 console.log('SMOKE_OK')

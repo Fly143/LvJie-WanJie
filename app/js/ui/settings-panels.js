@@ -45,6 +45,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
             </span>
           </span>
         </label>
+        <button class="btn btn-sm" data-edit="${i}" type="button">${t('edit')}</button>
         <button class="btn btn-sm btn-danger" data-del="${i}" type="button">${t('delete')}</button>
       </div>
     `
@@ -53,9 +54,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   let cur = keys[selected] && normalizeApiKey(keys[selected])
   const curStyle = (cur && cur.apiStyle === 'response') ? 'response' : 'chat'
 
-  // 两种使用方式：内置免费 / 自定义（默认跟随当前选中的配置）
+  // 默认落在哪个 tab：跟随当前配置（内置通道 → 内置免费；有自定义配置 → 已保存；都没有 → 服务商预设）
   const zenActive = isZenBase(cur && cur.baseUrl)
-  const zenMode = mode === 'zen' ? true : mode === 'custom' ? false : zenActive
+  const initialTab = mode === 'zen' ? 'zen'
+    : mode === 'preset' ? 'preset'
+      : mode === 'saved' || mode === 'custom' ? (mode === 'custom' ? 'custom' : 'saved')
+        : (zenActive ? 'zen' : (keys.length ? 'saved' : 'preset'))
 
   // 内置免费面板：模型列表完全来自探测结果（不硬编码任何模型名）
   const _zc = readZenCache()
@@ -87,12 +91,14 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   openModal(`
     <h2>${t('apiSettings')}</h2>
     ${globalThis.__AW_KEYS_PLAINTEXT__ === true ? `<div style="margin:8px 0;padding:10px;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:12px">⚠ 当前环境不支持密钥加密存储（safeStorage 不可用），API Key 以明文保存在本机，请注意设备安全</div>` : ''}
-    <div class="btn-row" style="margin-top:8px">
-      <button class="btn btn-sm ${zenMode ? 'btn-gold' : ''}" id="mode-zen" type="button">${t('zenModeFree')}</button>
-      <button class="btn btn-sm ${zenMode ? '' : 'btn-gold'}" id="mode-custom" type="button">${t('zenModeCustom')}</button>
+    <div class="btn-row" style="margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="mode-zen" type="button">${t('zenModeFree')}</button>
+      <button class="btn btn-sm" id="mode-preset" type="button">${t('tabPreset')}</button>
+      <button class="btn btn-sm" id="mode-saved" type="button">${t('tabSaved')}${keys.length ? ' (' + keys.length + ')' : ''}</button>
+      <button class="btn btn-sm" id="mode-custom" type="button">${t('tabCustom')}</button>
     </div>
 
-    <div id="zen-panel" style="display:${zenMode ? '' : 'none'}">
+    <div id="zen-panel" style="display:none">
       <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('zenHint')}</div>
       <div id="k-zen-quota" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.6"></div>
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('zenModelPick')}</label>
@@ -107,16 +113,31 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       </div>
     </div>
 
-    <div id="custom-panel" style="display:${zenMode ? 'none' : ''}">
-    <h3>${t('providerPreset')}</h3>
-    <div class="btn-row" style="flex-wrap:wrap;gap:6px">
-      ${PROVIDER_PRESETS.map(p => `<button class="btn btn-sm" data-preset="${esc(p.id)}" type="button" title="${esc(p.note || p.name)}">${esc(p.name)}${p.tag ? ' · ' + esc(p.tag) : ''}</button>`).join('')}
+    <div id="preset-panel" style="display:none">
+      <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('presetPick')}</label>
+      <select id="k-preset" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">
+        ${PROVIDER_PRESETS.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.tag ? ' · ' + esc(p.tag) : ''}</option>`).join('')}
+      </select>
+      <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
+      <div id="k-preset-box" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
+      <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('apiKey')}</label>
+      <input id="k-preset-key" type="password" placeholder="sk-…" autocomplete="off" value="">
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-gold" id="k-preset-save" type="button">${t('saveUse')}</button>
+        <button class="btn btn-sm" id="k-preset-test" type="button">${t('testConn')}</button>
+        <span style="font-size:12px;color:var(--faint);align-self:center" id="k-preset-test-status"></span>
+      </div>
+      <div class="btn-row" style="margin-top:10px"><button class="btn" data-close type="button">${t('close')}</button></div>
     </div>
-    <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
-    <div id="k-preset-box" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
-    ${rows || `<div class="empty">${t('noApi')}</div>`}
 
-    <h3 style="margin-top:16px">${t('addUpdate')}</h3>
+    <div id="saved-panel" style="display:none">
+      <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('savedHint')}</div>
+      <div style="margin-top:8px">${rows || `<div class="empty">${t('noApi')}</div>`}</div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn" data-close type="button">${t('close')}</button></div>
+    </div>
+
+    <div id="custom-panel" style="display:none">
+    <h3>${t('addUpdate')}</h3>
     <label style="color:var(--dim);font-size:12px">${t('proto')}</label>
     <select id="k-style" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">
       <option value="chat" ${curStyle === 'chat' ? 'selected' : ''}>chat — Chat Completions</option>
@@ -312,42 +333,101 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     toast(t('apiSaved'))
   }
 
-  // —— 常用服务商预设：一键填 Base URL / 模型 / 协议，玩家只需粘 Key ——
+  // —— 服务商预设：下拉选择（不再全铺开），自动展示该家信息与教程，玩家只需粘 Key ——
+  const presetSel = document.getElementById('k-preset')
+  const presetBox = document.getElementById('k-preset-box')
+  const presetKeyEl = document.getElementById('k-preset-key')
   const presetHint = document.getElementById('k-preset-hint')
-  document.querySelectorAll('[data-preset]').forEach(b => {
-    b.onclick = () => {
-      const p = PROVIDER_PRESETS.find(x => x.id === b.dataset.preset)
-      if (!p) return
-      selStyle.value = p.apiStyle === 'response' ? 'response' : 'chat'
-      baseEl.value = p.baseUrl
-      modelEl.value = p.model
-      nameEl.value = p.name
-      valEl.value = ''
-      cur = null
-      refreshPreview()
-      if (presetHint) presetHint.textContent = t('providerPresetHint')
-      const box = document.getElementById('k-preset-box')
-      if (box) {
-        const modelSel = (p.models && p.models.length)
-          ? `<div style="margin-top:6px">${t('model')}：<select id="k-preset-models" style="margin-top:4px">` +
-            p.models.map(m => `<option value="${esc(m)}" ${m === modelEl.value ? 'selected' : ''}>${esc(m)}</option>`).join('') +
-            '</select></div>'
-          : ''
-        box.innerHTML =
-          `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}` +
-          modelSel +
-          // 教程默认折叠：需要时再点开，避免一屏全是步骤
-          `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent)">${t('providerShowSteps')}</summary>` +
-          `<div style="margin-top:4px">${presetSteps(p).map(s => esc(s)).join('<br>')}</div>` +
-          `<div style="margin-top:6px">${t('providerGetKey')}` +
-          `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>` +
-          `</details>`
-        box.style.display = ''
-        const msel = document.getElementById('k-preset-models')
-        if (msel) msel.onchange = () => { modelEl.value = msel.value; refreshPreview() }
+  let presetModel = ''
+
+  const currentPreset = () => (presetSel && PROVIDER_PRESETS.find(p => p.id === presetSel.value)) || PROVIDER_PRESETS[0]
+
+  function renderPreset({ clearKey } = {}) {
+    const p = currentPreset()
+    if (!p) return
+    presetModel = p.model || ''
+    if (presetHint) presetHint.textContent = t('providerPresetHint')
+    if (clearKey && presetKeyEl) presetKeyEl.value = ''
+    if (!presetBox) return
+    const modelSel = (p.models && p.models.length)
+      ? `<div style="margin-top:6px">${t('model')}：<select id="k-preset-models" style="margin-top:4px">` +
+        p.models.map(m => `<option value="${esc(m)}" ${m === presetModel ? 'selected' : ''}>${esc(m)}</option>`).join('') +
+        '</select></div>'
+      : ''
+    presetBox.innerHTML =
+      `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}` +
+      modelSel +
+      // 教程默认折叠：需要时再点开，避免一屏全是步骤
+      `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent)">${t('providerShowSteps')}</summary>` +
+      `<div style="margin-top:4px">${presetSteps(p).map(s => esc(s)).join('<br>')}</div>` +
+      `<div style="margin-top:6px">${t('providerGetKey')}` +
+      `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>` +
+      `</details>`
+    const msel = document.getElementById('k-preset-models')
+    if (msel) msel.onchange = () => { presetModel = msel.value }
+  }
+  if (presetSel) presetSel.onchange = () => renderPreset({ clearKey: true })
+  renderPreset({ clearKey: true })
+
+  const presetSaveBtn = document.getElementById('k-preset-save')
+  if (presetSaveBtn) {
+    presetSaveBtn.onclick = () => {
+      const p = currentPreset()
+      const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
+      if (!key) { toast(t('fillApiKey')); return }
+      activate({
+        name: p.name,
+        baseUrl: p.baseUrl,
+        key,
+        model: presetModel || p.model,
+        apiStyle: p.apiStyle === 'response' ? 'response' : 'chat'
+      })
+      closeModal()
+      toast(t('apiSaved'))
+    }
+  }
+
+  const presetTestBtn = document.getElementById('k-preset-test')
+  const presetTestStatus = document.getElementById('k-preset-test-status')
+  if (presetTestBtn) {
+    presetTestBtn.onclick = async () => {
+      const p = currentPreset()
+      const key = (presetKeyEl && presetKeyEl.value.trim()) || ''
+      if (!key) { toast(t('fillApiKey')); return }
+      const old = presetTestBtn.textContent
+      presetTestBtn.disabled = true
+      presetTestBtn.textContent = t('testing')
+      if (presetTestStatus) presetTestStatus.textContent = ''
+      let r
+      try {
+        r = await testConnection({
+          baseUrl: p.baseUrl,
+          key,
+          model: presetModel || p.model,
+          apiStyle: p.apiStyle === 'response' ? 'response' : 'chat'
+        })
+      } catch (e) {
+        r = { ok: false, ms: 0, error: (e && e.message) || '失败' }
       }
-      try { valEl.focus() } catch (e) { /* ignore */ }
-      toast(t('providerFilled') + p.name)
+      presetTestBtn.disabled = false
+      presetTestBtn.textContent = old
+      const ms = Math.round(Number(r.ms) || 0)
+      const msg = r.ok
+        ? (t('testOk') + ' · ' + ms + 'ms' + (r.reply ? ' · ' + r.reply : ''))
+        : (t('testFail') + (r.error || ''))
+      if (presetTestStatus) presetTestStatus.textContent = msg
+      toast(msg)
+    }
+  }
+
+  // 已保存列表的「编辑」：把该条载入「自定义接口」tab 后再改
+  document.querySelectorAll('[data-edit]').forEach(b => {
+    b.onclick = () => {
+      const i = Number(b.dataset.edit)
+      syncFormToEntry(i)
+      selected = i
+      setMode('custom')
+      toast(t('loadedToCustom'))
     }
   })
 
@@ -408,19 +488,23 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   })
 
   // —— 内置免费 / 自定义 两个模式切换 ——
-  const zenPanel = document.getElementById('zen-panel')
-  const customPanel = document.getElementById('custom-panel')
-  const modeZenBtn = document.getElementById('mode-zen')
-  const modeCustomBtn = document.getElementById('mode-custom')
-  const setMode = (z) => {
-    if (zenPanel) zenPanel.style.display = z ? '' : 'none'
-    if (customPanel) customPanel.style.display = z ? 'none' : ''
-    if (modeZenBtn) modeZenBtn.classList.toggle('btn-gold', z)
-    if (modeCustomBtn) modeCustomBtn.classList.toggle('btn-gold', !z)
+  // 四个 tab：内置免费 / 服务商预设 / 已保存 / 自定义接口
+  const PANEL_IDS = { zen: 'zen-panel', preset: 'preset-panel', saved: 'saved-panel', custom: 'custom-panel' }
+  const panelEls = {}
+  const modeBtns = {}
+  for (const k of Object.keys(PANEL_IDS)) {
+    panelEls[k] = document.getElementById(PANEL_IDS[k])
+    modeBtns[k] = document.getElementById('mode-' + k)
   }
-  if (modeZenBtn) modeZenBtn.onclick = () => setMode(true)
-  if (modeCustomBtn) modeCustomBtn.onclick = () => setMode(false)
-  setMode(zenMode)
+  const setMode = (m) => {
+    const want = PANEL_IDS[m] ? m : 'preset'
+    for (const k of Object.keys(PANEL_IDS)) {
+      if (panelEls[k]) panelEls[k].style.display = (k === want) ? '' : 'none'
+      if (modeBtns[k]) modeBtns[k].classList.toggle('btn-gold', k === want)
+    }
+  }
+  for (const k of Object.keys(PANEL_IDS)) if (modeBtns[k]) modeBtns[k].onclick = () => setMode(k)
+  setMode(initialTab)
 
   // —— 内置免费通道：探测 / 启用（免费模型会被上游更换，故先探测再取第一个通的） ——
   const zenStatus = document.getElementById('k-zen-status')

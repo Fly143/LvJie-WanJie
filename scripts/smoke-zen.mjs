@@ -393,14 +393,19 @@ ok('zenConfig 形状正确', (() => {
   const declared = new Set([...src.matchAll(/id="([^"]+)"/g)].map(m => m[1]))
   const missing = [...new Set(ids)].filter(id => !declared.has(id))
   ok('设置面板引用的 id 都存在', missing.length === 0, missing)
-  const modeIds = ['mode-zen', 'mode-custom', 'zen-panel', 'custom-panel', 'zen-model', 'k-zen', 'k-zen-test', 'k-zen-status']
-  ok('内置/自定义两个模式的节点齐全', modeIds.every(id => declared.has(id)), modeIds.filter(id => !declared.has(id)))
+  const modeIds = ['mode-zen', 'mode-preset', 'mode-saved', 'mode-custom', 'zen-panel', 'preset-panel', 'saved-panel', 'custom-panel', 'zen-model', 'k-zen', 'k-zen-test', 'k-zen-status']
+  ok('四个 tab 的节点齐全', modeIds.every(id => declared.has(id)), modeIds.filter(id => !declared.has(id)))
   const testIds = ['k-test', 'k-test-status']
   ok('测试连接按钮与状态位都在', testIds.every(id => declared.has(id)), testIds.filter(id => !declared.has(id)))
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
-  ok('服务商预设 UI 存在', src.includes('data-preset=') && src.includes('k-preset-hint') && src.includes('PROVIDER_PRESETS'))
+  ok('服务商预设 UI 存在', src.includes('id="k-preset"') && src.includes('k-preset-box') && src.includes('PROVIDER_PRESETS'))
+  ok('预设用下拉框而不是全部铺开', !/data-preset=/.test(src) && src.includes('<option value="${esc(p.id)}"'))
   ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
-  ok('预设按钮渲染免费标记', src.includes('p.tag ?'))
+  ok('预设下拉选项渲染免费标记', src.includes('p.tag ?'))
+  ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
+  ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
+  ok('已保存列表可编辑载入自定义接口', src.includes('data-edit=') && src.includes("setMode('custom')"))
+  ok('自定义接口 tab 保留自由表单', declared.has('custom-panel') && ['k-base', 'k-value', 'k-model', 'k-style', 'k-add'].every(id => declared.has(id)))
   // 教程默认折叠（<details> 不能带 open）+ 内置面板缺名单时补拉并显示失败原因
   ok('服务商教程默认折叠', /<details(?![^>]*\bopen\b)/.test(src) && src.includes('providerShowSteps'))
   ok('内置面板缺名单时会补拉', src.includes('_zenStale') && src.includes('ensureZenReady({ force: false'))
@@ -410,7 +415,7 @@ ok('zenConfig 形状正确', (() => {
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）
