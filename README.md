@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-blue.svg)](https://github.com/Fly143/LvJie-WanJie/releases)
-[![Release](https://img.shields.io/badge/release-v0.2.1-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
+[![Release](https://img.shields.io/badge/release-v0.3.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg)](https://www.electronjs.org/)
 
 选择修仙 / 玄幻 / 武侠 / 职场 / 末世 / 西幻，接入自定义大模型 API，实时生成剧情与数据变化。
@@ -29,6 +29,7 @@
 - 背景音乐支持 mp3 与 **MIDI**（Web Audio 合成）
 - chat 协议流式输出；changes 单轮数值熔断；设置里可导出/导入存档 JSON（不含 Key）
 - 人物记忆：同伴/场景 NPC 进存档；点名找人时按需注入档案
+- **同伴同行**：邀请同伴随行后随你移动、始终在场；交谈与记忆更新累积成「近况」注入剧情
 - **界面多语言**：简体中文 / 繁體中文 / English / 日本語
 - 按世界观独立存档槽，切换世界即读档
 - API Key 加密保存（桌面 safeStorage / 安卓 Android Keystore），不入存档

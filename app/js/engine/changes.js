@@ -6,9 +6,10 @@ export { normalizeMoney }
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
 import { forceDivorce, syncFavorToRelations } from './marriage.js'
-import { normalizeRelType } from './npc-memory.js'
+import { normalizeRelType, addFriendHistory } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
 import { normalizeUseEffect } from './worldpack.js'
+import { syncPartyTo } from './party.js'
 
 /** friends 文本字段截断（防 AI 刷爆存档/提示词） */
 const FRIEND_TEXT_CAPS = { realm: 24, intro: 200, mem: 300 }
@@ -233,7 +234,12 @@ export function applyChanges(S, ch, hooks = {}) {
         if (raw.realm || raw.rank) f.realm = normText(raw.realm || raw.rank, FRIEND_TEXT_CAPS.realm)
         if (raw.power != null) f.power = Math.abs(Math.round(capAbs(Number(raw.power) || f.power, CHANGE_CAPS.power_abs)))
         if (raw.intro) f.intro = normText(raw.intro, FRIEND_TEXT_CAPS.intro)
-        if (raw.mem) f.mem = normText(raw.mem, FRIEND_TEXT_CAPS.mem)
+        if (raw.mem) {
+          const nextMem = normText(raw.mem, FRIEND_TEXT_CAPS.mem)
+          // 记忆更新记进「近期交谈」，否则该字段永远是空的（提示词里那栏取不到内容）
+          if (nextMem && nextMem !== f.mem) addFriendHistory(f, nextMem)
+          f.mem = nextMem
+        }
         if (raw.gender) f.gender = normGender(raw.gender)
         if (raw.age_days != null || raw.ageDays != null) {
           f.ageDays = Math.max(0, Math.round(Number(raw.age_days != null ? raw.age_days : raw.ageDays) || 0))
@@ -321,6 +327,9 @@ export function applyChanges(S, ch, hooks = {}) {
       }
     }
   }
+
+  // 同行者必须与玩家同场景：每轮对账一次（含上方移动/自动落位的结果）
+  try { syncPartyTo(S, S.currentLoc) } catch (e) { /* ignore */ }
 
   if (ch.faction_rep != null) {
     const v = Math.round(capAbs(Number(ch.faction_rep) || 0, CHANGE_CAPS.faction_rep_abs))

@@ -6,7 +6,8 @@ import { packUi, packFeatures } from './pack-ui.js'
 import { fmtNum, ageLabel } from './util.js'
 import { MAX_EVENT_CHOICES, langPack } from './constants.js'
 import { skillLabel } from './skills.js'
-import { npcFocusFromTexts } from './npc-memory.js'
+import { npcFocusFromTexts, friendRecentLines } from './npc-memory.js'
+import { partyBrief } from './party.js'
 
 const TALENT_BLOCK = {
   cheat: `【AI风格：开挂】（玩家在设置中选择，必须遵守；本档要求最高，压过下面所有"驳回不合理行动"的规定）
@@ -115,9 +116,20 @@ export function buildSystemPrompt(S, opts = {}) {
     关系网: f.relations || [],
     恩怨: f.grudges || [],
     所在地: (friendLocOf(S, f.name) || {}).name || '行踪不明',
-    近期交谈: (f.history || []).slice(-6)
+    同行: f.party === true,
+    近期交谈: friendRecentLines(f, 6)
   }))
   // 同伴 mem 完整放入；点名档案见下方按需块
+
+  // 同行者：必须与玩家同场景、随行；名单来自玩家在同伴页的切换
+  const partyInfo = partyBrief(S)
+  const partyBlock = partyInfo.length
+    ? `【同行者】（必须遵守）
+- 正与你同行：${partyInfo.map(p => `${p.name}（已同行 ${p.同行天数} 天）`).join('、')}。
+- 同行者必须与你处于同一场景、随你一起行动；不得写成留在别处、凭空消失或另投他人。
+- 同行者参与当前剧情（可对话、可协助、可受伤）；若确需分离，须在正文写明原因。
+- 同行状态由玩家在同伴页切换：你不要自行给 friends 写 party 字段。`
+    : ''
 
   const styleKey = S.aiStyle || 'normal'
   const styleBlock = TALENT_BLOCK[styleKey] || TALENT_BLOCK.normal
@@ -201,6 +213,7 @@ ${styleCaveat}
 ${styleBlock}
 ${genderBlock}
 ${pressureBlock}
+${partyBlock}
 
 【世界观】${customHint}
 ${worldviewBlock}

@@ -7,6 +7,30 @@
  */
 import { ageLabel } from './util.js'
 
+/**
+ * 追加一条同伴近况（交谈 / 记忆更新 / 同行起止）。
+ * 统一存成字符串数组，读侧（提示词、档案块）直接可用；连续重复不入。
+ */
+export function addFriendHistory(f, text) {
+  if (!f) return
+  const t = String(text || '').trim().slice(0, 120)
+  if (!t) return
+  if (!Array.isArray(f.history)) f.history = []
+  const last = f.history[f.history.length - 1]
+  const lastText = typeof last === 'string' ? last : (last && last.text) || ''
+  if (lastText === t) return
+  f.history.push(t)
+  if (f.history.length > 50) f.history = f.history.slice(-50)
+}
+
+/** 取最近 n 条近况文本（兼容旧档里的对象/字符串两种形态） */
+export function friendRecentLines(f, n = 4) {
+  return (Array.isArray(f && f.history) ? f.history : [])
+    .slice(-n)
+    .map(h => (typeof h === 'string' ? h : (h && h.text) || ''))
+    .filter(Boolean)
+}
+
 export function buildNpcIndex(S) {
   const idx = new Map()
   if (!S) return idx
@@ -31,7 +55,7 @@ export function buildNpcIndex(S) {
       at: friendLocName(S, f.name),
       relations: normRelations(f.relations),
       grudges: normGrudges(f.grudges),
-      recent: Array.isArray(f.history) ? f.history.slice(-4) : []
+      recent: friendRecentLines(f, 4)
     })
   }
   for (const loc of S.map || []) {

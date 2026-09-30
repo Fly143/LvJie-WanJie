@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09
+
+### Added
+- **同伴同行**：同伴页可「邀请同行 / 结束同行」。同行者随你移动（旅行时自动跟随并切换到新场景），始终出现在当前场景人物表里，卡片显示「同行中」；行踪不明的同伴也可邀请，明确在别处的则要求同场景
+- **同伴近况**：`f.history` 此前只建字段、无人写入（提示词里的「近期交谈」永远是空的）——现在交谈、记忆更新、同行起止都会自动累积近况（去重、上限 50 条，兼容旧档对象格式），并注入提示词与按需档案
+- 提示词新增【同行者】块：同行者必须与玩家同场景、随行且不得凭空消失；同行状态由界面切换，模型不得直写 `party`
+
+### Changed
+- `changes.friends` 的 `mem` 更新同时写入近况，AI 侧人物状态与「近况」栏保持一致
+
 ## [0.2.1] - 2026-09
 
 ### Fixed
@@ -138,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...v0.1.0

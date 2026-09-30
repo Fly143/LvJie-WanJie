@@ -1,7 +1,7 @@
 {
   "name": "agent-worlds",
   "productName": "旅界",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "AI驱动的多世界观开放世界游戏",
   "main": "main.js",
   "author": "Fly143",
@@ -16,6 +16,7 @@
     "smoke:npc": "node scripts/smoke-npc.mjs",
     "smoke:quest": "node scripts/smoke-quest.mjs",
     "smoke:keys": "node scripts/smoke-keyprofile.mjs",
+    "smoke:party": "node scripts/smoke-party.mjs",
     "smoke:llm": "node scripts/llm-endpoints.mjs",
     "smoke:stage": "node scripts/stage-smoke.js"
   },

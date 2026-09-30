@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Android-blue.svg)](https://github.com/Fly143/LvJie-WanJie/releases)
-[![Release](https://img.shields.io/badge/release-v0.2.1-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
+[![Release](https://img.shields.io/badge/release-v0.3.0-blue)](https://github.com/Fly143/LvJie-WanJie/releases)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg)](https://www.electronjs.org/)
 
 Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western Fantasy — plug in your own LLM API, and play a story that writes and updates game state in real time.
@@ -29,6 +29,7 @@ Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western F
 - Background music: mp3 and **MIDI** (Web Audio synthesis)
 - Streaming chat; per-turn value circuit breaker; export / import save JSON (keys excluded)
 - Character memory: companions and scene NPCs persist; named lookups inject dossiers on demand
+- **Travel together**: invite a companion to follow you across locations and stay in the scene; talks and memory updates accumulate into a "recent" feed fed back into the story
 - **UI languages**: 简体中文 / 繁體中文 / English / 日本語
 - Per-world save slots; switching worlds loads that world's save
 - API keys stored encrypted (Desktop safeStorage / Android Keystore), never inside save files

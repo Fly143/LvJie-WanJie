@@ -10,7 +10,8 @@ import { addItem, normalizeType, typeName, itemChip, useDirectItem } from '../en
 import { toggleEquip, equipSummary, ensureEquipFlags } from '../engine/equip.js'
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
-import { relationLines } from '../engine/npc-memory.js'
+import { relationLines, addFriendHistory } from '../engine/npc-memory.js'
+import { setParty, isParty } from '../engine/party.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
 import { propose, divorce, canPropose, showPropose, genderMatchesPref, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
@@ -448,6 +449,8 @@ export function renderFriends(app, api) {
   const cur = curLoc(S) || {}
   const feat = packFeatures(pack)
   const friendAt = (f) => {
+    // 同行者视为与玩家同场景（位置由同行状态决定，不看地图投影）
+    if (f && f.party === true) return { name: (cur && cur.name) || '', here: true }
     const hit = (S.map || []).some(l => (l.people || []).some(p => p && p.name === f.name))
     if (hit) {
       const l = (S.map || []).find(x => (x.people || []).some(p => p && p.name === f.name))
@@ -466,7 +469,7 @@ export function renderFriends(app, api) {
           const at = friendAt(f)
           return `
           <div class="card">
-            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}</div>
+            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> ${f.gender ? `<span class="ctype">${esc(f.gender)}</span>` : ''}${f.party ? `<span class="ctype">${t('partyOn')}</span>` : ''}</div>
             <div class="crealm">${esc(f.realm || '')} · <span style="color:${favorColor(f.favor)}">${t('favor')} ${fmtNum(f.favor || 0)}</span>${f.ageDays != null ? ' · ' + ageLabel(f.ageDays) : ''}${f.relType ? ' · ' + esc(f.relType) : ''}</div>
             <div class="cdim">📍 ${esc(at.name)}${at.here ? t('curScene') : ''}</div>
             <div class="cdesc">${esc(f.intro || '')}</div>
@@ -478,6 +481,7 @@ export function renderFriends(app, api) {
             </div>` : ''}
             <div class="cbtn">
               <button class="btn btn-sm ${at.here ? 'btn-gold' : ''}" data-chat="${i}" type="button" title="${at.here ? t('faceTalk') : (feat.talkRemote ? t('msg') : t('needSameScene'))}">${at.here ? t('chat') : (feat.talkRemote ? t('msg') : t('notNearby'))}</button>
+              <button class="btn btn-sm ${f.party ? '' : 'btn-gold'}" data-party="${i}" type="button">${f.party ? t('partyLeave') : t('partyInvite')}</button>
               ${marriageEnabled(pack) ? (f.married
                 ? `<button class="btn btn-sm" data-divorce="${i}" type="button">${esc(divorceWord(pack))}</button>`
                 : (showPropose(f, pack, S.marriagePref) ? `<button class="btn btn-sm" data-marry="${i}" type="button">💍 ${esc(proposeWord(pack))}</button>` : '')) : ''}
@@ -634,6 +638,7 @@ export function renderFriends(app, api) {
           return
         }
         f.talkCount = (f.talkCount || 0) + 1
+        addFriendHistory(f, '与你远程联络')
         api.save()
         api.startFlow(
           t('msg'),
@@ -649,12 +654,27 @@ export function renderFriends(app, api) {
         return
       }
       f.talkCount = (f.talkCount || 0) + 1
+      addFriendHistory(f, '在' + (cur.name || t('herePlace')) + '与你交谈')
       api.save()
       api.startFlow(
         t('chat'),
         t('youChatA') + (cur.name || t('herePlace')) + t('youChatB') + f.name + t('youChatC') + (f.intro || '') + t('youMsgD') + (f.mem || t('memNone')),
         f.name
       )
+    }
+  })
+  main.querySelectorAll('[data-party]').forEach(b => {
+    b.onclick = () => {
+      const f = S.friends[Number(b.dataset.party)]
+      if (!f) return
+      const r = setParty(S, f.name, !(f.party === true))
+      if (!r.ok) {
+        api.toast(r.reason === 'nothere' ? t('partyNeedSame') : t('partyMissing'))
+        return
+      }
+      api.toast(r.name + (r.on ? t('partyJoined') : t('partyLeft')))
+      api.save()
+      api.refreshAll()
     }
   })
 }

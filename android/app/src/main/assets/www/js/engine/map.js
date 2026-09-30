@@ -1,6 +1,7 @@
 // 地图：旅行、解锁、AI 扩图
 import { packOf, speedMult } from './progression.js'
 import { normalizeUseEffect, normalizeItemType, normalizeUsable } from './worldpack.js'
+import { syncPartyTo } from './party.js'
 
 export function curLoc(S) {
   return (S && S.map && S.map.find(l => l.id === S.currentLoc)) || (S && S.map && S.map[0]) || null
@@ -36,6 +37,7 @@ export function travel(S, targetName) {
   const days = travelDays(S, c || {}, t)
   S.currentLoc = t.id
   S.ageDays += days
+  syncPartyTo(S, t.id) // 同行者随行
   return { ok: true, days, msg: `前往 ${t.name}（${days} 天）` }
 }
 
