@@ -3,6 +3,7 @@
 //           'response' → POST {base}/responses          (OpenAI Responses API)
 // 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
 import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModel, zenActiveModel, writeZenCache, zenAddUsage, zenLimitKind, zenLimitMessage } from './zen.js'
+import { noJsonMode } from './providers.js'
 
 const DEFAULT_TIMEOUT_MS = 120000
 const MAX_TOKENS = 4000
@@ -207,6 +208,9 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
   const url = endpointOf(k)
   if (!url) return { ok: false, error: 'Base URL 必须以 http(s):// 开头' }
 
+  // 少数兼容端点（如书生·浦语）不支持 response_format：不发该字段，靠提示词合同 + 补写链兜底
+  const noJson = noJsonMode(k.baseUrl)
+
   // 内置免费通道：上游只有 chat/completions，且强制 stream:true
   const zen = isZenKey(k)
   const isChat = zen ? true : (k.apiStyle !== 'response')
@@ -225,7 +229,7 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
         temperature: 0.9
       }
       // 链上续聊也必须强制 JSON，否则第二轮起模型吐纯文本，解析不到数据块
-      if (forceJson) body.text = { format: { type: 'json_object' } }
+      if (forceJson && !noJson) body.text = { format: { type: 'json_object' } }
     } else {
       body = {
         model: k.model,
@@ -233,7 +237,7 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
         store: true,
         temperature: 0.9
       }
-      if (forceJson) body.text = { format: { type: 'json_object' } }
+      if (forceJson && !noJson) body.text = { format: { type: 'json_object' } }
     }
     if (maxTokens > 0) body.max_output_tokens = Number(maxTokens)
   } else {
@@ -243,7 +247,7 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
       temperature: 0.9
     }
     // 仅游戏事件强制 JSON，避免破坏考据等自由文本调用
-    if (forceJson) body.response_format = { type: 'json_object' }
+    if (forceJson && !noJson) body.response_format = { type: 'json_object' }
     if (maxTokens > 0) body.max_tokens = Number(maxTokens)
   }
 

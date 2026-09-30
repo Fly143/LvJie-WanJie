@@ -6,6 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_DAILY_LIMIT } from '../engine/zen.js'
+import { PROVIDER_PRESETS } from '../engine/providers.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -107,6 +108,11 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     </div>
 
     <div id="custom-panel" style="display:${zenMode ? 'none' : ''}">
+    <h3>${t('providerPreset')}</h3>
+    <div class="btn-row" style="flex-wrap:wrap;gap:6px">
+      ${PROVIDER_PRESETS.map(p => `<button class="btn btn-sm" data-preset="${esc(p.id)}" type="button" title="${esc(p.note)}">${esc(p.name)}</button>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
     ${rows || `<div class="empty">${t('noApi')}</div>`}
 
     <h3 style="margin-top:16px">${t('addUpdate')}</h3>
@@ -304,6 +310,28 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     closeModal()
     toast(t('apiSaved'))
   }
+
+  // —— 常用服务商预设：一键填 Base URL / 模型 / 协议，玩家只需粘 Key ——
+  const presetHint = document.getElementById('k-preset-hint')
+  document.querySelectorAll('[data-preset]').forEach(b => {
+    b.onclick = () => {
+      const p = PROVIDER_PRESETS.find(x => x.id === b.dataset.preset)
+      if (!p) return
+      selStyle.value = p.apiStyle === 'response' ? 'response' : 'chat'
+      baseEl.value = p.baseUrl
+      modelEl.value = p.model
+      nameEl.value = p.name
+      valEl.value = ''
+      cur = null
+      refreshPreview()
+      if (presetHint) {
+        presetHint.innerHTML = esc(p.note) +
+          `<br>${t('providerGetKey')}<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px">`
+      }
+      try { valEl.focus() } catch (e) { /* ignore */ }
+      toast(t('providerFilled') + p.name)
+    }
+  })
 
   // —— 测试连接：按当前表单发一次最小请求（未填模型则退化为拉模型列表） ——
   const testBtn = document.getElementById('k-test')

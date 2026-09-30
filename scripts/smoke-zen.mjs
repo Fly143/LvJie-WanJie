@@ -291,6 +291,45 @@ ok('zenConfig 形状正确', (() => {
   globalThis.fetch = realFetch
 }
 
+// —— 服务商预设 ——
+{
+  const prov = await import(base + '/engine/providers.js')
+  const list = prov.PROVIDER_PRESETS
+  ok('预设表非空', Array.isArray(list) && list.length >= 3, list.length)
+  ok('预设 id 唯一', new Set(list.map(p => p.id)).size === list.length)
+  ok('预设都是 https 的 chat 端点', list.every(p => /^https:\/\//.test(p.baseUrl) && p.apiStyle === 'chat'), list.map(p => p.baseUrl))
+  ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl && p.note), list)
+  ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
+  ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
+
+  ok('findPreset 命中（忽略结尾斜杠与大小写）', !!prov.findPreset('https://Chat.Intern-AI.org.cn/api/v1/'))
+  ok('findPreset 未命中返回 null', prov.findPreset('https://api.deepseek.com/v2') === null)
+  ok('noJsonMode：书生·浦语为 true', prov.noJsonMode('https://chat.intern-ai.org.cn/api/v1') === true)
+  ok('noJsonMode：DeepSeek 为 false', prov.noJsonMode('https://api.deepseek.com/v1') === false)
+  ok('presetConfig 形状正确', (() => {
+    const c = prov.presetConfig(prov.PROVIDER_PRESETS[0], 'tok')
+    return c.baseUrl === list[0].baseUrl && c.model === list[0].model && c.apiStyle === 'chat'
+  })())
+
+  // 集成：书生·浦语不能收 response_format，其它家照常发
+  const bodies = []
+  globalThis.awHost = {
+    http: {
+      request: async ({ body }) => {
+        bodies.push(JSON.parse(body || '{}'))
+        return { ok: true, status: 200, text: JSON.stringify({ choices: [{ message: { content: 'ok' } }] }) }
+      }
+    }
+  }
+  const r1 = await callLLM({ keyObj: { name: 'intern', baseUrl: 'https://chat.intern-ai.org.cn/api/v1', key: 'tok', model: 'intern-latest', apiStyle: 'chat' }, user: 'u', forceJson: true })
+  ok('书生·浦语请求成功', r1.ok === true, r1)
+  ok('书生·浦语：不发 response_format', bodies[0] && !('response_format' in bodies[0]), bodies[0])
+  const r2 = await callLLM({ keyObj: { name: 'ds', baseUrl: 'https://api.deepseek.com/v1', key: 'sk-x', model: 'deepseek-chat', apiStyle: 'chat' }, user: 'u', forceJson: true })
+  ok('其它服务商请求成功', r2.ok === true, r2)
+  ok('其它服务商：照常发 response_format', !!(bodies[1] && bodies[1].response_format && bodies[1].response_format.type === 'json_object'), bodies[1])
+  delete globalThis.awHost
+}
+
 // —— 静态检查：设置面板里 getElementById 的 id 必须在模板里存在（防改 UI 漏改） ——
 {
   const fs = await import('fs')
@@ -304,6 +343,7 @@ ok('zenConfig 形状正确', (() => {
   const testIds = ['k-test', 'k-test-status']
   ok('测试连接按钮与状态位都在', testIds.every(id => declared.has(id)), testIds.filter(id => !declared.has(id)))
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
+  ok('服务商预设 UI 存在', src.includes('data-preset=') && src.includes('k-preset-hint') && src.includes('PROVIDER_PRESETS'))
 
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')

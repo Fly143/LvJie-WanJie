@@ -99,6 +99,12 @@ With your own model, in the **Custom** panel:
 
 Existing user configuration is never overridden by the built-in channel. Keys are stored via the platform secure store when available and never written into save JSON.
 
+### One-tap provider presets
+
+The **Custom** panel starts with presets for common providers: **Intern-AI (Shanghai AI Lab)**, SenseNova, DeepSeek, Zhipu GLM, SiliconFlow. One tap fills the Base URL and model; you only paste your own API key (the panel shows where to get one), then hit "Test connection".
+
+> **Intern-AI** is an officially free API (about 30 RPM, 90M tokens/month — see their announcements; get a token from the console after signing up). Being an official endpoint it is far more stable than the experimental built-in channel, so it is the recommended first choice. That endpoint does not accept `response_format`, so the app skips that field automatically (the prompt contract plus the recovery chain cover it), avoiding wasted retries.
+
 ## Custom worlds
 
 Welcome screen **🛠 Custom World**:
