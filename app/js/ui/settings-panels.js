@@ -5,7 +5,7 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
-import { ensureZenReady, zenConfig, isZenBase, readZenCache, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED } from '../engine/zen.js'
+import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -98,6 +98,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
         ${zenOptions}
       </select>
       <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${zenStatusText}</div>
+      <div style="font-size:12px;color:var(--faint);margin-top:4px" id="k-zen-quota">${t('zenQuotaLabel')} ${ZEN_DAILY_LIMIT} ${t('zenPerDay')} · ${t('zenUsedToday')} ${zenUsageToday().count}</div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-gold" id="k-zen" type="button">${t('zenEnable')}</button>
         <button class="btn btn-sm" id="k-zen-test" type="button">${t('zenTest')}</button>
@@ -378,6 +379,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   // —— 内置免费通道：探测 / 启用（免费模型会被上游更换，故先探测再取第一个通的） ——
   const zenStatus = document.getElementById('k-zen-status')
   const zenModelEl = document.getElementById('zen-model')
+  const zenQuotaEl = document.getElementById('k-zen-quota')
+  const refreshQuota = () => {
+    if (zenQuotaEl) zenQuotaEl.textContent = t('zenQuotaLabel') + ' ' + ZEN_DAILY_LIMIT + ' ' + t('zenPerDay') + ' · ' + t('zenUsedToday') + ' ' + zenUsageToday().count
+  }
   const fillZenModels = (list, active) => {
     if (!zenModelEl) return
     const arr = []
@@ -386,10 +391,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   }
   const runZenProbe = async () => {
     if (zenStatus) zenStatus.textContent = t('zenProbing')
-    return await ensureZenReady({
+    const r = await ensureZenReady({
       force: true,
       onStatus: (m) => { if (zenStatus) zenStatus.textContent = m }
     })
+    refreshQuota()
+    return r
   }
   const zenBtn = document.getElementById('k-zen')
   if (zenBtn) {
@@ -457,7 +464,8 @@ export async function ensureBuiltinZenDefault({ onStatus } = {}) {
   const selectedIsZen = zenIdx >= 0 && Number(store.selected) === zenIdx
   if (userKeys.length && !selectedIsZen) return { ok: true, enabled: false, reason: 'has-user-key' }
 
-  const r = await ensureZenReady({ force: true, onStatus })
+  // 启动自动启用走缓存优先：免费额度只有 100 次/天，不能每次启动都探测一遍
+  const r = await ensureZenReady({ force: false, onStatus })
   if (!r.ok) return { ok: false, enabled: false, error: r.error || '不可用' }
   const rec = zenConfig(r.model)
   const next = keys.slice()
@@ -531,7 +539,7 @@ function writeKeyStore(data) {
   // 内存缓存：同步读取必须走这里
   _keyStoreCache = { keys: (data.keys || []).slice(), selected: data.selected }
   try { setKeysCache(data) } catch (e) { /* ignore */ }
-  const host = window.awHost && window.awHost.secrets
+  const host = (typeof window !== 'undefined' && window.awHost && window.awHost.secrets) || null
   if (host && host.save) {
     // 宿主加密仓可用时绝不写明文 localStorage；仅写入成功后才删本地副本，
     // 失败则保留副本并告警，避免密钥静默丢失
@@ -555,7 +563,7 @@ function loadKeyStore() {
       return _keyStoreCache
     }
   } catch (e) { /* ignore */ }
-  const host = window.awHost && window.awHost.secrets
+  const host = (typeof window !== 'undefined' && window.awHost && window.awHost.secrets) || null
   try {
     const raw = localStorage.getItem('agentworlds_apikeys_v1')
     if (raw) {

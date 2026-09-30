@@ -66,6 +66,7 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   }
   EV.loading = true
   EV.error = ''
+  EV.quota = ''
   const turn = (EV._turn = (EV._turn || 0) + 1)
   if (hooks.onState) hooks.onState(EV)
 
@@ -151,6 +152,8 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   if (!res || !res.ok) {
     EV.loading = false
     EV.error = (res && res.error) || '调用失败'
+    // 内置免费通道额度/限流：标记出来，界面会额外弹一次提示（避免中途莫名失败）
+    EV.quota = (res && res.zenLimit) || ''
     EV.partial = ''
     // 回滚最后一条 user，允许重试；并恢复上一轮叙事，避免半截残文
     if (EV.history.length && EV.history[EV.history.length - 1].role === 'user') {

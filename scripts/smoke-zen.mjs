@@ -191,6 +191,66 @@ ok('zenConfig 形状正确', (() => {
   delete globalThis.awHost
 }
 
+// —— 额度：100 次/天、超限分类与提示、不白白换模型 ——
+{
+  // 分类
+  ok('识别 FreeUsageLimitError 为当天额度', zen.zenLimitKind('HTTP 429: {"error":{"message":"FreeUsageLimitError"}}') === 'daily')
+  ok('识别 quota 字样为当天额度', zen.zenLimitKind('exceeded your daily quota') === 'daily')
+  ok('识别普通限流为短时限流', zen.zenLimitKind('HTTP 429: rate limit exceeded') === 'rate')
+  ok('普通错误不误判', zen.zenLimitKind('HTTP 500: internal error') === '')
+  ok('额度常量存在', zen.ZEN_DAILY_LIMIT === 100)
+
+  // 本机用量计数：跨天归零
+  store.delete('agentworlds_zen_usage_v1')
+  ok('初始用量为 0', zen.zenUsageToday().count === 0)
+  zen.zenAddUsage(3)
+  ok('计数累加', zen.zenUsageToday().count === 3, zen.zenUsageToday())
+  const today = new Date()
+  const p = n => String(n).padStart(2, '0')
+  store.set('agentworlds_zen_usage_v1', JSON.stringify({ day: '2000-01-01', count: 99 }))
+  ok('跨天归零', zen.zenUsageToday().count === 0, zen.zenUsageToday())
+  store.set('agentworlds_zen_usage_v1', JSON.stringify({ day: today.getFullYear() + '-' + p(today.getMonth() + 1) + '-' + p(today.getDate()), count: 42 }))
+  ok('当天沿用', zen.zenUsageToday().count === 42)
+
+  // 提示文案要带上额度与用法
+  const msgDaily = zen.zenLimitMessage('daily')
+  ok('额度用完提示含额度与次数', /100/.test(msgDaily) && /额度/.test(msgDaily) && /42/.test(msgDaily), msgDaily)
+  ok('额度用完提示给出解决办法', /API Key/.test(msgDaily), msgDaily)
+  ok('限流提示区分于额度用完', /限流/.test(zen.zenLimitMessage('rate')))
+
+  // 集成：429 额度错误 → 不换模型、直接返回可读原因
+  resetCache({ free: ['mimo-v2.6-flash-free', 'deepseek-v4-flash-free'], working: 'mimo-v2.6-flash-free' })
+  store.delete('agentworlds_zen_usage_v1')
+  let calls = 0
+  globalThis.awHost = {
+    http: {
+      request: async () => {
+        calls++
+        return { ok: true, status: 429, text: '{"error":{"message":"FreeUsageLimitError: daily usage limit reached"}}' }
+      }
+    }
+  }
+  const keyObj = { name: '内置', baseUrl: zen.ZEN_BASE, key: 'public', model: 'mimo-v2.6-flash-free', apiStyle: 'chat' }
+  const q = await callLLM({ keyObj, system: 's', user: 'u' })
+  ok('额度错误：返回失败但原因可读', q.ok === false && /额度/.test(q.error) && q.zenLimit === 'daily', q)
+  ok('额度错误：不浪费换模型重试（只发 1 次）', calls === 1, calls)
+  ok('额度错误：记入本机用量', zen.zenUsageToday().count === 1, zen.zenUsageToday())
+  delete globalThis.awHost
+}
+
+// —— 启动不烧额度：缓存新鲜时不发任何请求 ——
+{
+  resetCache({ free: ['mimo-v2.6-flash-free'], working: 'mimo-v2.6-flash-free', at: Date.now() })
+  store.delete('agentworlds_zen_usage_v1')
+  let netCalls = 0
+  globalThis.fetch = async () => { netCalls++; throw new Error('不该联网') }
+  const { ensureBuiltinZenDefault } = await import(base + '/ui/settings-panels.js')
+  const r = await ensureBuiltinZenDefault({})
+  ok('启动启用内置通道', r.ok === true && r.enabled === true && r.model === 'mimo-v2.6-flash-free', r)
+  ok('缓存新鲜时启动不探测（省额度）', netCalls === 0, netCalls)
+  globalThis.fetch = realFetch
+}
+
 // —— 静态检查：设置面板里 getElementById 的 id 必须在模板里存在（防改 UI 漏改） ——
 {
   const fs = await import('fs')

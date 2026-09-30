@@ -18,6 +18,9 @@ export const ZEN_NAME = '内置免费通道'
 /** 已知可用的优先顺序（其余按上游 /models 返回顺序） */
 export const ZEN_PREFERRED = ['mimo-v2.6-flash-free', 'deepseek-v4-flash-free', 'mimo-v2.5-free']
 
+/** 上游免费档额度（官方说明：100 请求/天，次日重置。可能随时调整） */
+export const ZEN_DAILY_LIMIT = 100
+
 const CACHE_KEY = 'agentworlds_zen_cache_v1'
 const CACHE_TTL_MS = 6 * 3600 * 1000   // 名单缓存 6 小时
 const PROBE_TIMEOUT_MS = 12000
@@ -319,4 +322,58 @@ export function zenConfig(model) {
     apiStyle: 'chat',
     builtin: 'zen'
   }
+}
+
+// —— 额度：上游免费档 100 次/天，超限报 429 FreeUsageLimitError ——
+// 本地只做「本机今日已发多少次」的估算（额度可能按 IP 计，仅供参考），
+// 目的是在快用完/已用完时给玩家一个明确原因，而不是中途莫名失败。
+
+const USAGE_KEY = 'agentworlds_zen_usage_v1'
+
+function dayKey(d) {
+  const x = d || new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate())
+}
+
+/** 本机今日已发起的免费通道对话请求数 */
+export function zenUsageToday() {
+  const today = dayKey()
+  const ls = store()
+  if (ls) {
+    try {
+      const d = JSON.parse(ls.getItem(USAGE_KEY) || 'null')
+      if (d && d.day === today) return { day: today, count: Math.max(0, Math.round(Number(d.count) || 0)) }
+    } catch (e) { /* ignore */ }
+  }
+  return { day: today, count: 0 }
+}
+
+/** 记一次请求（跨天自动归零） */
+export function zenAddUsage(n = 1) {
+  const cur = zenUsageToday()
+  const next = { day: cur.day, count: Math.max(0, cur.count + (Number(n) || 0)) }
+  const ls = store()
+  if (ls) {
+    try { ls.setItem(USAGE_KEY, JSON.stringify(next)) } catch (e) { /* ignore */ }
+  }
+  return next
+}
+
+/** 额度/限流错误分类：'daily'（当天额度用完）| 'rate'（短时限流）| ''（不是额度问题） */
+export function zenLimitKind(text) {
+  const s = String(text || '')
+  if (/FreeUsageLimitError|usage limit|usage_limit|quota|额度|每日|daily limit|exceeded your/i.test(s)) return 'daily'
+  if (/rate limit|rate_limit|too many requests|\b429\b/i.test(s)) return 'rate'
+  return ''
+}
+
+/** 给玩家看的额度提示（带上本机今日用量） */
+export function zenLimitMessage(kind) {
+  const used = zenUsageToday().count
+  const tip = '可到「设置 → 🔑 API → 自定义」填入自己的 API Key 继续玩，或等次日额度重置。'
+  if (kind === 'daily') {
+    return `内置免费通道今日额度已用完（上游约 ${ZEN_DAILY_LIMIT} 次/天，次日重置；本机今日已发 ${used} 次）。${tip}`
+  }
+  return `内置免费通道被限流（请求过快，本机今日已发 ${used} 次，上游约 ${ZEN_DAILY_LIMIT} 次/天）。稍等几秒再试；反复出现就换成自己的 API Key。`
 }

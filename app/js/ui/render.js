@@ -75,6 +75,11 @@ export function renderScene(app, api) {
           <button class="btn" id="ev-close" type="button">${t('close')}</button>
         </div></div>`
     }
+    // 内置免费通道额度/限流：红字之外再弹一次提示，避免剧情中途失败看不出原因（每轮只弹一次）
+    if (EV.quota && EV._quotaToasted !== EV._turn) {
+      EV._quotaToasted = EV._turn
+      try { api.toast(EV.error || t('zenUnavailable')) } catch (e) { /* ignore */ }
+    }
   }
 
   const ui = packUi(pack)

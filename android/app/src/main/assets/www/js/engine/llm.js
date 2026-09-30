@@ -2,7 +2,7 @@
 // apiStyle: 'chat'     → POST {base}/chat/completions   (OpenAI Chat Completions)
 //           'response' → POST {base}/responses          (OpenAI Responses API)
 // 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
-import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModel, zenActiveModel, writeZenCache } from './zen.js'
+import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModel, zenActiveModel, writeZenCache, zenAddUsage, zenLimitKind, zenLimitMessage } from './zen.js'
 
 const DEFAULT_TIMEOUT_MS = 120000
 const MAX_TOKENS = 4000
@@ -133,6 +133,11 @@ export async function callLLM(opts = {}) {
     last = r
     if (r && r.aborted) return r
     const err = String((r && r.error) || '')
+    // 额度/限流：同一额度下换模型没用，直接把原因讲清楚（否则剧情中途会莫名失败）
+    const limitKind = zenLimitKind(err)
+    if (limitKind) {
+      return Object.assign({}, r, { error: zenLimitMessage(limitKind), zenLimit: limitKind })
+    }
     // 只有「通道/模型本身不可用」才换模型；网络波动交给上层既有重试
     if (!/HTTP (400|401|403|404|422|426|429)|FreeTier|free tier|not found|未找到/i.test(err)) return r
     const next = zenNextModel(model)
@@ -261,19 +266,22 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
   }
 
   // 部分网关不支持 response_format：4xx 时去掉该字段重试一次
-  const sendOnce = () => httpSend({
-    url,
-    method: 'POST',
-    headers: zen
-      ? zenHeaders({ 'Content-Type': 'application/json', 'Accept': 'text/event-stream' })
-      : {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + k.key
-        },
-    body: JSON.stringify(body),
-    timeoutMs: reqMs,
-    signal
-  })
+  const sendOnce = () => {
+    if (zen) zenAddUsage(1) // 本机用量估算（用于额度提示）
+    return httpSend({
+      url,
+      method: 'POST',
+      headers: zen
+        ? zenHeaders({ 'Content-Type': 'application/json', 'Accept': 'text/event-stream' })
+        : {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + k.key
+          },
+      body: JSON.stringify(body),
+      timeoutMs: reqMs,
+      signal
+    })
+  }
   try {
     let res = await sendOnce()
     if (res && res.status >= 400 && res.status < 500 && /response_format|text\.format|json_object/i.test(String(res.text || ''))) {
@@ -403,6 +411,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle, timeoutM
     if (signal) signal.removeEventListener('abort', onAbort)
   }
 
+  if (isZenKey(k)) zenAddUsage(1) // 本机用量估算（用于额度提示）
   const started = await host.stream({
     url,
     method: 'POST',
