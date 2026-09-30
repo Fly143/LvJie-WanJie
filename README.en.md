@@ -78,11 +78,18 @@ During development, refresh assets only: `npm run sync`
 
 ## API setup
 
-**Works out of the box via the built-in free channel.** On first launch with no configuration, the app fetches the upstream free-model list and probes them in order, using the first one that responds — no API key needed. If a call fails (403/426/429 …) it automatically switches to the next free model. The free list rotates upstream, so the app **re-probes on every start**; Settings also has "Use built-in free channel" and "Test channel".
+**Works out of the box via the built-in free channel.** On first launch with no configuration, the app fetches the upstream free-model list and probes them in order, using the first one that responds — no API key needed. If a call fails (403/426/429 …) it automatically switches to the next free model. The free list rotates upstream, so the app **re-probes on every start**.
+
+API settings has two modes, switchable at the top:
+
+| Mode | What it does |
+| --- | --- |
+| **Built-in free** | Pick from the probed free models (defaults to the first working one); "Test channel" re-probes; one tap to enable |
+| **Custom** | Your own Base URL / API key / model; multiple saved profiles with switching |
 
 > This channel works by injecting a client fingerprint and is **experimental**: upstream tightening can break it at any time — then just enter your own API key. Using your own key is recommended even when it works (more stable, more model choice).
 
-With your own model, top bar **🔑 API**:
+With your own model, in the **Custom** panel:
 
 1. Choose protocol
    - `chat` → `POST {Base URL}/chat/completions`

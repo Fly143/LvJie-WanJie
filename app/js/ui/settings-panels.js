@@ -5,14 +5,14 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
-import { ensureZenReady, zenConfig, isZenBase, ZEN_BASE, ZEN_KEY, ZEN_NAME } from '../engine/zen.js'
+import { ensureZenReady, zenConfig, isZenBase, readZenCache, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED } from '../engine/zen.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
   response: t('styleHelpResp')
 }
 
-export function openKeyModal(app, { save, refreshAll }) {
+export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const S = app.S
   const store = loadKeyStore()
   // S 有 keys 用 S；否则用 store。selected 两边对齐
@@ -52,9 +52,60 @@ export function openKeyModal(app, { save, refreshAll }) {
   let cur = keys[selected] && normalizeApiKey(keys[selected])
   const curStyle = (cur && cur.apiStyle === 'response') ? 'response' : 'chat'
 
+  // 两种使用方式：内置免费 / 自定义（默认跟随当前选中的配置）
+  const zenActive = isZenBase(cur && cur.baseUrl)
+  const zenMode = mode === 'zen' ? true : mode === 'custom' ? false : zenActive
+
+  // 内置免费面板：已探测到的免费模型（含当前可用的那个）
+  const _zc = readZenCache()
+  const _zlist = []
+  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [], ZEN_PREFERRED)) {
+    if (m && !_zlist.includes(m)) _zlist.push(m)
+  }
+  const zenPick = _zc.working || (zenActive ? cur.model : '') || _zlist[0] || ''
+  const zenOptions = _zlist.map(m => `<option value="${esc(m)}" ${m === zenPick ? 'selected' : ''}>${esc(m)}</option>`).join('')
+  const zenStatusText = _zc.working
+    ? t('zenReady') + _zc.working + (_zc.at ? '（' + new Date(_zc.at).toLocaleTimeString() + '）' : '')
+    : t('zenHint')
+
+  /** 把一条配置写入并设为当前（独立 Key 库 / 存档内 keys 两种情况） */
+  function activate(rec) {
+    if (!S || useStandalone) {
+      persistKeysStandalone(rec, null, rec.key || '')
+    } else {
+      S.playerKeys = S.playerKeys || []
+      let i = S.playerKeys.findIndex(k => sameKeyEntry(k, rec))
+      if (i >= 0) S.playerKeys[i] = Object.assign({}, S.playerKeys[i], rec)
+      else { S.playerKeys.push(rec); i = S.playerKeys.length - 1 }
+      S.selectedKey = i
+    }
+    save()
+    refreshAll()
+  }
+
   openModal(`
     <h2>${t('apiSettings')}</h2>
     ${globalThis.__AW_KEYS_PLAINTEXT__ === true ? `<div style="margin:8px 0;padding:10px;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:12px">⚠ 当前环境不支持密钥加密存储（safeStorage 不可用），API Key 以明文保存在本机，请注意设备安全</div>` : ''}
+    <div class="btn-row" style="margin-top:8px">
+      <button class="btn btn-sm ${zenMode ? 'btn-gold' : ''}" id="mode-zen" type="button">${t('zenModeFree')}</button>
+      <button class="btn btn-sm ${zenMode ? '' : 'btn-gold'}" id="mode-custom" type="button">${t('zenModeCustom')}</button>
+    </div>
+
+    <div id="zen-panel" style="display:${zenMode ? '' : 'none'}">
+      <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('zenHint')}</div>
+      <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('zenModelPick')}</label>
+      <select id="zen-model" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">
+        ${zenOptions}
+      </select>
+      <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${zenStatusText}</div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-gold" id="k-zen" type="button">${t('zenEnable')}</button>
+        <button class="btn btn-sm" id="k-zen-test" type="button">${t('zenTest')}</button>
+        <button class="btn" data-close type="button">${t('close')}</button>
+      </div>
+    </div>
+
+    <div id="custom-panel" style="display:${zenMode ? 'none' : ''}">
     ${rows || `<div class="empty">${t('noApi')}</div>`}
 
     <h3 style="margin-top:16px">${t('addUpdate')}</h3>
@@ -90,11 +141,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       <button class="btn btn-gold" id="k-add" type="button">${t('saveUse')}</button>
       <button class="btn" data-close type="button">${t('close')}</button>
     </div>
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn btn-sm" id="k-zen" type="button">${t('zenUse')}</button>
-      <button class="btn btn-sm" id="k-zen-test" type="button">${t('zenTest')}</button>
     </div>
-    <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${t('zenHint')}${isZenBase(cur && cur.baseUrl) ? t('zenReady') + esc((cur && cur.model) || '') : ''}</div>
   `)
 
   const selStyle = document.getElementById('k-style')
@@ -274,8 +321,30 @@ export function openKeyModal(app, { save, refreshAll }) {
     }
   })
 
-  // —— 内置免费通道：一键探测并填入（免费模型会被上游更换，故先探测再选第一个通的） ——
+  // —— 内置免费 / 自定义 两个模式切换 ——
+  const zenPanel = document.getElementById('zen-panel')
+  const customPanel = document.getElementById('custom-panel')
+  const modeZenBtn = document.getElementById('mode-zen')
+  const modeCustomBtn = document.getElementById('mode-custom')
+  const setMode = (z) => {
+    if (zenPanel) zenPanel.style.display = z ? '' : 'none'
+    if (customPanel) customPanel.style.display = z ? 'none' : ''
+    if (modeZenBtn) modeZenBtn.classList.toggle('btn-gold', z)
+    if (modeCustomBtn) modeCustomBtn.classList.toggle('btn-gold', !z)
+  }
+  if (modeZenBtn) modeZenBtn.onclick = () => setMode(true)
+  if (modeCustomBtn) modeCustomBtn.onclick = () => setMode(false)
+  setMode(zenMode)
+
+  // —— 内置免费通道：探测 / 启用（免费模型会被上游更换，故先探测再取第一个通的） ——
   const zenStatus = document.getElementById('k-zen-status')
+  const zenModelEl = document.getElementById('zen-model')
+  const fillZenModels = (list, active) => {
+    if (!zenModelEl) return
+    const arr = []
+    for (const m of [].concat(active || [], list || [])) if (m && !arr.includes(m)) arr.push(m)
+    zenModelEl.innerHTML = arr.map(m => `<option value="${esc(m)}" ${m === active ? 'selected' : ''}>${esc(m)}</option>`).join('')
+  }
   const runZenProbe = async () => {
     if (zenStatus) zenStatus.textContent = t('zenProbing')
     return await ensureZenReady({
@@ -286,23 +355,22 @@ export function openKeyModal(app, { save, refreshAll }) {
   const zenBtn = document.getElementById('k-zen')
   if (zenBtn) {
     zenBtn.onclick = async () => {
-      const r = await runZenProbe()
-      if (!r.ok) {
-        if (zenStatus) zenStatus.textContent = t('zenUnavailable')
-        toast(t('zenUnavailable'))
-        return
+      let model = (zenModelEl && zenModelEl.value) || ''
+      if (!model) {
+        const r = await runZenProbe()
+        if (!r.ok) {
+          if (zenStatus) zenStatus.textContent = t('zenUnavailable')
+          toast(t('zenUnavailable'))
+          return
+        }
+        model = r.model
+        fillZenModels(readZenCache().free, model)
       }
-      selStyle.value = 'chat'
-      baseEl.value = ZEN_BASE
-      modelEl.value = r.model
-      nameEl.value = ZEN_NAME
-      valEl.value = ZEN_KEY
-      cur = null
-      refreshPreview()
-      if (zenStatus) zenStatus.textContent = t('zenReady') + r.model
-      toast(t('zenEnabled') + r.model)
-      const add = document.getElementById('k-add')
-      if (add) add.click()
+      activate(zenConfig(model))
+      const msg = t('zenEnabled') + model
+      if (zenStatus) zenStatus.textContent = msg
+      toast(msg)
+      closeModal()
     }
   }
   const zenTestBtn = document.getElementById('k-zen-test')
@@ -311,6 +379,7 @@ export function openKeyModal(app, { save, refreshAll }) {
       const r = await runZenProbe()
       const msg = r.ok ? (t('zenReady') + r.model) : t('zenUnavailable')
       if (zenStatus) zenStatus.textContent = msg
+      if (r.ok) fillZenModels(readZenCache().free, r.model)
       toast(msg)
     }
   }

@@ -160,6 +160,19 @@ ok('zenConfig 形状正确', (() => {
   delete globalThis.awHost
 }
 
+// —— 静态检查：设置面板里 getElementById 的 id 必须在模板里存在（防改 UI 漏改） ——
+{
+  const fs = await import('fs')
+  const src = fs.readFileSync(new URL('../app/js/ui/settings-panels.js', import.meta.url), 'utf8')
+  const ids = [...src.matchAll(/getElementById\('([^']+)'\)/g)].map(m => m[1])
+  const declared = new Set([...src.matchAll(/id="([^"]+)"/g)].map(m => m[1]))
+  const missing = [...new Set(ids)].filter(id => !declared.has(id))
+  ok('设置面板引用的 id 都存在', missing.length === 0, missing)
+  const modeIds = ['mode-zen', 'mode-custom', 'zen-panel', 'custom-panel', 'zen-model', 'k-zen', 'k-zen-test', 'k-zen-status']
+  ok('内置/自定义两个模式的节点齐全', modeIds.every(id => declared.has(id)), modeIds.filter(id => !declared.has(id)))
+  ok('自定义模式仍然保留原有表单节点', ['k-add', 'k-base', 'k-value', 'k-model', 'k-style'].every(id => declared.has(id)))
+}
+
 // —— 可选：真实联网探测 ——
 if (process.env.AW_ZEN_LIVE === '1') {
   resetCache()
