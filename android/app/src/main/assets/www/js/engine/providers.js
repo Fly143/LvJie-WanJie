@@ -3,11 +3,13 @@
 //
 // 维护说明：URL、模型名与额度均按各家官方文档核对（2026-09）。改动时请同步更新 note/howto/keyUrl。
 // 只收录「端点已核实」的服务商；拿不准的一律不加，避免给玩家填错地址。
+// 排序：免费档在前（tag 标注），商业 API 在后。
 
 export const PROVIDER_PRESETS = [
   {
     id: 'intern',
     name: '书生·浦语（Intern-AI）',
+    tag: '长期免费',
     baseUrl: 'https://chat.intern-ai.org.cn/api/v1',
     model: 'intern-latest',
     apiStyle: 'chat',
@@ -25,6 +27,77 @@ export const PROVIDER_PRESETS = [
       '④ 回到本页，把 token 粘到下面的「API Key」输入框（不用手动加 Bearer 前缀，应用会自己加）',
       '⑤ 模型默认为 intern-latest（自动跟随最新版）；想指定版本就在下面「模型」里选，或点「刷新模型列表」从接口拉取整个书生系列后选择（列表接口就是官方 /api/v1/models）',
       '⑥ 点「测试连接」验证 → 成功后点「保存并选用」'
+    ]
+  },
+  {
+    id: 'spark',
+    name: '讯飞星火',
+    tag: '免费',
+    baseUrl: 'https://spark-api-open.xf-yun.com/v1',
+    model: 'lite',
+    apiStyle: 'chat',
+    keyUrl: 'https://console.xfyun.cn/services/cbm',
+    loginUrl: 'https://console.xfyun.cn/',
+    models: ['lite', 'generalv3.5', 'max-32k', 'pro-128k', '4.0Ultra'],
+    note: 'lite（Spark Lite）免费：tokens 总量不限、QPS 2；其它版本按量计费',
+    howto: [
+      '① 打开 {key} 登录讯飞开放平台（手机号注册），进入「星火认知大模型」服务页',
+      '② 在页面里领取/创建服务后，复制「APIPassword」（就是这里的 API Key）',
+      '③ 回到本页粘贴到「API Key」；模型默认 lite（免费），可选 generalv3.5 / max-32k / 4.0Ultra',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'sensenova',
+    name: '商汤日日新（SenseNova）',
+    tag: '首月免费',
+    baseUrl: 'https://api.sensenova.cn/compatible-mode/v2',
+    model: 'SenseChat-5',
+    apiStyle: 'chat',
+    keyUrl: 'https://platform.sensenova.cn/',
+    loginUrl: 'https://platform.sensenova.cn/',
+    models: ['SenseChat-5'],
+    note: 'Token Plan：注册后首月每 5 小时 1500 次免费，之后为付费套餐',
+    howto: [
+      '① 打开 {key} 注册并登录商汤日日新控制台（官方文档指定的取 Key 入口）',
+      '② 登录后进入「API Key 管理 / 密钥管理」（左侧菜单），创建一个 API Key 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'zhipu',
+    name: '智谱 GLM',
+    tag: '免费档',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4.5-flash',
+    apiStyle: 'chat',
+    keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+    loginUrl: 'https://open.bigmodel.cn/',
+    models: ['glm-4.5-flash', 'glm-4-flash', 'glm-5'],
+    note: 'glm-4.5-flash / glm-4-flash 系列长期免费；glm-5 等按量计费',
+    howto: [
+      '① 打开 {key} 登录智谱开放平台（手机号注册）',
+      '② 在「API Keys」页点「添加新的 API Key」并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 glm-4.5-flash（免费档），也可选 glm-5',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'siliconflow',
+    name: '硅基流动（SiliconFlow）',
+    tag: '部分免费',
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    model: 'Qwen/Qwen3-8B',
+    apiStyle: 'chat',
+    keyUrl: 'https://cloud.siliconflow.cn/account/ak',
+    loginUrl: 'https://cloud.siliconflow.cn/',
+    note: '部分小模型（如 Qwen3-8B）免费；其余按量计费',
+    howto: [
+      '① 打开 {key} 登录（手机号注册）',
+      '② 在「API 密钥」页新建密钥并复制',
+      '③ 回到本页粘贴到「API Key」；模型可填 Qwen/Qwen3-8B，或点「刷新模型列表」选择',
+      '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
   {
@@ -97,23 +170,6 @@ export const PROVIDER_PRESETS = [
     ]
   },
   {
-    id: 'zhipu',
-    name: '智谱 GLM',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4.5-flash',
-    apiStyle: 'chat',
-    keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
-    loginUrl: 'https://open.bigmodel.cn/',
-    models: ['glm-4.5-flash', 'glm-4-flash', 'glm-5'],
-    note: 'glm-4.5-flash / glm-4-flash 系列长期免费；glm-5 等按量计费',
-    howto: [
-      '① 打开 {key} 登录智谱开放平台（手机号注册）',
-      '② 在「API Keys」页点「添加新的 API Key」并复制',
-      '③ 回到本页粘贴到「API Key」；模型默认 glm-4.5-flash（免费档），也可选 glm-5',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
     id: 'doubao',
     name: '字节豆包（火山方舟）',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -131,25 +187,9 @@ export const PROVIDER_PRESETS = [
     ]
   },
   {
-    id: 'spark',
-    name: '讯飞星火',
-    baseUrl: 'https://spark-api-open.xf-yun.com/v1',
-    model: 'lite',
-    apiStyle: 'chat',
-    keyUrl: 'https://console.xfyun.cn/services/cbm',
-    loginUrl: 'https://console.xfyun.cn/',
-    models: ['lite', 'generalv3.5', 'max-32k', 'pro-128k', '4.0Ultra'],
-    note: 'lite（Spark Lite）免费：tokens 总量不限、QPS 2；其它版本按量计费',
-    howto: [
-      '① 打开 {key} 登录讯飞开放平台（手机号注册），进入「星火认知大模型」服务页',
-      '② 在页面里领取/创建服务后，复制「APIPassword」（就是这里的 API Key）',
-      '③ 回到本页粘贴到「API Key」；模型默认 lite（免费），可选 generalv3.5 / max-32k / 4.0Ultra',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
     id: 'hunyuan',
     name: '腾讯混元（TokenHub）',
+    tag: '体验包',
     baseUrl: 'https://tokenhub.tencentmaas.com/v1',
     model: 'hy3',
     apiStyle: 'chat',
@@ -161,39 +201,6 @@ export const PROVIDER_PRESETS = [
       '① 打开 {login} 登录腾讯云（需注册 + 实名认证），按提示开通「大模型服务平台 TokenHub」',
       '② 建议先在控制台「领取免费体验包」，再打开 {key} 创建 API Key 并复制',
       '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等，模型清单见 tokenhub/models）',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
-    id: 'sensenova',
-    name: '商汤日日新（SenseNova）',
-    baseUrl: 'https://api.sensenova.cn/compatible-mode/v2',
-    model: 'SenseChat-5',
-    apiStyle: 'chat',
-    keyUrl: 'https://platform.sensenova.cn/',
-    loginUrl: 'https://platform.sensenova.cn/',
-    models: ['SenseChat-5'],
-    note: 'Token Plan：注册后首月每 5 小时 1500 次免费，之后为付费套餐',
-    howto: [
-      '① 打开 {key} 注册并登录商汤日日新控制台（官方文档指定的取 Key 入口）',
-      '② 登录后进入「API Key 管理 / 密钥管理」（左侧菜单），创建一个 API Key 并复制',
-      '③ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
-    id: 'siliconflow',
-    name: '硅基流动（SiliconFlow）',
-    baseUrl: 'https://api.siliconflow.cn/v1',
-    model: 'Qwen/Qwen3-8B',
-    apiStyle: 'chat',
-    keyUrl: 'https://cloud.siliconflow.cn/account/ak',
-    loginUrl: 'https://cloud.siliconflow.cn/',
-    note: '部分小模型（如 Qwen3-8B）免费；其余按量计费',
-    howto: [
-      '① 打开 {key} 登录（手机号注册）',
-      '② 在「API 密钥」页新建密钥并复制',
-      '③ 回到本页粘贴到「API Key」；模型可填 Qwen/Qwen3-8B，或点「刷新模型列表」选择',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   }

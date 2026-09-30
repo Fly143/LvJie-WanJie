@@ -313,6 +313,12 @@ ok('zenConfig 形状正确', (() => {
   }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
   ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
+  // 排序：免费档靠前，星火与商汤必须排在商业 API 之前
+  const idxOf = (id) => list.findIndex(p => p.id === id)
+  ok('星火排在商业 API 之前', idxOf('spark') >= 0 && idxOf('spark') < idxOf('deepseek'), { spark: idxOf('spark'), deepseek: idxOf('deepseek') })
+  ok('商汤排在商业 API 之前', idxOf('sensenova') >= 0 && idxOf('sensenova') < idxOf('deepseek'), { sensenova: idxOf('sensenova'), deepseek: idxOf('deepseek') })
+  ok('前 5 个都是免费档（带 tag）', list.slice(0, 5).every(p => !!p.tag), list.slice(0, 5).map(p => p.id + ':' + p.tag))
+  ok('免费档标签文案齐全', ['长期免费', '免费', '首月免费', '免费档', '部分免费'].every(x => list.some(p => p.tag === x)))
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址
@@ -369,6 +375,7 @@ ok('zenConfig 形状正确', (() => {
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
   ok('服务商预设 UI 存在', src.includes('data-preset=') && src.includes('k-preset-hint') && src.includes('PROVIDER_PRESETS'))
   ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
+  ok('预设按钮渲染免费标记', src.includes('p.tag ?'))
 
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
