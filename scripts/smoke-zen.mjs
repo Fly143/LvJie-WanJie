@@ -238,16 +238,56 @@ ok('zenConfig 形状正确', (() => {
   delete globalThis.awHost
 }
 
-// —— 启动不烧额度：缓存新鲜时不发任何请求 ——
+// —— 启动策略：每次拉名单（/models 不耗额度），名单未变则跳过连接测试（省额度） ——
 {
   resetCache({ free: ['mimo-v2.6-flash-free'], working: 'mimo-v2.6-flash-free', at: Date.now() })
   store.delete('agentworlds_zen_usage_v1')
-  let netCalls = 0
-  globalThis.fetch = async () => { netCalls++; throw new Error('不该联网') }
+  let listCalls = 0
+  let chatCalls = 0
+  globalThis.fetch = async (url) => {
+    if (/\/models$/.test(String(url))) {
+      listCalls++
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'mimo-v2.6-flash-free' }, { id: 'x-paid' }] }) }
+    }
+    chatCalls++
+    return { ok: true, status: 200, text: async () => 'data: {"choices":[{"delta":{"content":"好"}}]}\n' }
+  }
   const { ensureBuiltinZenDefault } = await import(base + '/ui/settings-panels.js')
   const r = await ensureBuiltinZenDefault({})
   ok('启动启用内置通道', r.ok === true && r.enabled === true && r.model === 'mimo-v2.6-flash-free', r)
-  ok('缓存新鲜时启动不探测（省额度）', netCalls === 0, netCalls)
+  ok('启动每次都拉名单（不耗额度）', listCalls >= 1, listCalls)
+  ok('名单未变 → 跳过连接测试（省额度）', chatCalls === 0, chatCalls)
+
+  // 名单变了（免费模型轮换）→ 必须重新做连接测试
+  let chatCalls2 = 0
+  globalThis.fetch = async (url) => {
+    if (/\/models$/.test(String(url))) return { ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'mimo-v2.6-flash-free' }, { id: 'new-free' }] }) }
+    chatCalls2++
+    return { ok: true, status: 200, text: async () => 'data: {"choices":[{"delta":{"content":"好"}}]}\n' }
+  }
+  const r2 = await zen.ensureZenReady({ force: false })
+  ok('名单变化 → 重新做连接测试', r2.listChanged === true && r2.probed >= 1 && chatCalls2 >= 1, { r2, chatCalls2 })
+
+  // 手动「通道自检」：名单没变也强制测试
+  let chatCalls3 = 0
+  globalThis.fetch = async (url) => {
+    if (/\/models$/.test(String(url))) return { ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'mimo-v2.6-flash-free' }, { id: 'new-free' }] }) }
+    chatCalls3++
+    return { ok: true, status: 200, text: async () => 'data: {"choices":[{"delta":{"content":"好"}}]}\n' }
+  }
+  const r3 = await zen.ensureZenReady({ force: true })
+  ok('手动自检强制做连接测试', r3.probed >= 1 && chatCalls3 >= 1, { r3, chatCalls3 })
+
+  // 名单一致但缓存的可用模型已不在名单里 → 也要重新测
+  resetCache({ free: ['gone-free'], working: 'gone-free', at: Date.now() })
+  let chatCalls4 = 0
+  globalThis.fetch = async (url) => {
+    if (/\/models$/.test(String(url))) return { ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'fresh-free' }] }) }
+    chatCalls4++
+    return { ok: true, status: 200, text: async () => 'data: {"choices":[{"delta":{"content":"好"}}]}\n' }
+  }
+  const r4 = await zen.ensureZenReady({ force: false })
+  ok('旧模型已下架 → 重新测出可用模型', r4.ok === true && r4.model === 'fresh-free' && chatCalls4 >= 1, { r4, chatCalls4 })
   globalThis.fetch = realFetch
 }
 

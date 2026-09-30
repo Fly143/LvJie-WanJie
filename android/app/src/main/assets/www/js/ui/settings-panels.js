@@ -468,7 +468,7 @@ export async function ensureBuiltinZenDefault({ onStatus } = {}) {
   const selectedIsZen = zenIdx >= 0 && Number(store.selected) === zenIdx
   if (userKeys.length && !selectedIsZen) return { ok: true, enabled: false, reason: 'has-user-key' }
 
-  // 启动自动启用走缓存优先：免费额度只有 100 次/天，不能每次启动都探测一遍
+  // 启动自动启用：每次拉名单（/models 不耗额度），名单没变就跳过连接测试，只有名单变了才重新测
   const r = await ensureZenReady({ force: false, onStatus })
   if (!r.ok) return { ok: false, enabled: false, error: r.error || '不可用' }
   const rec = zenConfig(r.model)
