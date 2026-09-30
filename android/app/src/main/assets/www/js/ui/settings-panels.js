@@ -5,7 +5,7 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
-import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_KNOWN_FREE, ZEN_DAILY_LIMIT } from '../engine/zen.js'
+import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 import { PROVIDER_PRESETS, presetSteps } from '../engine/providers.js'
 
 const STYLE_HELP = {
@@ -57,10 +57,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const zenActive = isZenBase(cur && cur.baseUrl)
   const zenMode = mode === 'zen' ? true : mode === 'custom' ? false : zenActive
 
-  // 内置免费面板：已探测到的免费模型（含当前可用的那个）
+  // 内置免费面板：模型列表完全来自探测结果（不硬编码任何模型名）
   const _zc = readZenCache()
   const _zlist = []
-  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [], ZEN_KNOWN_FREE, ZEN_PREFERRED)) {
+  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [])) {
     if (m && !_zlist.includes(m)) _zlist.push(m)
   }
   const zenPick = _zc.working || (zenActive ? cur.model : '') || _zlist[0] || ''
@@ -448,16 +448,19 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     refreshQuota()
     return r
   }
-  // 打开面板时若本地还没有名单（例如启动时因为已有自定义配置而跳过了拉取），补拉一次名单
-  // —— GET /models 不消耗额度，只有需要确认可用模型时才会做连接测试
-  if (!((readZenCache().free || []).length)) {
+  // 打开面板时拉一次名单：没有名单、或名单超过 5 分钟就刷新
+  // —— GET /models 不消耗额度，只有需要重新确认可用模型时才会做连接测试
+  const _zcNow = readZenCache()
+  const _zenStale = !((_zcNow.free || []).length) || (Date.now() - (_zcNow.at || 0) > 5 * 60 * 1000)
+  if (_zenStale) {
     ensureZenReady({ force: false, onStatus: (m) => { if (zenStatus) zenStatus.textContent = m } })
       .then((r) => {
         const err = r && (r.listErr || r.error)
         if (r && r.ok && r.model) {
           fillZenModels(readZenCache().free, r.model)
-          if (zenStatus) zenStatus.textContent = t('zenReady') + r.model
-          if (r.listErr && zenStatus) zenStatus.textContent = t('zenListFail') + r.listErr + ' · ' + t('zenReady') + r.model
+          if (zenStatus) {
+            zenStatus.textContent = (r.listErr ? t('zenListFail') + r.listErr + ' · ' : '') + t('zenReady') + r.model
+          }
         } else if (err && zenStatus) {
           zenStatus.textContent = t('zenListFail') + err
         }

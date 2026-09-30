@@ -2,7 +2,7 @@
 // apiStyle: 'chat'     → POST {base}/chat/completions   (OpenAI Chat Completions)
 //           'response' → POST {base}/responses          (OpenAI Responses API)
 // 走 awHost.http（主进程代理）；无宿主时回退 fetch（Node 冒烟）
-import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModel, zenActiveModel, writeZenCache, zenAddUsage, zenLimitKind, zenLimitMessage } from './zen.js'
+import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNextModelLive, zenActiveModel, ensureZenReady, writeZenCache, zenAddUsage, zenLimitKind, zenLimitMessage } from './zen.js'
 import { noJsonMode } from './providers.js'
 
 const DEFAULT_TIMEOUT_MS = 120000
@@ -116,9 +116,25 @@ async function httpSend({ url, method, headers, body, timeoutMs, signal }) {
  * 对外的调用入口：内置免费通道失败时自动换下一个免费模型重试。
  */
 export async function callLLM(opts = {}) {
-  const k0 = normalizeApiKey(opts.keyObj)
-  if (!isZenKey(k0)) return callLLMOnce(opts)
-  let model = k0.model || zenActiveModel()
+  const raw = (opts && opts.keyObj) || {}
+  const k0 = normalizeApiKey(raw)
+  // 注意：内置通道的配置可能还没记录模型（模型由探测决定），此时 normalizeApiKey 会返回 null，
+  // 所以这里用原始配置判断是不是内置通道，再现场探测出模型。
+  const zenLike = isZenKey({ baseUrl: raw.baseUrl || raw.url || raw.endpoint || '' })
+  if (!isZenKey(k0) && !zenLike) return callLLMOnce(opts)
+  let model = (k0 && k0.model) || String(raw.model || '').trim() || zenActiveModel()
+  // 还没探测出可用模型：现场拉名单 + 探测（GET /models 不消耗额度，只有探测才消耗）
+  if (!model) {
+    const ready = await ensureZenReady({ force: false })
+    if (!ready || !ready.ok || !ready.model) {
+      return {
+        ok: false,
+        error: (ready && ready.error) || '内置免费通道尚未就绪，请到设置里点「通道自检」',
+        zenListErr: (ready && ready.listErr) || ''
+      }
+    }
+    model = ready.model
+  }
   let last = null
   for (let i = 0; i < 3; i++) {
     const keyObj = Object.assign({}, opts.keyObj, { model })
@@ -127,7 +143,7 @@ export async function callLLM(opts = {}) {
       writeZenCache({ working: model, at: Date.now() })
       if (i > 0) {
         try { opts.keyObj.model = model } catch (e) { /* ignore */ }
-        return Object.assign({}, r, { zenSwitched: model, zenFrom: k0.model })
+        return Object.assign({}, r, { zenSwitched: model, zenFrom: (k0 && k0.model) || '' })
       }
       return r
     }
@@ -141,7 +157,7 @@ export async function callLLM(opts = {}) {
     }
     // 只有「通道/模型本身不可用」才换模型；网络波动交给上层既有重试
     if (!/HTTP (400|401|403|404|422|426|429)|FreeTier|free tier|not found|未找到/i.test(err)) return r
-    const next = zenNextModel(model)
+    const next = await zenNextModelLive(model)
     if (!next || next === model) {
       return Object.assign({}, r, { error: err + '（内置免费通道暂无其它可用模型）' })
     }

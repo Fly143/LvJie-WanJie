@@ -78,7 +78,7 @@ During development, refresh assets only: `npm run sync`
 
 ## API setup
 
-**Works out of the box via the built-in free channel.** On first launch with no configuration, the app fetches the upstream free-model list and probes them in order, using the first one that responds — no API key needed. If a call fails (403/426/429 …) it automatically switches to the next free model. The free list rotates upstream: the app **fetches the latest list on every start** and skips the connection test when the list is unchanged (`GET /models` does not use chat quota); when the list changes it probes again.
+**Works out of the box via the built-in free channel.** On first launch with no configuration, the app fetches the upstream free-model list and probes them in order, using the first one that responds — no API key needed. If a call fails (403/426/429 …) it automatically switches to the next free model (fetching a fresh list first). The free list rotates upstream: the app **fetches the latest list on every start** (and again when the "built-in" panel opens with an empty or >5-minute-old list). **The list comes purely from discovery — no model names are hardcoded**; when the list is unchanged the connection test is skipped (`GET /models` does not use chat quota), and when it changes it probes again. If the list fetch fails, the panel shows why — just retry later.
 
 API settings has two modes, switchable at the top:
 

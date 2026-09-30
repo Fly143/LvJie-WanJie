@@ -16,22 +16,9 @@ export const ZEN_UA = 'opencode/1.18.13'
 export const ZEN_NAME = '内置免费通道'
 
 /** 已知可用的优先顺序（其余按上游 /models 返回顺序） */
-export const ZEN_PREFERRED = ['mimo-v2.6-flash-free', 'deepseek-v4-flash-free', 'mimo-v2.5-free']
-// 已知免费模型全集（2026-09 实测上游 /models 的 -free 项）：名单拉取失败时兜底，
-// 避免只显示 ZEN_PREFERRED 那 3 个。顺序会把 ZEN_PREFERRED 提到最前。
-export const ZEN_KNOWN_FREE = [
-  'mimo-v2.6-flash-free',
-  'deepseek-v4-flash-free',
-  'mimo-v2.5-free',
-  'jev-1.13-free',
-  'muse-spark-1.3-contributor-free',
-  'muse-spark-1.2-contributor-free',
-  'space-bunny-free',
-  'longcat-2.5-preview-free',
-  'ling-3.0-flash-fin-free',
-  'nemotron-3-ultra-free',
-  'nemotron-3.5-lightning-free'
-]
+// 探测顺序提示：只在「探测结果里确实存在这些 id」时用来把它们排到前面，
+// 不会凭空加入模型 —— 免费名单一律来自 /models 探测结果，代码里不写死任何模型清单。
+export const ZEN_PROBE_HINT = ['mimo-v2.6-flash-free', 'deepseek-v4-flash-free', 'mimo-v2.5-free']
 
 /** 上游免费档额度（官方说明：100 请求/天，次日重置。可能随时调整） */
 export const ZEN_DAILY_LIMIT = 100
@@ -204,29 +191,39 @@ export function sameZenList(a, b) {
   return true
 }
 
-/** 候选顺序：已知可用优先，其余按上游顺序 */
+/** 候选顺序：命中提示的排前面，其余按上游返回顺序 */
 export function orderZenModels(list) {
   const arr = Array.isArray(list) ? list.filter(Boolean) : []
-  const head = ZEN_PREFERRED.filter(m => arr.includes(m))
+  const head = ZEN_PROBE_HINT.filter(m => arr.includes(m))
   const rest = arr.filter(m => !head.includes(m))
   return head.concat(rest)
 }
 
-/** 当前应优先使用的模型（缓存 → 优先表 → 空） */
+/** 当前应优先使用的模型（只认探测结果缓存；没有就返回空，交给调用方现场探测） */
 export function zenActiveModel() {
-  const c = readZenCache()
-  if (c.working) return c.working
-  return ZEN_PREFERRED[0]
+  return readZenCache().working || ''
 }
 
-/** 下一个候选（失败时切换用） */
+/** 下一个候选（来自探测结果缓存；没有名单时返回空） */
 export function zenNextModel(cur) {
-  const list = orderZenModels(readZenCache().free)
-  const pool = list.length ? list : orderZenModels(ZEN_KNOWN_FREE)
+  const pool = orderZenModels(readZenCache().free)
+  if (!pool.length) return ''
   const i = pool.indexOf(String(cur || ''))
   if (i >= 0 && i + 1 < pool.length) return pool[i + 1]
   const rest = pool.filter(m => m !== cur)
   return rest[0] || ''
+}
+
+/** 下一个候选（缓存里没有名单时现场拉一次；GET /models 不消耗对话额度） */
+export async function zenNextModelLive(cur) {
+  let next = zenNextModel(cur)
+  if (next) return next
+  const list = await fetchZenModelList()
+  if (list.ok && list.free.length) {
+    writeZenCache({ free: list.free, at: Date.now() })
+    next = zenNextModel(cur)
+  }
+  return next
 }
 
 // —— 上游交互 ——
@@ -271,6 +268,7 @@ export async function fetchZenModelList({ timeoutMs } = {}) {
 
 /** 探测单个模型：最小对话往返（必须能拿到正文才算通） */
 export async function probeZenModel(model, { timeoutMs } = {}) {
+  if (!model) return { ok: false, error: '没有可探测的模型（名单为空）' }
   const started = Date.now()
   const body = zenPatchBody({
     model,
@@ -318,11 +316,16 @@ export async function ensureZenReady({ force = false, onStatus } = {}) {
     free = list.free
   } else {
     listErr = list.error || '上游未返回免费模型'
-    say('名单拉取失败：' + listErr + '（沿用上次结果）')
-    free = (prev.free && prev.free.length) ? prev.free : orderZenModels(ZEN_KNOWN_FREE)
+    say('名单拉取失败：' + listErr)
+    free = (prev.free && prev.free.length) ? prev.free : []
   }
   const listChanged = !sameZenList(prev.free, free)
   writeZenCache({ free, at: Date.now() })
+
+  // 拿不到名单就不猜模型：直接报错让用户稍后重试（绝不写死兜底清单）
+  if (!free.length) {
+    return { ok: false, tried: [], listErr, free: [], listChanged, probed: 0, error: '免费名单拉取失败（' + listErr + '），请稍后重试' }
+  }
 
   // ② 名单没变、且上次可用模型仍在名单里 → 跳过连接测试（省额度）
   if (!force && !listChanged && prev.working && free.includes(prev.working)) {

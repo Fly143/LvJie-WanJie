@@ -403,8 +403,9 @@ ok('zenConfig 形状正确', (() => {
   ok('预设按钮渲染免费标记', src.includes('p.tag ?'))
   // 教程默认折叠（<details> 不能带 open）+ 内置面板缺名单时补拉并显示失败原因
   ok('服务商教程默认折叠', /<details(?![^>]*\bopen\b)/.test(src) && src.includes('providerShowSteps'))
-  ok('内置面板缺名单时会补拉', src.includes('ZEN_KNOWN_FREE') && src.includes('readZenCache().free || []).length'))
+  ok('内置面板缺名单时会补拉', src.includes('_zenStale') && src.includes('ensureZenReady({ force: false'))
   ok('内置面板会显示名单拉取失败', src.includes('zenListFail'))
+  ok('内置面板不硬编码模型名', !/["'][\w.-]+-free["']/.test(src))
 
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
@@ -419,19 +420,58 @@ ok('zenConfig 形状正确', (() => {
   ok('自定义模式仍然保留原有表单节点', ['k-add', 'k-base', 'k-value', 'k-model', 'k-style'].every(id => declared.has(id)))
 }
 
-// —— 免费名单兜底：拉取失败也要给出完整清单，并把失败原因回报出来 ——
+// —— 免费名单完全来自探测，不硬编码任何模型 ——
 {
-  ok('导出 ZEN_KNOWN_FREE（≥8 个 -free）', Array.isArray(zen.ZEN_KNOWN_FREE) && zen.ZEN_KNOWN_FREE.length >= 8 && zen.ZEN_KNOWN_FREE.every(m => /-free$/i.test(m)), zen.ZEN_KNOWN_FREE && zen.ZEN_KNOWN_FREE.length)
-  const ordered = zen.orderZenModels(zen.ZEN_KNOWN_FREE)
-  ok('兜底清单把优先模型排最前', ordered.slice(0, zen.ZEN_PREFERRED.length).join(',') === zen.ZEN_PREFERRED.join(','), ordered.slice(0, 3))
+  ok('不再导出硬编码免费清单', zen.ZEN_KNOWN_FREE === undefined && zen.ZEN_PREFERRED === undefined, Object.keys(zen).filter(k => /KNOWN|PREFERRED/.test(k)))
+  const sorted = zen.orderZenModels(['x-free', 'deepseek-v4-flash-free', 'y-free'])
+  ok('探测顺序提示只用于给探测结果排序', sorted.length === 3 && sorted[0] === 'deepseek-v4-flash-free', sorted)
   resetCache({})
+  ok('没有缓存时 zenActiveModel 返回空', zen.zenActiveModel() === '')
+  ok('没有名单时 zenNextModel 返回空（不猜模型）', zen.zenNextModel('a-free') === '')
+
   const stub = globalThis.fetch
+  // 拉取失败：不编造模型，只回报原因
   globalThis.fetch = async () => ({ ok: false, status: 503, text: async () => 'upstream down' })
   const rf = await zen.ensureZenReady({ force: true })
-  ok('拉取失败时兜底清单仍然完整', (rf.free || []).length >= 8, (rf.free || []).length)
-  ok('拉取失败会回报 listErr', !!rf.listErr, rf.listErr)
-  ok('拉取失败也写入了缓存名单', (zen.readZenCache().free || []).length >= 8, (zen.readZenCache().free || []).length)
+  ok('拉取失败时不编造模型', (rf.free || []).length === 0 && rf.ok === false, { free: rf.free, ok: rf.ok })
+  ok('拉取失败回报 listErr 且错误可读', !!rf.listErr && /名单拉取失败/.test(rf.error || ''), { listErr: rf.listErr, error: rf.error })
+  ok('拉取失败后缓存名单仍为空', (zen.readZenCache().free || []).length === 0)
+
+  // 拉取成功：名单就来自探测结果（非免费项被过滤）
+  globalThis.fetch = async (url) => {
+    if (/\/models$/.test(String(url))) {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'zz-free' }, { id: 'deepseek-v4-flash-free' }, { id: 'aa-free' }, { id: 'paid-model' }] }) }
+    }
+    return { ok: true, status: 200, text: async () => 'data: {"choices":[{"delta":{"content":"好"}}]}\n' }
+  }
+  const rl = await zen.ensureZenReady({ force: true })
+  ok('名单来自探测结果且过滤非免费项', rl.ok === true && rl.free.length === 3 && !rl.free.includes('paid-model'), rl.free)
+  ok('命中提示的模型排最前', rl.free[0] === 'deepseek-v4-flash-free', rl.free)
   globalThis.fetch = stub
+  resetCache()
+}
+
+// —— 内置通道没记录模型时：现场探测，而不是用写死的模型名 ——
+{
+  const llm = await import(base + '/engine/llm.js')
+  resetCache({})
+  const bodies = []
+  globalThis.awHost = {
+    http: {
+      request: async ({ url, body }) => {
+        if (/\/models$/.test(String(url))) return { ok: true, status: 200, text: JSON.stringify({ data: [{ id: 'discovered-free' }] }) }
+        bodies.push(JSON.parse(body || '{}'))
+        return { ok: true, status: 200, text: 'data: {"choices":[{"delta":{"content":"你好"}}]}\n' }
+      }
+    }
+  }
+  const r = await llm.callLLM({
+    keyObj: Object.assign(zen.zenConfig(''), { model: '' }),
+    user: 'u'
+  })
+  ok('内置通道缺模型时现场探测后调用成功', r.ok === true, { ok: r.ok, error: r.error })
+  ok('实际用的是探测到的模型', bodies.length >= 1 && bodies[bodies.length - 1].model === 'discovered-free', bodies.map(b => b.model))
+  delete globalThis.awHost
   resetCache()
 }
 
