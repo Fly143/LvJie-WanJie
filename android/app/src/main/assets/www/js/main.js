@@ -18,6 +18,7 @@ import { openWorldAuthor } from './ui/world-author.js'
 import { initBgm, playBgm, hydrateCustomBgm, showGamePlay } from './ui/bgm.js'
 import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
+import { isZenBase, zenUsageToday, ZEN_DAILY_LIMIT } from './engine/zen.js'
 
 export const app = {
   S: null,
@@ -297,8 +298,26 @@ function openLangModal() {
   })
 }
 
-function renderWelcome() {
-  const root = document.getElementById('welcome')
+/** 欢迎页的内置免费通道提示：额度只有 100 次/天、按 IP 共享，先说清楚 */
+function zenWelcomeHint() {
+  try {
+    const kd = loadPlayerKeys()
+    const keys = (kd && Array.isArray(kd.keys)) ? kd.keys : []
+    const idx = (kd && typeof kd.selected === 'number') ? kd.selected : 0
+    const curKey = keys[idx] || keys[0] || null
+    if (curKey && isZenBase(curKey.baseUrl)) {
+      return `<div class="hint" style="margin-top:6px">⚡ ${t('zenWelcomeLimit')} ${ZEN_DAILY_LIMIT} ${t('zenPerDay')}${t('zenResetNext')}${t('zenShared')} · ${t('zenUsedToday')} ${zenUsageToday().count}${t('zenWelcomeSwitch')}</div>`
+    }
+    if (!keys.length) {
+      return `<div class="hint" style="margin-top:6px">⚡ ${t('zenWelcomeNoApi')}</div>`
+    }
+    return ''
+  } catch (e) {
+    return ''
+  }
+}
+
+function renderWelcome() {  const root = document.getElementById('welcome')
   root.hidden = false
   root.style.display = ''
   const savedOrder = loadPackOrder()
@@ -373,6 +392,7 @@ function renderWelcome() {
           <button class="btn" id="w-help" type="button">📖 ${t('help')}</button>
         </div>
         <div class="hint">${t('welcomeHint')}</div>
+        ${zenWelcomeHint()}
       </div>
     </div>
   `
@@ -664,6 +684,7 @@ async function autoZenDefault() {
     }
   } catch (e) { /* ignore */ }
   try { refreshAll() } catch (e) { /* ignore */ }
+  if (!app.S) { try { renderWelcome() } catch (e) { /* ignore */ } }  // 欢迎页刷新额度提示
   toast(t('zenEnabled') + r.model)
 }
 

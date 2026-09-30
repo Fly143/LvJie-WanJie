@@ -93,12 +93,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
 
     <div id="zen-panel" style="display:${zenMode ? '' : 'none'}">
       <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('zenHint')}</div>
+      <div id="k-zen-quota" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.6"></div>
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('zenModelPick')}</label>
       <select id="zen-model" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">
         ${zenOptions}
       </select>
       <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${zenStatusText}</div>
-      <div style="font-size:12px;color:var(--faint);margin-top:4px" id="k-zen-quota">${t('zenQuotaLabel')} ${ZEN_DAILY_LIMIT} ${t('zenPerDay')} · ${t('zenUsedToday')} ${zenUsageToday().count}</div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-gold" id="k-zen" type="button">${t('zenEnable')}</button>
         <button class="btn btn-sm" id="k-zen-test" type="button">${t('zenTest')}</button>
@@ -381,8 +381,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const zenModelEl = document.getElementById('zen-model')
   const zenQuotaEl = document.getElementById('k-zen-quota')
   const refreshQuota = () => {
-    if (zenQuotaEl) zenQuotaEl.textContent = t('zenQuotaLabel') + ' ' + ZEN_DAILY_LIMIT + ' ' + t('zenPerDay') + ' · ' + t('zenUsedToday') + ' ' + zenUsageToday().count
+    if (!zenQuotaEl) return
+    zenQuotaEl.innerHTML = '⚡ ' + t('zenQuotaLabel') + ' ' + ZEN_DAILY_LIMIT + ' ' + t('zenPerDay') +
+      t('zenResetNext') + t('zenShared') + ' · ' + t('zenUsedToday') + ' ' + zenUsageToday().count +
+      '<br>' + t('zenQuotaTip')
   }
+  refreshQuota()
   const fillZenModels = (list, active) => {
     if (!zenModelEl) return
     const arr = []

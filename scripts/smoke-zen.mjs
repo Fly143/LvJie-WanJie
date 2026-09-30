@@ -264,6 +264,17 @@ ok('zenConfig 形状正确', (() => {
   const testIds = ['k-test', 'k-test-status']
   ok('测试连接按钮与状态位都在', testIds.every(id => declared.has(id)), testIds.filter(id => !declared.has(id)))
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
+
+  // 四种语言的额度文案都要齐（少一种就会回退中文）
+  const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
+  const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn']
+  ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
+
+  // 欢迎页要有额度提示（用户要求的两处提示之一）
+  const mainSrc = fs.readFileSync(new URL('../app/js/main.js', import.meta.url), 'utf8')
+  ok('欢迎页有内置通道额度提示', mainSrc.includes('zenWelcomeHint(') && mainSrc.includes("t('zenWelcomeLimit')"))
+  ok('欢迎页提示含按 IP 共享说明', mainSrc.includes("t('zenShared')"))
   ok('自定义模式仍然保留原有表单节点', ['k-add', 'k-base', 'k-value', 'k-model', 'k-style'].every(id => declared.has(id)))
 }
 
