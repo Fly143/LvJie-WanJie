@@ -6,6 +6,16 @@
 //  - 地点人物表只是「谁在哪」的投影，权威来源仍是 S.friends
 
 import { addFriendHistory } from './npc-memory.js'
+import { syncFavorToRelations } from './marriage.js'
+import { friendPowerF } from './power.js'
+
+/** 每日互动的固定好感收益（每人每天一次） */
+export const PARTY_DAILY_FAVOR = 2
+
+/** 分天口径与交谈一致：30 游戏天 = 1 天 */
+export function dayKeyOf(S) {
+  return String(Math.floor((Number(S && S.ageDays) || 0) / 30))
+}
 
 export function partyMembers(S) {
   return (S && Array.isArray(S.friends) ? S.friends : []).filter(f => f && f.party === true)
@@ -114,9 +124,39 @@ export function partyBrief(S) {
   return partyMembers(S).map(f => ({
     name: f.name,
     rank: f.realm || '',
+    战力: Math.round(friendPowerF(S, f)),
     好感: f.favor || 0,
     人设: f.intro || '',
     长期记忆: f.mem || '',
-    同行天数: Math.max(0, (Number(S.ageDays) || 0) - (Number(f.partySince) || 0))
+    同行天数: partyDays(S, f)
   }))
+}
+
+/** 已同行天数 */
+export function partyDays(S, f) {
+  if (!f || f.party !== true) return 0
+  return Math.max(0, (Number(S.ageDays) || 0) - (Number(f.partySince) || 0))
+}
+
+/** 今天还能不能互动（每人每天一次） */
+export function canInteractToday(S, f) {
+  if (!f || f.party !== true) return false
+  return f.lastPartyDay !== dayKeyOf(S)
+}
+
+/**
+ * 每日互动（切磋/交流）：+好感、写近况；每人每天一次。
+ * @returns {{ok:boolean, name?:string, favor?:number, reason?:string}}
+ *  reason: 'missing' | 'notparty' | 'today'
+ */
+export function partyInteract(S, name) {
+  const f = findFriend(S, name)
+  if (!f) return { ok: false, reason: 'missing' }
+  if (f.party !== true) return { ok: false, reason: 'notparty', name: f.name }
+  if (f.lastPartyDay === dayKeyOf(S)) return { ok: false, reason: 'today', name: f.name }
+  f.lastPartyDay = dayKeyOf(S)
+  f.favor = Math.round((Number(f.favor) || 0) + PARTY_DAILY_FAVOR)
+  try { syncFavorToRelations(f) } catch (e) { /* ignore */ }
+  addFriendHistory(f, '与你切磋交流')
+  return { ok: true, name: f.name, favor: PARTY_DAILY_FAVOR }
 }

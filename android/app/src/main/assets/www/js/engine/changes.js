@@ -6,7 +6,7 @@ export { normalizeMoney }
 import { packOf, tierLabel } from './progression.js'
 import { syncReverseRelations } from './npc-memory.js'
 import { forceDivorce, syncFavorToRelations } from './marriage.js'
-import { normalizeRelType, addFriendHistory } from './npc-memory.js'
+import { normalizeRelType, addFriendHistory, advanceFriendDays } from './npc-memory.js'
 import { applyQuestChanges } from './quests.js'
 import { normalizeUseEffect } from './worldpack.js'
 import { syncPartyTo } from './party.js'
@@ -100,6 +100,7 @@ export function applyChanges(S, ch, hooks = {}) {
     const d = Math.round(capAbs(Number(ch.age_days) || 0, CHANGE_CAPS.age_days))
     if (d) {
       S.ageDays = Math.max(0, S.ageDays + d)
+      advanceFriendDays(S, d) // 同伴/已结识 NPC 一起变老
       minor.push(`年龄 ${d > 0 ? '+' : ''}${d} 天`)
     }
   }

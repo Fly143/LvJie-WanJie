@@ -55,8 +55,21 @@ export function spousePowerF(S) {
   return Math.round(p * 10) / 10
 }
 
+/** 同行者参战系数：伙伴并肩作战，但配合不如自身修为，故打折计入 */
+export const PARTY_POWER_RATIO = 0.6
+
+/** 队伍战力：同行中的同伴按系数计入（伴侣已在 spousePowerF 计过，不重复） */
+export function partyPowerF(S) {
+  let p = 0
+  ;(S.friends || []).forEach(f => {
+    if (!f || f.party !== true || f.married) return
+    p += friendPowerF(S, f)
+  })
+  return Math.round(p * PARTY_POWER_RATIO * 10) / 10
+}
+
 export function totalPowerF(S) {
-  let p = basePower(S, S.tierIndex, S.sub) + totalTechniquePower(S) + spousePowerF(S)
+  let p = basePower(S, S.tierIndex, S.sub) + totalTechniquePower(S) + spousePowerF(S) + partyPowerF(S)
   const arts = S.inventory
     .filter(x => x.type === 'equip' && x.equipped)
     .map(a => ({ a, p: artPowerF(S, a) }))
@@ -86,6 +99,7 @@ export function powerBreakdown(S) {
   }
   const manual = totalTechniquePower(S)
   const spouse = spousePowerF(S)
+  const party = partyPowerF(S)
   const feat = packFeatures(packOf(S))
   const halved = feat.lifespan !== false && isLifeExpired(S)
   const half = halved ? 0.5 : 1
@@ -94,7 +108,8 @@ export function powerBreakdown(S) {
     art: Math.round(art * half),
     manual: Math.round(manual * half),
     spouse: Math.round(spouse * half),
-    total: Math.round((base + art + manual + spouse) * half),
+    party: Math.round(party * half),
+    total: Math.round((base + art + manual + spouse + party) * half),
     halved
   }
 }

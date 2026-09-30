@@ -29,7 +29,7 @@ Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western F
 - Background music: mp3 and **MIDI** (Web Audio synthesis)
 - Streaming chat; per-turn value circuit breaker; export / import save JSON (keys excluded)
 - Character memory: companions and scene NPCs persist; named lookups inject dossiers on demand
-- **Travel together**: invite a companion to follow you across locations and stay in the scene; talks and memory updates accumulate into a "recent" feed fed back into the story
+- **Travel together & party**: invite companions to follow you across locations; a party panel shows party power, days together and recent notes, with a once-per-day "spar & talk"; companions age as game days pass
 - **UI languages**: 简体中文 / 繁體中文 / English / 日本語
 - Per-world save slots; switching worlds loads that world's save
 - API keys stored encrypted (Desktop safeStorage / Android Keystore), never inside save files

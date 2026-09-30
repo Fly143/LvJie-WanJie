@@ -31,6 +31,24 @@ export function friendRecentLines(f, n = 4) {
     .filter(Boolean)
 }
 
+/**
+ * 时间推进：已结识 NPC 的年龄随游戏天数同步增长。
+ * 此前只有玩家 ageDays 会走，NPC 年龄永远停在结识那天（除非 AI 记得写 age_days）。
+ * 未知年龄（null）保持未知，不凭空生成。
+ * @returns {number} 受影响的人数
+ */
+export function advanceFriendDays(S, days) {
+  const d = Math.round(Number(days) || 0)
+  if (!S || !d) return 0
+  let n = 0
+  for (const f of S.friends || []) {
+    if (!f || f.ageDays == null) continue
+    f.ageDays = Math.max(0, Math.round(Number(f.ageDays) || 0) + d)
+    n++
+  }
+  return n
+}
+
 export function buildNpcIndex(S) {
   const idx = new Map()
   if (!S) return idx

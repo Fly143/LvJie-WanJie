@@ -1,7 +1,7 @@
 // 系统提示词 = 引擎通用骨架 + 世界观包规则
 import { curLoc, mapSummary } from './map.js'
 import { packOf, tierLabel, playerCultReq, isLifeExpired } from './progression.js'
-import { totalPowerF } from './power.js'
+import { totalPowerF, partyPowerF } from './power.js'
 import { packUi, packFeatures } from './pack-ui.js'
 import { fmtNum, ageLabel } from './util.js'
 import { MAX_EVENT_CHOICES, langPack } from './constants.js'
@@ -125,10 +125,11 @@ export function buildSystemPrompt(S, opts = {}) {
   const partyInfo = partyBrief(S)
   const partyBlock = partyInfo.length
     ? `【同行者】（必须遵守）
-- 正与你同行：${partyInfo.map(p => `${p.name}（已同行 ${p.同行天数} 天）`).join('、')}。
+- 正与你同行：${partyInfo.map(p => `${p.name}（${p.rank || '未知档位'}，${p.战力} ${ui.powerLabel}，已同行 ${p.同行天数} 天）`).join('、')}。
+- 队伍合力：约 ${Math.round(partyPowerF(S))} ${ui.powerLabel}（已按配合折减计入你的总战力）。写战斗与对抗时，必须把同行者的实力算进去。
 - 同行者必须与你处于同一场景、随你一起行动；不得写成留在别处、凭空消失或另投他人。
 - 同行者参与当前剧情（可对话、可协助、可受伤）；若确需分离，须在正文写明原因。
-- 同行状态由玩家在同伴页切换：你不要自行给 friends 写 party 字段。`
+- 同行状态与「切磋交流」由玩家在同伴页操作：你不要自行给 friends 写 party 字段。`
     : ''
 
   const styleKey = S.aiStyle || 'normal'

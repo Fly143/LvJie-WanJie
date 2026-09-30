@@ -3,15 +3,15 @@ import { esc, fmtNum, ageLabel, ageLabelShort, normalizeMoney, spendMoney, strip
 import {
   tierLabel, tierColor, playerCultReq, isLifeExpired
 } from '../engine/progression.js'
-import { totalPowerF, powerBreakdown, consumableEffect } from '../engine/power.js'
+import { totalPowerF, powerBreakdown, consumableEffect, partyPowerF, friendPowerF } from '../engine/power.js'
 import { curLoc, travel, gateReason, travelDays } from '../engine/map.js'
 import { skillLabel } from '../engine/skills.js'
 import { addItem, normalizeType, typeName, itemChip, useDirectItem } from '../engine/inventory.js'
 import { toggleEquip, equipSummary, ensureEquipFlags } from '../engine/equip.js'
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
-import { relationLines, addFriendHistory } from '../engine/npc-memory.js'
-import { setParty, isParty } from '../engine/party.js'
+import { relationLines, addFriendHistory, friendRecentLines } from '../engine/npc-memory.js'
+import { setParty, isParty, partyMembers, partyDays, canInteractToday, partyInteract } from '../engine/party.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
 import { propose, divorce, canPropose, showPropose, genderMatchesPref, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
@@ -415,6 +415,7 @@ export function renderProfile(app, api) {
       <div class="skill-row"><span class="k">${t('equip')}</span><span class="v">${fmtNum(bd.art)}</span></div>
       <div class="skill-row"><span class="k">${esc(pack.lexicon.technique)}</span><span class="v">${fmtNum(bd.manual)}</span></div>
       <div class="skill-row"><span class="k">${t('fromRel')}</span><span class="v">${fmtNum(bd.spouse)}</span></div>
+      <div class="skill-row"><span class="k">${t('fromParty')}</span><span class="v">${fmtNum(bd.party)}</span></div>
       <h4>${t('equipped')}</h4>
       ${(() => {
         const eq = equipSummary(S)
@@ -464,6 +465,27 @@ export function renderFriends(app, api) {
       <div class="btn-row">
         <button class="btn" id="fr-new" type="button">✨ ${t('meetNew')}${esc(pack.lexicon.companion)}</button>
       </div>
+      <h3 style="margin-top:16px">⚔️ ${t('partyTitle')} <span class="ctype">${t('partyPower')} ${fmtNum(partyPowerF(S))}</span></h3>
+      ${partyMembers(S).length ? `
+      <div class="grid" style="margin-top:8px">
+        ${partyMembers(S).map(f => {
+          const days = partyDays(S, f)
+          const canTalk = canInteractToday(S, f)
+          const recent = friendRecentLines(f, 1)[0] || ''
+          return `
+          <div class="card">
+            <div class="cname"><button class="btn btn-sm" data-npcinfo="${esc(f.name)}" type="button" style="background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer">${esc(f.name)}</button> <span class="ctype">${t('partyOn')}</span></div>
+            <div class="crealm">${esc(f.realm || '')} · ${esc(ui.powerLabel)} ${fmtNum(Math.round(friendPowerF(S, f)))} · <span style="color:${favorColor(f.favor)}">${t('favor')} ${fmtNum(f.favor || 0)}</span></div>
+            <div class="cdim">${t('partyDays')} ${fmtNum(days)} ${t('dayUnit')}${recent ? ' · ' + esc(recent) : ''}</div>
+            <div class="cbtn">
+              <button class="btn btn-sm ${canTalk ? 'btn-gold' : ''}" data-ptalk="${esc(f.name)}" type="button" ${canTalk ? '' : 'disabled'}>${canTalk ? t('partyTalk') : t('partyTalkDone')}</button>
+              <button class="btn btn-sm" data-pleave="${esc(f.name)}" type="button">${t('partyLeave')}</button>
+            </div>
+          </div>`
+        }).join('')}
+      </div>
+      <div class="ai-note">${t('partyTalkHint')}</div>` : `<div class="empty">${t('partyNone')}</div>`}
+      <h3 style="margin-top:16px">${esc(pack.lexicon.nav.friends)}</h3>
       <div class="grid" style="margin-top:12px">
         ${(S.friends || []).map((f, i) => {
           const at = friendAt(f)
@@ -673,6 +695,27 @@ export function renderFriends(app, api) {
         return
       }
       api.toast(r.name + (r.on ? t('partyJoined') : t('partyLeft')))
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-pleave]').forEach(b => {
+    b.onclick = () => {
+      const r = setParty(S, b.dataset.pleave, false)
+      if (!r.ok) { api.toast(t('partyMissing')); return }
+      api.toast(r.name + t('partyLeft'))
+      api.save()
+      api.refreshAll()
+    }
+  })
+  main.querySelectorAll('[data-ptalk]').forEach(b => {
+    b.onclick = () => {
+      const r = partyInteract(S, b.dataset.ptalk)
+      if (!r.ok) {
+        api.toast(r.reason === 'today' ? t('partyTalkDone') : t('partyMissing'))
+        return
+      }
+      api.toast(r.name + t('partyTalkOk') + ' ' + t('favor') + ' +' + r.favor)
       api.save()
       api.refreshAll()
     }

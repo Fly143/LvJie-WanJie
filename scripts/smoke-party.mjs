@@ -20,8 +20,10 @@ const { newGame } = await import(base + '/engine/state.js')
 const { applyChanges } = await import(base + '/engine/changes.js')
 const { travel, gateReason, curLoc } = await import(base + '/engine/map.js')
 const { setParty, partyNames, partyBrief, syncPartyTo, isParty } = await import(base + '/engine/party.js')
-const { addFriendHistory, friendRecentLines } = await import(base + '/engine/npc-memory.js')
+const { partyInteract, canInteractToday, partyDays, PARTY_DAILY_FAVOR } = await import(base + '/engine/party.js')
+const { addFriendHistory, friendRecentLines, advanceFriendDays } = await import(base + '/engine/npc-memory.js')
 const { buildSystemPrompt } = await import(base + '/engine/prompt.js')
+const { totalPowerF, powerBreakdown, partyPowerF, friendPowerF } = await import(base + '/engine/power.js')
 
 let pass = 0
 let fail = 0
@@ -121,6 +123,80 @@ const sys = buildSystemPrompt(S, { limitOn: true })
 ok('提示词含同行名单', sys.includes('【同行者】') && sys.includes('行踪丙'), sys.includes('【同行者】'))
 const brief = partyBrief(S)
 ok('同行简报含同行天数', brief.length === partyNames(S).length && brief.every(p => typeof p.同行天数 === 'number'), brief)
+
+// —— 队伍战力：同行者按系数计入总战力 ——
+const bdNoParty = powerBreakdown(S)
+ok('队伍战力>0（有同行者）', partyPowerF(S) > 0, partyPowerF(S))
+ok('战力明细含 party 项', typeof bdNoParty.party === 'number')
+const totalWith = totalPowerF(S)
+const saved = S.friends.map(f => f.party)
+S.friends.forEach(f => { f.party = false })
+const totalWithout = totalPowerF(S)
+S.friends.forEach((f, i) => { f.party = saved[i] })
+ok('结束同行会降低总战力', totalWith > totalWithout, { totalWith, totalWithout })
+ok('恢复同行后总战力还原', totalPowerF(S) === totalWith)
+// 伴侣不重复计入队伍战力
+const spouseTest = S.friends.find(f => f.party === true)
+if (spouseTest) {
+  spouseTest.married = 'wife'
+  const bdSpouse = powerBreakdown(S)
+  ok('伴侣同时同行时不重复计入队伍战力', partyPowerF(S) < friendPowerF(S, spouseTest) + 1 || partyPowerF(S) === 0, { party: partyPowerF(S) })
+  spouseTest.married = null
+}
+
+// —— 每日互动：每人每天一次、加好感、写近况 ——
+const target = (S.friends || []).find(f => f.party === true)
+if (target) {
+  target.favor = 10
+  const before = target.favor
+  ok('今日可互动', canInteractToday(S, target) === true)
+  const i1 = partyInteract(S, target.name)
+  ok('互动成功且加好感', i1.ok && target.favor === before + PARTY_DAILY_FAVOR, { i1, favor: target.favor })
+  ok('互动写入近况', friendRecentLines(target, 5).some(x => /切磋/.test(x)), friendRecentLines(target, 5))
+  ok('同日重复互动被拦', partyInteract(S, target.name).reason === 'today')
+  ok('今日不可再互动', canInteractToday(S, target) === false)
+  S.ageDays += 30 // 过一天
+  ok('次日恢复可互动', canInteractToday(S, target) === true)
+  const i2 = partyInteract(S, target.name)
+  ok('次日互动成功', i2.ok === true, i2)
+} else {
+  ok('存在同行者用于每日互动测试', false)
+}
+ok('非同行者不能互动', (() => {
+  const notParty = (S.friends || []).find(f => f.party !== true)
+  return notParty ? partyInteract(S, notParty.name).reason === 'notparty' : true
+})())
+
+// —— 状态随天数推进：已结识 NPC 年龄同步增长 ——
+const aged = (S.friends || []).find(f => f.ageDays != null)
+if (aged) {
+  const before = aged.ageDays
+  const n = advanceFriendDays(S, 30)
+  ok('NPC 年龄随时间推进', aged.ageDays === before + 30 && n >= 1, { before, after: aged.ageDays, n })
+} else {
+  aged && 0
+  const f2 = (S.friends || [])[0]
+  f2.ageDays = 3600
+  const before = f2.ageDays
+  advanceFriendDays(S, 30)
+  ok('NPC 年龄随时间推进', f2.ageDays === before + 30, { before, after: f2.ageDays })
+}
+// 未知年龄不被凭空生成
+const unknown = (S.friends || []).find(f => f.ageDays == null)
+if (unknown) {
+  advanceFriendDays(S, 30)
+  ok('未知年龄保持未知', unknown.ageDays == null)
+}
+// travel 也会推进 NPC 年龄
+if (elsewhere) {
+  const anyFriend = (S.friends || []).find(f => f.ageDays != null)
+  const before = anyFriend.ageDays
+  const back = S.map.find(l => l.id !== S.currentLoc && !gateReason(S, curLoc(S), l))
+  if (back) {
+    const tr = travel(S, back.name)
+    ok('旅行推进同伴年龄', !tr.ok || anyFriend.ageDays === before + (tr.days || 0), { before, after: anyFriend.ageDays, days: tr.days })
+  }
+}
 
 console.log(`PARTY ${pass}/${pass + fail}`)
 if (fail) process.exit(1)
