@@ -456,6 +456,19 @@ function createWindow() {
         const sel = document.getElementById('k-preset')
         const box = document.getElementById('k-preset-box')
         const det = box && box.querySelector('details')
+        // 下拉统一为自绘控件：原生 select 必须隐藏、替换按钮必须在；点开要弹应用内选择弹窗
+        document.getElementById('mode-custom').click(); await sleep(40)
+        const sStyle = document.getElementById('k-style')
+        const bStyle = document.getElementById('k-style-btn')
+        let pickerRows = 0
+        if (bStyle) {
+          bStyle.click(); await sleep(60)
+          const masks = document.querySelectorAll('.modal-mask')
+          const top = masks[masks.length - 1]
+          pickerRows = top ? top.querySelectorAll('.pick-row').length : 0
+          if (top) { const c = top.querySelector('[data-close]'); if (c) c.click() }
+          await sleep(40)
+        }
         return {
           modal: !!document.getElementById('mode-preset'),
           tabs: tabs,
@@ -473,6 +486,8 @@ function createWindow() {
             return !!b && !String(b.value).trim() && !String(m.value).trim() &&
               !String(v.value).trim() && !String(n.value).trim()
           })(),
+          nativeSelectHidden: !!(sStyle && sStyle.style.display === 'none') && !!bStyle,
+          pickerRows: pickerRows,
           savedRows: document.querySelectorAll('.key-row').length
         }
       })()`

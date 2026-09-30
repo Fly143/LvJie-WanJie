@@ -31,6 +31,7 @@ import { AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS, MAX_TALK_PER_DAY, LANGUAGE_O
 import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.js'
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal, closeModal, confirmModal } from './modals.js'
+import { upgradeSelect } from './picker.js'
 import { t, uiLangName } from '../engine/i18n.js'
 import { openHelp } from './settings-panels.js'
 
@@ -547,6 +548,7 @@ export function renderFriends(app, api) {
           <button class="btn" data-close type="button">${t('cancel')}</button>
         </div>
       `)
+      upgradeSelect(document.getElementById('gr-kind'), { title: t('kind') })
       document.getElementById('gr-ok').onclick = () => {
         addGrudge(f, document.getElementById('gr-to').value || t('player'), document.getElementById('gr-kind').value, document.getElementById('gr-note').value)
         closeModal()

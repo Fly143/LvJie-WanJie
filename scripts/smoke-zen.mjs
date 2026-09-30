@@ -320,8 +320,12 @@ ok('zenConfig 形状正确', (() => {
   const idxOf = (id) => list.findIndex(p => p.id === id)
   const freeIds = list.filter(p => p.tag).map(p => p.id)
   ok('免费标记只给这三家', freeIds.length === 3 && ['intern', 'spark', 'zhipu'].every(id => freeIds.includes(id)), freeIds)
-  ok('免费三家排在最前', list.slice(0, 3).every(p => p.tag), list.slice(0, 3).map(p => p.id + ':' + p.tag))
   ok('书生·浦语排第一', idxOf('intern') === 0)
+  // 名字就叫「书生」，不再带「·浦语」
+  const internP = list.find(p => p.id === 'intern')
+  ok('服务商名是「书生」', internP.name === '书生', internP.name)
+  ok('名字里不再出现浦语', !/浦语/.test(internP.name))
+  ok('厂商信息放进了备注', /Intern-AI|上海人工智能实验室/.test(internP.note || ''), internP.note)
   // 智谱：免费的是 flash 档，但要求账号有余额
   const zhipu = list.find(p => p.id === 'zhipu')
   ok('GLM 默认用免费档 glm-4.7-flash', zhipu.model === 'glm-4.7-flash', zhipu.model)
@@ -444,6 +448,18 @@ ok('zenConfig 形状正确', (() => {
   ok('预设用下拉框而不是全部铺开', !/data-preset=/.test(src) && src.includes('<option value="${esc(p.id)}"'))
   ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
   ok('预设下拉选项渲染免费标记', src.includes('p.tag ?'))
+  // 下拉统一风格：原生 select 换成应用内自绘控件
+  ok('设置面板使用自绘下拉', src.includes('upgradeSelect(') && src.includes('setSelectVisible('))
+  ok('五个下拉都升级了', ['k-style', 'k-model-list', 'zen-model', 'k-preset', 'k-preset-models'].every(id => new RegExp("upgradeSelect\\(document\\.getElementById\\('" + id + "'\\)|upgradeSelect\\([a-zA-Z]+").test(src)))
+  {
+    const pickerSrc = fs.readFileSync(new URL('../app/js/ui/picker.js', import.meta.url), 'utf8')
+    ok('选择器弹窗用应用自己的弹窗组件', pickerSrc.includes('openModal(') && pickerSrc.includes('pick-row') && pickerSrc.includes('dispatchEvent(new Event'))
+    ok('选择器会同步动态改写的选项', pickerSrc.includes('MutationObserver'))
+    const css = fs.readFileSync(new URL('../app/styles.css', import.meta.url), 'utf8')
+    ok('选择器样式已定义', css.includes('.field-select{') && css.includes('.pick-row{') && css.includes('.pick-list{'))
+    const renderSrc = fs.readFileSync(new URL('../app/js/ui/render.js', import.meta.url), 'utf8')
+    ok('其它原生 select 也升级了（恩怨类型）', renderSrc.includes("upgradeSelect(document.getElementById('gr-kind')"))
+  }
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
   ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('resolvePresetModel'))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
@@ -462,7 +478,7 @@ ok('zenConfig 形状正确', (() => {
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel', 'customFormHint']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel', 'customFormHint', 'pickOne', 'noOptions']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）

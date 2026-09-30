@@ -7,6 +7,7 @@ import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel } from '../engine/providers.js'
+import { upgradeSelect, setSelectVisible } from './picker.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -200,6 +201,15 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const modelList = document.getElementById('k-model-list')
   const modelHint = document.getElementById('k-model-hint')
 
+  // 原生 <select> 在 Android WebView 里展开的是系统弹层（白底系统字体），与暗色主题不搭，
+  // 统一换成应用内自绘下拉：隐藏原生控件，选择结果照旧写回 select 并派发 change。
+  upgradeSelect(selStyle, { title: t('proto') })
+  upgradeSelect(modelList, { title: t('model') })
+  upgradeSelect(document.getElementById('zen-model'), { title: t('zenModelPick') })
+  upgradeSelect(document.getElementById('k-preset'), { title: t('presetPick') })
+  upgradeSelect(document.getElementById('k-preset-models'), { title: t('model') })
+  setSelectVisible(modelList, false)
+
   function currentKey() {
     return valEl.value.trim() || (cur && (cur.key || cur.value)) || ''
   }
@@ -232,7 +242,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     const models = r.models || []
     modelList.innerHTML = `<option value="">— ${t('modelListN')} ${models.length} ${t('modelListPick')} —</option>` +
       models.map(id => `<option value="${esc(id)}" ${id === modelEl.value ? 'selected' : ''}>${esc(id)}</option>`).join('')
-    modelList.style.display = ''
+    setSelectVisible(modelList, true)
     modelHint.innerHTML = `${t('fetchedModels')} ${models.length} ${t('fetchedModels2')}（${esc(r.url || '')}）。${t('pickOrType')}`
     toast(`${t('fetchedN')} ${models.length}${t('modelsN')}`)
   }
@@ -368,10 +378,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       if (p.models && p.models.length) {
         presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>` +
           p.models.map(m => `<option value="${esc(m)}" ${m === presetModelEl.value ? 'selected' : ''}>${esc(m)}</option>`).join('')
-        presetModelsEl.style.display = ''
+        setSelectVisible(presetModelsEl, true)
       } else {
         presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>`
-        presetModelsEl.style.display = 'none'
+        setSelectVisible(presetModelsEl, false)
       }
     }
     if (presetModelHint) presetModelHint.textContent = p.autoModel ? t('presetAutoModelHint') : ''
@@ -411,7 +421,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     if (presetModelsEl) {
       presetModelsEl.innerHTML = `<option value="">— ${t('modelListN')} ${ordered.length} ${t('modelListPick')} —</option>` +
         ordered.map(x => `<option value="${esc(x.id)}">${esc(x.id)}</option>`).join('')
-      presetModelsEl.style.display = ''
+      setSelectVisible(presetModelsEl, true)
     }
     const manual = (presetModelEl && presetModelEl.value.trim()) || ''
     // 手填过（和上次自动挑的不一样）就保留手填值，刷新只补列表不覆盖

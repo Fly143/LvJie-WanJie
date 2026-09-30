@@ -103,6 +103,8 @@ else {
   if (!ui.hasPresetModel) uiErrs.push('预设面板缺少模型输入 / 刷新按钮')
   if (!ui.customForm) uiErrs.push('自定义接口表单缺失')
   if (!ui.customEmpty) uiErrs.push('自定义接口表单不应预填内容（应为空白新增表单）')
+  if (!ui.nativeSelectHidden) uiErrs.push('原生 select 未隐藏 / 自绘下拉按钮缺失')
+  if (!(ui.pickerRows >= 2)) uiErrs.push('自绘下拉弹窗没有列出选项: ' + ui.pickerRows)
 }
 if (uiErrs.length) {
   console.error('SMOKE_UI_FAIL ' + uiErrs.join(' | '))

@@ -11,7 +11,7 @@
 export const PROVIDER_PRESETS = [
   {
     id: 'intern',
-    name: '书生·浦语（Intern-AI）',
+    name: '书生',
     tag: '免费',
     baseUrl: 'https://chat.intern-ai.org.cn/api/v1',
     model: 'intern-latest',
@@ -22,7 +22,7 @@ export const PROVIDER_PRESETS = [
     keyUrl: 'https://internlm.intern-ai.org.cn/api/access-token',
     loginUrl: 'https://sso.openxlab.org.cn/login',
     models: ['intern-latest', 'intern-s2', 'intern-s1-pro', 'intern-s1', 'intern-s1-mini', 'internvl-latest'],
-    note: '长期免费开放（第三方整理：约 30 RPM、每月 9000 万 tokens；以平台公告为准）；API Token 有效期 6 个月',
+    note: 'Intern-AI（上海人工智能实验室）：长期免费开放（第三方整理：约 30 RPM、每月 9000 万 tokens；以平台公告为准）；API Token 有效期 6 个月',
     howto: [
       '① 打开 {login} 用手机号注册并登录（书生账号）',
       '② 登录后打开 API 控制台：{key}',
