@@ -46,5 +46,9 @@ contextBridge.exposeInMainWorld('awHost', {
     load: () => ipcRenderer.invoke('aw:secrets:load'),
     save: (payload) => ipcRenderer.invoke('aw:secrets:save', payload),
     clear: () => ipcRenderer.invoke('aw:secrets:clear')
+  },
+  save: {
+    // 导出存档：主进程写「文档/AgentWorlds/」并返回绝对路径
+    saveText: (rel, text) => ipcRenderer.invoke('aw:save:saveText', String(rel || ''), String(text == null ? '' : text))
   }
 })

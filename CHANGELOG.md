@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09
+
+### Added
+- 剧情数据补写链：LLM 回合缺少 JSON 数据块时自动恢复（AI 恢复抽取 → 正则兜底 → 仅保留正文），连续缺块上限 2 轮强制收束事件；设置中关掉轮数上限则完全不限
+- 设置新增文案（i18n）导出 / 导入 / 重置
+
+### Fixed
+- 赠与「到手了吗」判定：仅条件许诺、征询意见、展示观看、明确拒绝的物品不再写入奖励（「若你赢了便送你」「推到你面前要不要」「婉拒没接」均不入包，推辞后收下正常入包）；宁可漏记不误记
+- 补写链正则兜底接入同一到手判定，杜绝「提到没给」的物品被写成奖励
+- 存档导出统一到 `文档/AgentWorlds/` 目录；轮数上限弹窗文案修正
+
 ## [0.1.0] - 2026-09
 
 ### Added
@@ -116,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7.1...v0.1.0
 [0.0.7.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.7...v0.0.7.1
 [0.0.7]: https://github.com/Fly143/LvJie-WanJie/compare/v0.0.6...v0.0.7

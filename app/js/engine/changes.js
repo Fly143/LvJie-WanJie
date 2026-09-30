@@ -352,11 +352,60 @@ function skillKeyFor(S, pack, k) {
   return hit ? hit.id : null
 }
 
-/** 从正文里抽「被赠予」的物品名（书名号/引号优先） */
+// —— 「到手了吗」判定：正文提到 ≠ 已获得。没接受 / 只是许诺 / 还在征询的，一律不写成奖励 ——
+/** 明确到手 */
+const GIFT_ACCEPT_RE = /(?:收下|收了|接过|接受|拿到|获得|得到|收好|收进|揣|领受|笑纳|入怀|收入囊)/
+/** 明确没到手（硬拒绝）：出现即倾向不算获得 */
+const GIFT_REFUSE_HARD_RE = /(?:没接|没有接|未接|不接|没敢接|不肯收|拒收|没收下|没有收下|没有收|没有要|没要|拒绝|婉拒|谢绝|回绝|退回|退还|放回|没拿|没有拿|没伸手|未收|作罢|不为所动)/
+/** 客套推辞（软）：仅当后文没有明确「收下」时才算拒绝（"推辞一番还是收了"要算获得） */
+const GIFT_REFUSE_SOFT_RE = /(?:推辞|推却|推让|客套|你摇头|你摆手|连连摆手)/
+/** 「还在征询/许诺/展示」：东西没给到手（命中分句判定；"若你赢了便送你""推到你面前"不算） */
+const GIFT_OFFER_RE = /(?:若|如若|如果|只要|倘若|假使|要是)[^「“]{0,14}(?:送|给|塞|递|交|赠)|想(?:给|送|塞|交)|打算(?:给|送|塞|交)|待你|等你(?:回来|赢|胜|到|练成|突破)|要不要|要吗|可好|可要|收不收|任你(?:取|拿|选)|你说了算|推到你面前|递到你面前|放到你面前|放在你面前|摆在你面前|捧到你面前|(?:亮|取)出[^，。]{0,8}(?:给你看|示意|晃了晃)|吗[？?]|[？?]/
+/** 上一分句是条件许诺 → 东西还没到手（窄集合，避免"等你半天"这类误伤） */
+const GIFT_OFFER_PREV_RE = /(?:若|如若|如果|只要|倘若|假使|要是)[^「“]{0,14}(?:便|就|则|送|给|塞|递|交|赠)|想(?:给|送|塞|交)|打算(?:给|送|塞|交)|待你|等你(?:回来|赢|胜|到|练成|突破)/
+/** 下一分句在征询意见 → 还没到手 */
+const GIFT_OFFER_NEXT_RE = /(?:要不要|要吗|可好|收不收|任你(?:取|拿|选)|你说了算|好不好|你看如何|吗[？?]|[？?])/
+
+function splitClauses(s) {
+  const out = []
+  const re = /[^，。！？；\n…]+[，。！？；\n…]*/g
+  let m
+  while ((m = re.exec(s))) out.push({ text: m[0], start: m.index })
+  return out
+}
+
+/**
+ * 「玩家确实到手了吗」：命中位置所在分句是提议/条件句、或当前/下一分句有拒绝线索 → false。
+ * 宁可漏记（安全方向），不把「提到没给/没接受」的物品写成奖励。
+ */
+export function giftAcceptedAt(narrative, index) {
+  const s = String(narrative || '')
+  const clauses = splitClauses(s)
+  if (!clauses.length) return true
+  let ci = clauses.findIndex(c => index >= c.start && index < c.start + c.text.length)
+  if (ci < 0) ci = 0
+  const cur = clauses[ci].text
+  const prev = clauses[ci - 1] ? clauses[ci - 1].text : ''
+  const next = clauses[ci + 1] ? clauses[ci + 1].text : ''
+  // 硬拒绝（本分句或下一分句）→ 没到手
+  if (GIFT_REFUSE_HARD_RE.test(cur) || GIFT_REFUSE_HARD_RE.test(next)) return false
+  // 明确「收下/接过」→ 到手（压过软推辞与上一分句的许诺）
+  if (GIFT_ACCEPT_RE.test(cur)) return true
+  // 条件许诺/还在征询/只是展示 → 没到手
+  if (GIFT_OFFER_RE.test(cur)) return false
+  if (GIFT_OFFER_PREV_RE.test(prev) && !GIFT_ACCEPT_RE.test(cur)) return false
+  if (GIFT_OFFER_NEXT_RE.test(next)) return false
+  // 软推辞且后文没有明确收下 → 按没到手处理（"推辞一番还是收了"会被上面 ACCEPT 放行）
+  if (GIFT_REFUSE_SOFT_RE.test(cur) && !GIFT_ACCEPT_RE.test(next)) return false
+  return true
+}
+
+/** 从正文里抽「被赠予且已到手」的物品名（书名号/引号优先） */
 export function extractGiftNames(narrative) {
   const s = String(narrative || '')
   const names = []
-  const push = (n) => {
+  const push = (n, idx) => {
+    if (!giftAcceptedAt(s, idx)) return
     const name = String(n || '').trim().replace(/[，。！？…~]+$/, '')
     if (!name || name.length < 2 || name.length > 20) return
     if (!names.includes(name)) names.push(name)
@@ -364,21 +413,21 @@ export function extractGiftNames(narrative) {
   // 「旧猎道草图」塞给你 / 递给你「x」
   const re1 = /[「“]([^」”\n]{2,20})[」”]\s*(?:塞|递|交|给|塞进|扔|送)/g
   let m
-  while ((m = re1.exec(s))) push(m[1])
+  while ((m = re1.exec(s))) push(m[1], m.index)
   const re2 = /(?:塞|递|交|送|给)你(?:一|半|块|张|把|瓶)?[一-鿿]{0,3}?[「“]([^」”\n]{2,20})[」”]/g
-  while ((m = re2.exec(s))) push(m[1])
+  while ((m = re2.exec(s))) push(m[1], m.index)
   // 交给你一只木剑 / 塞给你一块黑面包
   const re3 = /(?:塞|递|交|送|给)你(?:一|半)?[个只块张把瓶副条盒粒枚]([一-鿿]{2,12})/g
-  while ((m = re3.exec(s))) push(m[1])
+  while ((m = re3.exec(s))) push(m[1], m.index)
   // 把「丹药」给你 / 将这瓶丹药赠与你 / 为师赠你一枚筑基丹
   const re4 = /(?:把|将)(?:这|那)?(?:瓶|枚|颗|粒|盒|袋)?([一-鿿]{2,12})(?:赠|送|递|塞)?(?:给|予)?你/g
-  while ((m = re4.exec(s))) push(m[1])
+  while ((m = re4.exec(s))) push(m[1], m.index)
   // 赠你一枚筑基丹 / 送你两瓶回元丹
   const re5 = /(?:赠|送|赏|赐)(?:给)?你(?:一|两|半)?[个只块张把瓶副条盒粒枚]?([一-鿿]{2,12})/g
-  while ((m = re5.exec(s))) push(m[1])
+  while ((m = re5.exec(s))) push(m[1], m.index)
   // 收下/接过 丹药 类：正文已写获得
   const re6 = /你(?:收下|接过|接过并收下|得到|获得|拿到)(?:了)?(?:这|那)?(?:瓶|枚|颗|粒|盒|袋)?([一-鿿]{2,12})/g
-  while ((m = re6.exec(s))) push(m[1])
+  while ((m = re6.exec(s))) push(m[1], m.index)
   return names.slice(0, 8)
 }
 

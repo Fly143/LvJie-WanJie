@@ -366,6 +366,27 @@ ipcMain.handle('aw:secrets:clear', () => {
   return { ok: true }
 })
 
+/* ---------- 导出存档：写入「文档」目录并回报真实路径 ---------- */
+ipcMain.handle('aw:save:saveText', (_e, rel, text) => {
+  try {
+    const clean = String(rel || '').replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!clean || clean.includes('..')) return { ok: false, error: '非法路径' }
+    // 只允许写到「文档」目录之下，防止借此写任意位置
+    const base = app.getPath('documents')
+    const p = path.join(base, clean)
+    const rootPath = path.resolve(base) + path.sep
+    const abs = path.resolve(p)
+    if (abs !== path.resolve(base) && !abs.startsWith(rootPath)) {
+      return { ok: false, error: '路径越界' }
+    }
+    fs.mkdirSync(path.dirname(abs), { recursive: true })
+    fs.writeFileSync(abs, String(text == null ? '' : text), 'utf8')
+    return { ok: true, path: abs }
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || '保存失败' }
+  }
+})
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,

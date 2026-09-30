@@ -1086,18 +1086,62 @@ export function renderSettings(app, api) {
   document.getElementById('set-export').onclick = () => {
     import('../engine/state.js').then(m => {
       const bundle = m.exportSaveBundle()
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = 'agentworlds-saves-' + Date.now() + '.json'
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000)
-      api.toast(t('exported'))
+      const n = Object.keys(bundle.slots || {}).length
+      if (!n) { api.toast(t('exportNoSave')); return }
+      const fname = 'agentworlds-saves-' + new Date().toISOString().slice(0, 10) + '.json'
+      const text = JSON.stringify(bundle, null, 2)
+      const finish = (where) => {
+        openModal(`
+          <h2>${t('exportedTitle')}</h2>
+          <div style="margin:8px 0">${t('exportedN')}${n}${t('worldSaves')}</div>
+          <div class="warn" style="word-break:break-all">${where}</div>
+          <div style="font-size:12px;color:var(--faint);margin:8px 0">${t('exportedNoKey')}</div>
+          <div class="btn-row">
+            <button class="btn" data-close type="button">${t('ok')}</button>
+          </div>
+        `)
+        api.toast(t('exported'))
+      }
+      // Electron：主进程代为写入「文档/AgentWorlds」目录，明确报告保存位置
+      const host = globalThis.awHost
+      if (host && host.save && typeof host.save.saveText === 'function') {
+        Promise.resolve(host.save.saveText('AgentWorlds/' + fname, text)).then(res => {
+          if (res && res.ok) finish(`${t('exportedPath')}${res.path}`)
+          else finish(`${t('exportedInBrowser')}（${fname}）`)
+        }).catch(() => finish(`${t('exportedInBrowser')}（${fname}）`))
+        return
+      }
+      // 浏览器/Android：走下载，并明确告知是浏览器下载目录
+      try {
+        const blob = new Blob([text], { type: 'application/json' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = fname
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+      } catch (e) { /* ignore */ }
+      finish(`${t('exportedInBrowser')}（${fname}）`)
     })
   }
   document.getElementById('set-import').onclick = () => {
-    document.getElementById('set-import-file').click()
+    // 主线程只信用户在文件框里的选择；裸 click 在打包后可能被拦截而静默无反应
+    const inp = document.getElementById('set-import-file')
+    try {
+      if (typeof inp.showPicker === 'function') { inp.showPicker(); return }
+    } catch (e) { /* 回退 click */ }
+    inp.click()
+    // 双保险：pick/click 均未弹框时给出提示而非无声失败
+    clearTimeout(bindSettings._importHint)
+    bindSettings._importHint = setTimeout(() => {
+      if (!document.getElementById('set-import-file')) return
+      if (!bindSettings._importPicked) api.toast(t('importNoDialog'))
+    }, 1200)
   }
+  document.getElementById('set-import-file').addEventListener('click', (e) => {
+    // 用户确实看到并触碰了文件框 → 不再提示
+    bindSettings._importPicked = true
+    clearTimeout(bindSettings._importHint)
+  })
   document.getElementById('set-import-file').onchange = (e) => {
     const f = e.target.files && e.target.files[0]
     if (!f) return
@@ -1109,7 +1153,7 @@ export function renderSettings(app, api) {
           const r = m.importSaveBundle(bundle)
           if (!r.ok) { api.toast(r.error || t('importFail')); return }
           api.toast(t('imported') + ' ' + r.count + t('worldSaves'))
-          location.reload()
+          api.refreshAll()
         })
       } catch (err) {
         api.toast(t('jsonFail'))
@@ -1117,6 +1161,7 @@ export function renderSettings(app, api) {
     }
     reader.readAsText(f, 'utf-8')
     e.target.value = ''
+    bindSettings._importPicked = false
   }
   document.getElementById('set-reset').onclick = () => {
     openModal(`
@@ -1129,8 +1174,14 @@ export function renderSettings(app, api) {
     `)
     document.getElementById('do-reset').onclick = () => {
       import('../engine/state.js').then(m => {
+        // 删档 + 换新档 + 全量刷新；全程不 reload，打包后 location.reload 可能整页白屏
         m.resetSaveKeepMeta(S.worldview)
-        location.reload()
+        const name = S.name
+        const world = S.worldview
+        app.S = m.newGame(name, world)
+        api.save()
+        api.refreshAll()
+        api.toast(t('resetDone'))
       })
     }
   }

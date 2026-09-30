@@ -2,7 +2,7 @@
 import { buildSystemPrompt } from './prompt.js'
 import { callLLM, extractGameJSON, narrativeFromStream } from './llm-bridge.js'
 import { stripOptPrefix } from './util.js'
-import { applyChanges } from './changes.js'
+import { applyChanges, syncGiftsWithNarrative } from './changes.js'
 import { loadPlayerKeys } from './state.js'
 import { MAX_EVENT_CHOICES } from './constants.js'
 
@@ -216,36 +216,88 @@ async function runEventTurnInner(S, EV, userContent, hooks = {}) {
       }
       setLastEventText(S, narrative)
     }
-  } else if (!incomplete) {
-    // 无 json：不做任何猜测性数据写入，仅保留剧情并给出继续选项。
-    // 连续无数据块回合设上限，防止模型永久脱离输出合同导致事件永不收束。
+  } else {
+    // 无可用数据块（模型没附 JSON / 流式被截断）：先走补写链把数据块拿回来——
+    // ① 让模型把本轮剧情包装成合同 JSON（补 options/end/changes）② 失败退化为正则抽取
+    // ③ 全失败才只留剧情。连续补不回数据块达上限则强制收束，防事件永不收束。
     const streak = (EV._noJsonStreak = (EV._noJsonStreak || 0) + 1)
-    const opts = parseOptionsFromText(narrative)
-    if (streak >= MAX_NO_JSON_TURNS) {
-      // 连续无数据块达上限：强制收束，防事件无限空转
+    const rec = await recoverChangesFromLLM({ keyObj, narrative: narrative || text, S, signal: ctl && ctl.signal })
+    if (EV._turn !== turn) { EV.loading = false; return } // 补写期间被新回合顶替，丢弃
+    let recOpts = []
+    let recChanges = null
+    let endByRecovery = false
+    if (rec && typeof rec === 'object') {
+      if (Array.isArray(rec.options)) {
+        recOpts = rec.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
+      }
+      endByRecovery = rec.end === true
+      if (rec.changes && typeof rec.changes === 'object' && !Array.isArray(rec.changes) && Object.keys(rec.changes).length) {
+        recChanges = rec.changes
+      }
+    }
+    if (!recChanges) {
+      // 兜底：正则从正文抽「获得/赠与/钱币」，至少把奖励落库
+      try {
+        const lite = inferLite(narrative)
+        if (lite && Object.keys(lite).length) recChanges = lite
+      } catch (e) { /* ignore */ }
+    }
+    let gotData = false
+    let applyErr = ''
+    if (recChanges) {
+      try {
+        changesBrief = applyChanges(S, syncGiftsWithNarrative(recChanges, narrative), hooks)
+        EV.changesBrief = changesBrief
+        gotData = true
+      } catch (e) {
+        applyErr = '数据写入失败'
+      }
+    }
+    // 补出合同（选项/收束/数据任一）即视为数据块已补回，不算空转
+    const contractOk = !!rec && (recOpts.length > 0 || endByRecovery || !!recChanges)
+    if (gotData || contractOk) EV._noJsonStreak = 0
+    // 把补出的合同写回历史，后续回合模型继续按合同输出
+    if (contractOk && EV.history.length && EV.history[EV.history.length - 1].role === 'assistant') {
+      const rebuilt = { narrative: narrative || text }
+      if (recOpts.length) rebuilt.options = recOpts
+      if (endByRecovery) rebuilt.end = true
+      if (recChanges) rebuilt.changes = recChanges
+      EV.history[EV.history.length - 1].content = JSON.stringify(rebuilt).slice(0, 6000)
+    }
+    const opts = recOpts.length ? recOpts : parseOptionsFromText(narrative)
+    const noLimit = hooks.limitOn === false // 关闭即不设任何上限（含连续无数据块强制收束）
+    const why = incomplete ? '本轮输出不完整' : '本轮未附数据块'
+    const note = applyErr
+      ? `（${why}，${applyErr}，剧情已保留）`
+      : gotData
+        ? `（${why}，已自动补写数据）`
+        : contractOk
+          ? `（${why}，已自动补出数据块；本轮无数据变化）`
+          : `（${why}，且补写未识别到数据，剧情继续）`
+    if (!contractOk && !noLimit && streak >= MAX_NO_JSON_TURNS) {
+      // 连续补不回数据块达上限：强制收束，防事件无限空转
       EV.options = null
       EV.ended = true
-      EV.error = '（连续未附数据块，事件强制收束）'
-      setLastEventText(S, narrative)
+      EV.error = '（连续未附数据块且补写失败，事件强制收束）'
+    } else if (endByRecovery) {
+      // 补写明确判定事件收束
+      EV.options = null
+      EV.ended = true
+      EV.error = note
     } else if (opts.length) {
       EV.options = opts
       EV.ended = false
-      EV.error = '（本轮未附数据块，剧情继续；数据未写入）'
-      setLastEventText(S, narrative)
-    } else if (narrative && String(narrative).trim().length >= 20) {
+      EV.error = note
+    } else if ((narrative && String(narrative).trim().length >= 20) || noLimit || gotData) {
       EV.options = ['继续', '仔细观察四周', '换个话题']
       EV.ended = false
-      EV.error = '（本轮未附数据块，剧情继续；数据未写入）'
-      setLastEventText(S, narrative)
+      EV.error = note
     } else {
       EV.options = null
       EV.ended = true
       EV.error = '（未解析到数据块，事件结束）'
     }
-  } else {
-    EV.options = null
-    EV.ended = true
-    setLastEventText(S, narrative)
+    if (narrative) setLastEventText(S, narrative)
   }
 
     EV.resultText = narrative
@@ -417,11 +469,13 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
     || (S && S.lexicon && S.lexicon.money && S.lexicon.money.main)
     || '货币'
   const system = [
-    '你是游戏数据抽取器。只输出一个 JSON 对象，不要任何解释或代码块围栏。',
-    '根据用户给出的剧情正文，抽取确实发生的数据变化。',
-    '字段约定（无则省略）：',
-    '{"money_main":数字(正数表示获得),"add_items":[{"name":"物品名","count":1,"type":"special","desc":"来源"}],"progress":数字}',
-    '不确定的不要编造。没有变化就输出 {}。'
+    '你是游戏数据补写器。剧情正文缺少随附的数据块，请为它补写一个 JSON 对象，只输出 JSON，不要任何解释或代码块围栏。',
+    '字段约定：',
+    '{"options":["选项1","选项2"],"end":false,"changes":{"money_main":数字(正数表示获得),"add_items":[{"name":"物品名","count":1,"type":"special","desc":"来源"}],"progress":数字,"major_events":["大事"],"small_events":["小事"],"move_to":"地点名"}}',
+    '规则：',
+    '1. options 给 2~4 个后续行动选项（简短，20 字内）；剧情已自然收束则省略 options 并给 "end":true。',
+    '2. changes 只写正文里确实发生的数据变化，不确定的不要编造；没有变化就省略 changes。',
+    '3. 不要复述或改写正文。'
   ].join('\n')
   const user = `货币单位是「${money}」。剧情正文：\n${String(narrative).slice(0, 3500)}`
   try {
@@ -431,7 +485,7 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
       user,
       history: [],
       signal,
-      maxTokens: 400,
+      maxTokens: 600,
       forceJson: true
     })
     if (!res || !res.ok) return null
@@ -439,23 +493,35 @@ export async function recoverChangesFromLLM({ keyObj, narrative, S, signal }) {
     if (!json || typeof json !== 'object') return null
     const ch = json.changes && typeof json.changes === 'object' ? json.changes : json
     if (!ch || typeof ch !== 'object' || Array.isArray(ch)) return null
-    // 只接受白名单字段，防止模型塞垃圾
+    // 只接受白名单字段，防止模型塞垃圾；返回合同形状 {options, end, changes}
     const out = {}
-    if (Number(ch.money_main) > 0) out.money_main = Math.min(5000, Math.round(Number(ch.money_main)))
+    const chOut = {}
+    if (json.end === true) out.end = true
+    if (Array.isArray(json.options) && json.options.length) {
+      out.options = json.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
+    }
+    if (Number(ch.money_main) > 0) chOut.money_main = Math.min(5000, Math.round(Number(ch.money_main)))
     if (ch.progress != null && Number.isFinite(Number(ch.progress)) && Number(ch.progress) !== 0) {
-      out.progress = Math.round(Number(ch.progress))
+      chOut.progress = Math.round(Number(ch.progress))
     }
     if (Array.isArray(ch.add_items) && ch.add_items.length) {
-      out.add_items = ch.add_items.slice(0, 8).map(it => ({
+      chOut.add_items = ch.add_items.slice(0, 8).map(it => ({
         name: String((it && it.name) || '').slice(0, 20),
         count: Math.max(1, Math.min(9, Number(it && it.count) || 1)),
         type: String((it && it.type) || 'special'),
         desc: String((it && it.desc) || '剧情所得').slice(0, 40)
       })).filter(it => it.name)
     }
-    if (Array.isArray(ch.options) && ch.options.length) {
-      out.options = ch.options.slice(0, 4).map(o => stripOptPrefix(String(o)).slice(0, 40)).filter(Boolean)
+    if (Array.isArray(ch.major_events) && ch.major_events.length) {
+      chOut.major_events = ch.major_events.slice(0, 4).map(e => String(e).slice(0, 120)).filter(Boolean)
     }
+    if (Array.isArray(ch.small_events) && ch.small_events.length) {
+      chOut.small_events = ch.small_events.slice(0, 6).map(e => String(e).slice(0, 120)).filter(Boolean)
+    }
+    if (ch.move_to != null && String(ch.move_to).trim()) {
+      chOut.move_to = String(ch.move_to).trim().slice(0, 24)
+    }
+    if (Object.keys(chOut).length) out.changes = chOut
     return Object.keys(out).length ? out : null
   } catch (e) {
     return null
@@ -481,6 +547,7 @@ function inferLite(narrative) {
   let m
   let sum = 0
   while ((m = re.exec(s))) {
+    if (!giftAcceptedAt(s, m.index)) continue // 只是许诺/被拒绝的钱币不入账
     const raw = m[1]
     const n = cnNum(raw)
     sum += n
