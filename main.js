@@ -465,6 +465,14 @@ function createWindow() {
           hasPresetKey: !!document.getElementById('k-preset-key'),
           hasPresetModel: !!document.getElementById('k-preset-model') && !!document.getElementById('k-preset-refresh'),
           customForm: !!document.getElementById('k-base') && !!document.getElementById('k-model'),
+          customEmpty: (function () {
+            const b = document.getElementById('k-base')
+            const m = document.getElementById('k-model')
+            const v = document.getElementById('k-value')
+            const n = document.getElementById('k-name')
+            return !!b && !String(b.value).trim() && !String(m.value).trim() &&
+              !String(v.value).trim() && !String(n.value).trim()
+          })(),
           savedRows: document.querySelectorAll('.key-row').length
         }
       })()`

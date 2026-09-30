@@ -449,6 +449,10 @@ ok('zenConfig 形状正确', (() => {
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
   ok('已保存列表可编辑载入自定义接口', src.includes('data-edit=') && src.includes("setMode('custom')"))
   ok('自定义接口 tab 保留自由表单', declared.has('custom-panel') && ['k-base', 'k-value', 'k-model', 'k-style', 'k-add'].every(id => declared.has(id)))
+  // 自定义接口必须是空白新增表单（不预填当前选中的配置）
+  ok('自定义接口默认空白（不预填当前配置）', /let cur = null/.test(src) && !/let cur = keys\[selected\]/.test(src))
+  ok('切换已保存条目不再改写自定义表单', !/r\.onchange = \(\) => \{[\s\S]{0,200}?syncFormToEntry/.test(src))
+  ok('编辑才载入表单', src.includes('syncFormToEntry(i)') && src.includes('data-edit='))
   // 教程默认折叠（<details> 不能带 open）+ 内置面板缺名单时补拉并显示失败原因
   ok('服务商教程默认折叠', /<details(?![^>]*\bopen\b)/.test(src) && src.includes('providerShowSteps'))
   ok('内置面板缺名单时会补拉', src.includes('_zenStale') && src.includes('ensureZenReady({ force: false'))
@@ -458,7 +462,7 @@ ok('zenConfig 形状正确', (() => {
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel', 'customFormHint']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）

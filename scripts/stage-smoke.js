@@ -102,6 +102,7 @@ else {
   if (!ui.hasPresetKey) uiErrs.push('预设面板缺少 Key 输入框')
   if (!ui.hasPresetModel) uiErrs.push('预设面板缺少模型输入 / 刷新按钮')
   if (!ui.customForm) uiErrs.push('自定义接口表单缺失')
+  if (!ui.customEmpty) uiErrs.push('自定义接口表单不应预填内容（应为空白新增表单）')
 }
 if (uiErrs.length) {
   console.error('SMOKE_UI_FAIL ' + uiErrs.join(' | '))

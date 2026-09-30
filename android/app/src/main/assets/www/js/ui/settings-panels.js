@@ -51,11 +51,14 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     `
   }).join('')
 
-  let cur = keys[selected] && normalizeApiKey(keys[selected])
+  // 当前正在使用的那条配置（决定默认 tab / 内置标记 / 内置面板选中项）
+  const active = keys[selected] && normalizeApiKey(keys[selected])
+  // 「自定义接口」是一张**空白新增表单**：点「已保存」里的「编辑」才会载入已有配置
+  let cur = null
   const curStyle = (cur && cur.apiStyle === 'response') ? 'response' : 'chat'
 
   // 默认落在哪个 tab：跟随当前配置（内置通道 → 内置免费；有自定义配置 → 已保存；都没有 → 服务商预设）
-  const zenActive = isZenBase(cur && cur.baseUrl)
+  const zenActive = isZenBase(active && active.baseUrl)
   const initialTab = mode === 'zen' ? 'zen'
     : mode === 'preset' ? 'preset'
       : mode === 'saved' || mode === 'custom' ? (mode === 'custom' ? 'custom' : 'saved')
@@ -64,10 +67,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   // 内置免费面板：模型列表完全来自探测结果（不硬编码任何模型名）
   const _zc = readZenCache()
   const _zlist = []
-  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [])) {
+  for (const m of [].concat(_zc.working || [], _zc.free || [], zenActive && active ? [active.model] : [])) {
     if (m && !_zlist.includes(m)) _zlist.push(m)
   }
-  const zenPick = _zc.working || (zenActive ? cur.model : '') || _zlist[0] || ''
+  const zenPick = _zc.working || (zenActive && active ? active.model : '') || _zlist[0] || ''
   const zenOptions = _zlist.map(m => `<option value="${esc(m)}" ${m === zenPick ? 'selected' : ''}>${esc(m)}</option>`).join('')
   const zenStatusText = _zc.working
     ? t('zenReady') + _zc.working + (_zc.at ? '（' + new Date(_zc.at).toLocaleTimeString() + '）' : '')
@@ -245,7 +248,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     const n = normalizeApiKey(fake)
     preview.textContent = n
       ? t('reqAddr') + endpointOf(n)
-      : t('reuseKeyHint')
+      : (baseEl.value.trim() || modelEl.value.trim() ? t('reuseKeyHint') : t('customFormHint'))
   }
   selStyle.onchange = refreshPreview
   baseEl.oninput = refreshPreview
@@ -667,10 +670,12 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     }
   }
 
-  document.querySelectorAll('input[name=selkey]').forEach(r => {    r.onchange = () => {
+  // 切换当前使用的那条配置：只改选用状态，**不动自定义接口的空白表单**
+  // （要修改某条请到「已保存」里点「编辑」，那时才会载入表单）
+  document.querySelectorAll('input[name=selkey]').forEach(r => {
+    r.onchange = () => {
       if (!r.checked) return
       const idx = Number(r.value)
-      syncFormToEntry(idx)
       if (!S || useStandalone) {
         selectKeyStandalone(idx)
         selected = idx
