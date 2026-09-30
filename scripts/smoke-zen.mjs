@@ -297,8 +297,15 @@ ok('zenConfig 形状正确', (() => {
   const list = prov.PROVIDER_PRESETS
   ok('预设表非空', Array.isArray(list) && list.length >= 3, list.length)
   ok('预设 id 唯一', new Set(list.map(p => p.id)).size === list.length)
+  ok('预设 baseUrl 唯一', new Set(list.map(p => p.baseUrl)).size === list.length)
   ok('预设都是 https 的 chat 端点', list.every(p => /^https:\/\//.test(p.baseUrl) && p.apiStyle === 'chat'), list.map(p => p.baseUrl))
   ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl && p.note), list)
+  // 国内主流覆盖度
+  const needIds = ['intern', 'mimo', 'deepseek', 'qwen', 'kimi', 'zhipu', 'doubao', 'spark', 'hunyuan', 'sensenova', 'siliconflow']
+  ok('覆盖国内主流服务商', needIds.every(id => list.some(p => p.id === id)), needIds.filter(id => !list.some(p => p.id === id)))
+  ok('申请地址都是 http(s)', list.every(p => /^https?:\/\//.test(p.keyUrl)))
+  ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
+  ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址

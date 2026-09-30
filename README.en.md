@@ -101,13 +101,18 @@ Existing user configuration is never overridden by the built-in channel. Keys ar
 
 ### One-tap provider presets
 
-The **Custom** panel starts with presets for common providers: **Intern-AI (Shanghai AI Lab)**, SenseNova, DeepSeek, Zhipu GLM, SiliconFlow. One tap will:
+The **Custom** panel starts with presets for common providers. One tap will:
 
 1. fill protocol / Base URL / model / display name
 2. expand that provider's **step-by-step instructions** (which site to open, what to click, where to paste, how to choose a model)
 3. show the key page URL in a read-only field for easy copying
 
-Then just paste your API key → "Test connection" → "Save & use".
+| Kind | Providers |
+| --- | --- |
+| **Generous free tiers (try first)** | **Intern-AI** (officially free: ~30 RPM, 90M tokens/month), **iFlytek Spark `lite`** (free, unlimited tokens at QPS 2), Zhipu `glm-4.5-flash` / `glm-4-flash`, some small SiliconFlow models |
+| **Mainstream commercial APIs** | Xiaomi MiMo, DeepSeek, Alibaba Qwen (Bailian), Moonshot Kimi, Zhipu GLM, ByteDance Doubao (Ark), Tencent Hunyuan (TokenHub), SenseNova |
+
+> Presets only include endpoints **verified against official docs** (2026-09). Model names and free tiers change; the panel notes what we know and official docs win. After pasting your key, hit "Test connection" — it sends just one minimal request.
 
 #### Intern-AI: getting a key
 

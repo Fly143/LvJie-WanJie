@@ -1,7 +1,8 @@
 // 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
 // 都必须是 OpenAI 兼容的 chat/completions 端点（我们只用这一种协议接第三方）。
 //
-// 维护说明：URL、模型名与额度以各家官方文档为准（见 providers 的 note/howto），改动时同步更新。
+// 维护说明：URL、模型名与额度均按各家官方文档核对（2026-09）。改动时请同步更新 note/howto/keyUrl。
+// 只收录「端点已核实」的服务商；拿不准的一律不加，避免给玩家填错地址。
 
 export const PROVIDER_PRESETS = [
   {
@@ -15,7 +16,6 @@ export const PROVIDER_PRESETS = [
     noJsonMode: true,
     keyUrl: 'https://internlm.intern-ai.org.cn/api/access-token',
     loginUrl: 'https://sso.openxlab.org.cn/login',
-    // 官方 /api/v1/models 返回的整个书生系列（intern-latest 会自动指向最新版 intern-s2）
     models: ['intern-latest', 'intern-s2', 'intern-s1-pro', 'intern-s1', 'intern-s1-mini', 'internvl-latest'],
     note: '官方长期免费开放：约 30 RPM、每月 9000 万 tokens（以平台公告为准）；API Token 有效期 6 个月',
     howto: [
@@ -25,6 +25,143 @@ export const PROVIDER_PRESETS = [
       '④ 回到本页，把 token 粘到下面的「API Key」输入框（不用手动加 Bearer 前缀，应用会自己加）',
       '⑤ 模型默认为 intern-latest（自动跟随最新版）；想指定版本就在下面「模型」里选，或点「刷新模型列表」从接口拉取整个书生系列后选择（列表接口就是官方 /api/v1/models）',
       '⑥ 点「测试连接」验证 → 成功后点「保存并选用」'
+    ]
+  },
+  {
+    id: 'mimo',
+    name: '小米 MiMo',
+    baseUrl: 'https://api.xiaomimimo.com/v1',
+    model: 'mimo-v2.6-pro',
+    apiStyle: 'chat',
+    keyUrl: 'https://platform.xiaomimimo.com/',
+    loginUrl: 'https://platform.xiaomimimo.com/',
+    models: ['mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.6-pro-ultraspeed'],
+    note: '小米 MiMo 开放平台：按量计费，另有 Token Plan 订阅包（以官方定价为准）',
+    howto: [
+      '① 打开 {key} 注册并登录小米 MiMo 开放平台（platform.xiaomimimo.com）',
+      '② 进入控制台创建 API Key（格式 sk-xxxxx），复制',
+      '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-pro，也可选 flash（更快更省）/ ultraspeed',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    apiStyle: 'chat',
+    keyUrl: 'https://platform.deepseek.com/api_keys',
+    loginUrl: 'https://platform.deepseek.com/',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+    note: '按量付费（闲时价格较低）',
+    howto: [
+      '① 打开 {key} 登录（需先注册并充值）',
+      '② 点「创建 API key」，复制生成的 key（只显示一次）',
+      '③ 回到本页粘贴到「API Key」；模型填 deepseek-chat 或 deepseek-reasoner',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'qwen',
+    name: '阿里通义千问（百炼）',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    apiStyle: 'chat',
+    keyUrl: 'https://bailian.console.aliyun.com/?apiKey=1',
+    loginUrl: 'https://bailian.console.aliyun.com/',
+    models: ['qwen-plus', 'qwen-turbo', 'qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-flash'],
+    note: '阿里云百炼（DashScope）：新用户有免费额度，之后按量计费',
+    howto: [
+      '① 打开 {key} 登录阿里云百炼控制台',
+      '② 右上角头像 → 「API-KEY」→ 创建我的 API-KEY，复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 qwen-plus（也常用 qwen-turbo / qwen3.7-max）',
+      '④ 点「测试连接」验证后「保存并选用」',
+      '说明：Base URL 用的是百炼的 OpenAI 兼容端点，无需改动路径'
+    ]
+  },
+  {
+    id: 'kimi',
+    name: '月之暗面 Kimi',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    model: 'kimi-k2.6',
+    apiStyle: 'chat',
+    keyUrl: 'https://platform.moonshot.cn/console/api-keys',
+    loginUrl: 'https://platform.moonshot.cn/',
+    models: ['kimi-k2.6', 'kimi-k2.5', 'kimi-k2', 'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    note: 'Moonshot 开放平台：按量计费（新用户通常有赠送额度）',
+    howto: [
+      '① 打开 {key} 登录 Moonshot 开放平台（手机号注册）',
+      '② 在「API Key 管理」新建密钥并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 kimi-k2.6，长文可用 moonshot-v1-128k',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'zhipu',
+    name: '智谱 GLM',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4.5-flash',
+    apiStyle: 'chat',
+    keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+    loginUrl: 'https://open.bigmodel.cn/',
+    models: ['glm-4.5-flash', 'glm-4-flash', 'glm-5'],
+    note: 'glm-4.5-flash / glm-4-flash 系列长期免费；glm-5 等按量计费',
+    howto: [
+      '① 打开 {key} 登录智谱开放平台（手机号注册）',
+      '② 在「API Keys」页点「添加新的 API Key」并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 glm-4.5-flash（免费档），也可选 glm-5',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'doubao',
+    name: '字节豆包（火山方舟）',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: 'doubao-2.0-pro',
+    apiStyle: 'chat',
+    keyUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+    loginUrl: 'https://console.volcengine.com/ark',
+    models: ['doubao-2.0-pro', 'doubao-2.0-pro-256k'],
+    note: '火山方舟：需先开通模型；若报「需要接入点」，把推理接入点 ID（ep-…）填到模型里',
+    howto: [
+      '① 打开 {login} 用火山引擎账号登录，开通方舟并「开通管理」里开通要用的模型',
+      '② 打开 {key} 创建 API Key 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 doubao-2.0-pro（若用推理接入点则填 ep-…）',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'spark',
+    name: '讯飞星火',
+    baseUrl: 'https://spark-api-open.xf-yun.com/v1',
+    model: 'lite',
+    apiStyle: 'chat',
+    keyUrl: 'https://console.xfyun.cn/services/cbm',
+    loginUrl: 'https://console.xfyun.cn/',
+    models: ['lite', 'generalv3.5', 'max-32k', 'pro-128k', '4.0Ultra'],
+    note: 'lite（Spark Lite）免费：tokens 总量不限、QPS 2；其它版本按量计费',
+    howto: [
+      '① 打开 {key} 登录讯飞开放平台（手机号注册），进入「星火认知大模型」服务页',
+      '② 在页面里领取/创建服务后，复制「APIPassword」（就是这里的 API Key）',
+      '③ 回到本页粘贴到「API Key」；模型默认 lite（免费），可选 generalv3.5 / max-32k / 4.0Ultra',
+      '④ 点「测试连接」验证后「保存并选用」'
+    ]
+  },
+  {
+    id: 'hunyuan',
+    name: '腾讯混元（TokenHub）',
+    baseUrl: 'https://tokenhub.tencentmaas.com/v1',
+    model: 'hy3',
+    apiStyle: 'chat',
+    keyUrl: 'https://console.cloud.tencent.com/',
+    loginUrl: 'https://console.cloud.tencent.com/',
+    models: ['hy3', 'hy4-preview', 'hy-mt2-pro', 'hunyuan-role-latest'],
+    note: '腾讯云 TokenHub（混元老控制台已下线）：同一 Base URL 可调混元与部分原厂模型',
+    howto: [
+      '① 打开 {login} 登录腾讯云控制台',
+      '② 进入 TokenHub / 混元大模型服务，开通并创建 API Key，复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等）',
+      '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
   {
@@ -40,38 +177,6 @@ export const PROVIDER_PRESETS = [
       '① 打开 {key} 注册并登录商汤大装置',
       '② 在控制台中找到「API Key / 密钥管理」，创建一个 API Key 并复制',
       '③ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
-    id: 'deepseek',
-    name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
-    apiStyle: 'chat',
-    keyUrl: 'https://platform.deepseek.com/api_keys',
-    loginUrl: 'https://platform.deepseek.com/',
-    note: '按量付费（闲时价格较低）；模型也可填 deepseek-reasoner',
-    howto: [
-      '① 打开 {key} 登录（需先注册并充值）',
-      '② 点「创建 API key」，复制生成的 key（只显示一次）',
-      '③ 回到本页粘贴到「API Key」；模型填 deepseek-chat 或 deepseek-reasoner',
-      '④ 点「测试连接」验证后「保存并选用」'
-    ]
-  },
-  {
-    id: 'zhipu',
-    name: '智谱 GLM',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    model: 'glm-4-flash',
-    apiStyle: 'chat',
-    keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
-    loginUrl: 'https://open.bigmodel.cn/',
-    note: 'glm-4-flash 系列长期免费；新用户另有赠送额度',
-    howto: [
-      '① 打开 {key} 登录智谱开放平台（手机号注册）',
-      '② 在「API Keys」页点「添加新的 API Key」并复制',
-      '③ 回到本页粘贴到「API Key」；模型可填 glm-4-flash（或点「刷新模型列表」选择）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
