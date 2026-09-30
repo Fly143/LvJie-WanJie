@@ -10,7 +10,7 @@ const SRC = path.join(ROOT, 'tools', 'launcher', 'AgentWorldsLauncher.cs')
 const OUT_DIR = path.resolve(process.argv[2] || path.join(ROOT, 'runtime'))
 const OUT = path.join(OUT_DIR, 'AgentWorlds.exe')
 // 内部主程序名：故意起得不像"要点的那一个"
-const CORE_NAME = 'AgentWorlds-core（内部程序·勿直接运行）.exe'
+const CORE_NAME = 'AgentWorlds-core.exe'
 
 function findCsc() {
   const win = process.env.WINDIR || 'C:\\Windows'

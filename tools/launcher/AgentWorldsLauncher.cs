@@ -23,8 +23,8 @@ internal static class Launcher
 {
     private const int FastExitMs = 4000;
 
-    // 内部主程序名：故意起得不像“要点的那一个”，避免玩家直接双击它（它需要 --no-sandbox 才能起）
-    private const string CoreName = "AgentWorlds-core（内部程序·勿直接运行）.exe";
+    // 内部主程序（真正的 Electron，需要 --no-sandbox 才能起，玩家应双击 AgentWorlds.exe 这个壳）
+    private const string CoreName = "AgentWorlds-core.exe";
 
     private static int Main(string[] args)
     {

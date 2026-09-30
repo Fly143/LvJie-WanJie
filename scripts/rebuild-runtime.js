@@ -48,8 +48,8 @@ fs.mkdirSync(RUNTIME, { recursive: true })
 
 // 可选：把主程序改名并编译启动器壳（受限会话下 Chromium 沙箱不可用也能双击启动）
 const BUILD_LAUNCHER = process.env.AW_BUILD_LAUNCHER === '1'
-// 内部主程序名故意起得不像“要点的那一个”，避免玩家直接双击它
-const CORE_NAME = 'AgentWorlds-core（内部程序·勿直接运行）.exe'
+// 内部主程序（真正的 Electron，需要 --no-sandbox；玩家双击的是壳 AgentWorlds.exe）
+const CORE_NAME = 'AgentWorlds-core.exe'
 const EXE_NAME = BUILD_LAUNCHER ? CORE_NAME : 'AgentWorlds.exe'
 // 玩家要点的那一个（有壳时是壳，没壳时就是主程序本身）
 const RUN_EXE = 'AgentWorlds.exe'
@@ -162,9 +162,8 @@ fs.writeFileSync(
     ? [
         '双击本目录下的  AgentWorlds.exe  即可启动（几 KB 的那个）。',
         '',
-        '不要把文件名里带「内部程序·勿直接运行」的那个大文件（200+ MB）当作游戏去双击：',
-        '它是真正的 Electron 主程序，在部分受限/远程会话里需要 --no-sandbox 才能启动，',
-        'AgentWorlds.exe（启动器壳）会自动帮你加上这个参数。',
+        'AgentWorlds-core.exe（200+ MB）是真正的 Electron 主程序，不要直接双击它：',
+        '它在部分受限/远程会话里需要 --no-sandbox 才能启动，AgentWorlds.exe（启动器壳）会自动加上这个参数。',
         '',
         '如果双击 AgentWorlds.exe 没有任何反应：',
         '  1) 先运行 修复启动.cmd  再试（清理上次异常退出残留的实例锁）；',
