@@ -78,6 +78,8 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const zenStatusText = _zc.working
     ? t('zenReady') + _zc.working + (_zc.at ? '（' + new Date(_zc.at).toLocaleTimeString() + '）' : '')
     : t('zenHint')
+  // 当前在用的配置名（用于在面板里说明「现在用的不是内置通道」）
+  const activeName = (active && (active.name || active.model)) || t('unset')
 
   /** 把一条配置写入并设为当前（独立 Key 库 / 存档内 keys 两种情况） */
   function activate(rec) {
@@ -97,7 +99,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     <h2>${t('apiSettings')}</h2>
     ${globalThis.__AW_KEYS_PLAINTEXT__ === true ? `<div style="margin:8px 0;padding:10px;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:12px">⚠ 当前环境不支持密钥加密存储（safeStorage 不可用），API Key 以明文保存在本机，请注意设备安全</div>` : ''}
     <div class="btn-row" style="margin-top:8px;flex-wrap:wrap">
-      <button class="btn btn-sm" id="mode-zen" type="button">${t('zenModeFree')}</button>
+      <button class="btn btn-sm" id="mode-zen" type="button">${t('zenModeFree')}${zenActive ? ' ✓' : ''}</button>
       <button class="btn btn-sm" id="mode-preset" type="button">${t('tabPreset')}</button>
       <button class="btn btn-sm" id="mode-saved" type="button">${t('tabSaved')}${savedCount ? ' (' + savedCount + ')' : ''}</button>
       <button class="btn btn-sm" id="mode-custom" type="button">${t('tabCustom')}</button>
@@ -105,6 +107,9 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
 
     <div id="zen-panel" style="display:none">
       <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('zenHint')}</div>
+      <div id="k-zen-active" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:${zenActive ? 'var(--accent)' : 'var(--dim)'};line-height:1.6">
+        ${zenActive ? '✓ ' + t('zenInUse') + (active && active.model ? '：' + esc(active.model) : '') : t('zenNotInUse') + esc(activeName)}
+      </div>
       <div id="k-zen-quota" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.6"></div>
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('zenModelPick')}</label>
       <select id="zen-model" style="width:100%;margin-top:6px;background:#0d1526;color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px">

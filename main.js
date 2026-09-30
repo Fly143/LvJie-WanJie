@@ -452,6 +452,9 @@ function createWindow() {
           const v = visible()
           tabs[k] = (v.length === 1 && v[0] === k) ? 'ok' : (v.join('+') || 'none')
         }
+        document.getElementById('mode-zen').click(); await sleep(40)
+        const zenActiveEl = document.getElementById('k-zen-active')
+        const zenActiveText = zenActiveEl ? String(zenActiveEl.textContent).trim() : ''
         document.getElementById('mode-preset').click(); await sleep(40)
         const sel = document.getElementById('k-preset')
         const box = document.getElementById('k-preset-box')
@@ -488,6 +491,7 @@ function createWindow() {
           })(),
           nativeSelectHidden: !!(sStyle && sStyle.style.display === 'none') && !!bStyle,
           pickerRows: pickerRows,
+          zenActiveText: zenActiveText,
           savedRows: document.querySelectorAll('.key-row').length
         }
       })()`
