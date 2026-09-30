@@ -110,18 +110,18 @@ The **Custom** panel starts with presets for common providers. One tap will:
 | Kind | Provider | Base URL | Default model | Get a key |
 | --- | --- | --- | --- | --- |
 | **Free** | **Intern-AI** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
-| | **iFlytek Spark** | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | **iFlytek Spark** (free `lite` tier) | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | **Zhipu GLM** (free `glm-4.7-flash`, **needs a non-zero balance**) | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
 | **Other mainstream providers** | Xiaomi MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
 | | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
 | | Alibaba Qwen (Bailian) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | Moonshot Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
-| | Zhipu GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
 | | ByteDance Doubao (Ark) | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
 | | SiliconFlow | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
 | | SenseNova | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ (then "API Key" in the left menu) |
 | | Tencent Hunyuan (TokenHub) | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
 
-> Only **Intern-AI** and **iFlytek Spark** carry a free-tier note in the app (free policies expire fastest; the others deliberately have none). Two caveats: **Zhipu's free Flash tier normally requires a positive account balance**, and **SenseNova text models are paid** — its permanently free offering is the image model `sensenova-u1.5-lite`, which this app cannot use. Quotas follow each vendor's announcements.
+> Only **Intern-AI** and **iFlytek Spark** carry a free-tier note in the app (free policies expire fastest; the others deliberately have none). The common pitfalls are spelled out in each in-app walkthrough: **Zhipu's free Flash tier requires a non-zero account balance** (a zero balance returns "insufficient balance"; top up any small amount via "Finance/Recharge" — the minimum is whatever the page shows; the balance is only a gate and free models don't consume it), **iFlytek's free tier is `lite`**, **SenseNova text models are paid** (its permanently free offering is the image model `sensenova-u1.5-lite`, unusable here), and **Doubao requires enabling the model in Ark's "开通管理" first**. Quotas follow each vendor's announcements.
 
 #### Intern-AI: getting a key
 

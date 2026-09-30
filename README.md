@@ -110,18 +110,18 @@ API 设置里是两种使用方式，顶部切换：
 | 类别 | 服务商 | Base URL | 默认模型 | 申请 Key（点进去创建后复制） |
 | --- | --- | --- | --- | --- |
 | **免费** | **书生·浦语（Intern-AI）** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
-| | **讯飞星火** | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | **讯飞星火**（免费档 `lite`） | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | **智谱 GLM**（免费档 `glm-4.7-flash`，**需账号有余额**） | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
 | **其他主流服务商** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
 | | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
 | | 阿里通义千问（百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
-| | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
 | | 字节豆包（火山方舟） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
 | | 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
 | | 商汤日日新 | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
 | | 腾讯混元（TokenHub） | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
 
-> 只有**书生·浦语**与**讯飞星火**在游戏内写了免费政策备注（免费政策最容易过期，其余家不写以免误导）。两点提醒：**智谱免费的 Flash 档一般要求账号里有余额**；**商汤文本模型是付费的**——它长期免费的是图片模型 `sensenova-u1.5-lite`（文生图），本应用用不到。各家额度以官方公告与定价页为准。
+> 游戏内只有**书生·浦语**与**讯飞星火**写了免费政策备注（政策最易过期，其余家不写以免误导）。几个容易踩的点都写在各自的分步教程里：**智谱的免费 Flash 档要求账号有余额**（余额为 0 会报「余额不足或无可用资源包」，去「财务/充值」用自定义金额充一点点即可，下限以页面显示为准；余额只当门槛，用免费模型不扣）；**讯飞免费的是 `lite` 档**；**商汤文本模型是付费的**（其长期免费的是图片模型 `sensenova-u1.5-lite`，本应用用不到）；**豆包需先在方舟「开通管理」里开通模型**。各家额度以官方公告与定价页为准。
 
 #### 书生·浦语（Intern-AI）申请步骤
 

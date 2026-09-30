@@ -302,7 +302,7 @@ ok('zenConfig 形状正确', (() => {
   ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl), list)
   // 备注只给「免费政策容易过期」的书生·浦语与讯飞星火，其他家不写备注
   const noteIds = list.filter(p => p.note).map(p => p.id)
-  ok('只有书生与讯飞带备注', noteIds.length === 2 && noteIds.includes('intern') && noteIds.includes('spark'), noteIds)
+  ok('备注只给书生与讯飞', noteIds.length === 2 && noteIds.includes('intern') && noteIds.includes('spark'), noteIds)
   // 国内主流覆盖度
   const needIds = ['intern', 'mimo', 'deepseek', 'qwen', 'kimi', 'zhipu', 'doubao', 'spark', 'hunyuan', 'sensenova', 'siliconflow']
   ok('覆盖国内主流服务商', needIds.every(id => list.some(p => p.id === id)), needIds.filter(id => !list.some(p => p.id === id)))
@@ -316,13 +316,25 @@ ok('zenConfig 形状正确', (() => {
   }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
   ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
-  // 排序：真正免费的两家在最前；其余不带免费标记（GLM 免费档需账号有余额，商汤文本付费）
+  // 免费区：书生·浦语 / 讯飞星火 / 智谱 GLM 三家，其余不带免费标记
   const idxOf = (id) => list.findIndex(p => p.id === id)
-  ok('前两家是书生·浦语与讯飞星火', list[0].id === 'intern' && list[1].id === 'spark', list.slice(0, 2).map(p => p.id))
-  ok('免费标记只给这两家', list.filter(p => p.tag).length === 2 && list.filter(p => p.tag).every(p => p.id === 'intern' || p.id === 'spark'), list.filter(p => p.tag).map(p => p.id))
-  ok('GLM 不在免费区（需账号余额）', idxOf('zhipu') >= 2 && !list.find(p => p.id === 'zhipu').tag, { zhipu: idxOf('zhipu'), tag: list.find(p => p.id === 'zhipu').tag })
-  ok('GLM 步骤里写明「需有余额」', /余额/.test((list.find(p => p.id === 'zhipu').howto || []).join(' ')))
-  ok('商汤不带免费标记且排在商业区', !list.find(p => p.id === 'sensenova').tag && idxOf('sensenova') >= 2, idxOf('sensenova'))
+  const freeIds = list.filter(p => p.tag).map(p => p.id)
+  ok('免费标记只给这三家', freeIds.length === 3 && ['intern', 'spark', 'zhipu'].every(id => freeIds.includes(id)), freeIds)
+  ok('免费三家排在最前', list.slice(0, 3).every(p => p.tag), list.slice(0, 3).map(p => p.id + ':' + p.tag))
+  ok('书生·浦语排第一', idxOf('intern') === 0)
+  // 智谱：免费的是 flash 档，但要求账号有余额
+  const zhipu = list.find(p => p.id === 'zhipu')
+  ok('GLM 默认用免费档 glm-4.7-flash', zhipu.model === 'glm-4.7-flash', zhipu.model)
+  ok('GLM 不再用已下线的 glm-4.5-flash', zhipu.model !== 'glm-4.5-flash')
+  ok('GLM 候选以免费档为主', (zhipu.models || []).includes('glm-4.7-flash') && (zhipu.models || []).includes('glm-4-flash-250414'), zhipu.models)
+  ok('GLM 步骤写明需充值 + 充多少 + 免费模型名', (() => {
+    const s = (zhipu.howto || []).join(' ')
+    return /余额/.test(s) && /充值/.test(s) && /1 元/.test(s) && /glm-4\.7-flash/.test(s) && /免费/.test(s)
+  })(), zhipu.howto)
+  // 免费档教程要写明「免费的是哪个模型」
+  ok('星火步骤写明免费档是 lite', /lite/.test((list.find(p => p.id === 'spark').howto || []).join(' ')))
+  ok('书生步骤写明整个系列免费', /免费范围/.test((list.find(p => p.id === 'intern').howto || []).join(' ')))
+  ok('商汤不带免费标记且写明文本付费', !list.find(p => p.id === 'sensenova').tag && /付费/.test((list.find(p => p.id === 'sensenova').howto || []).join(' ')), idxOf('sensenova'))
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址
