@@ -48,7 +48,6 @@
 | `app/js/worldviews/` | 内置世界观包（词表 / 数值 / 地图 / 规则） |
 | `main.js` / `preload.js` | Electron 主进程 / 渲染桥 |
 | `android/` | Android WebView 壳（与 `app/` 共用引擎） |
-| `runtime/` | 官方 Electron 发行版 + 同步后的游戏本体（**不入库**） |
 | `scripts/` | 启动、同步/重建 runtime、冒烟脚本 |
 
 ## 运行
