@@ -456,6 +456,8 @@ function createWindow() {
         const zenActiveEl = document.getElementById('k-zen-active')
         const zenActiveText = zenActiveEl ? String(zenActiveEl.textContent).trim() : ''
         document.getElementById('mode-preset').click(); await sleep(40)
+        const presetActiveEl = document.getElementById('k-preset-active')
+        const presetActiveText = presetActiveEl ? String(presetActiveEl.textContent).trim() : ''
         const sel = document.getElementById('k-preset')
         const box = document.getElementById('k-preset-box')
         const det = box && box.querySelector('details')
@@ -492,6 +494,7 @@ function createWindow() {
           nativeSelectHidden: !!(sStyle && sStyle.style.display === 'none') && !!bStyle,
           pickerRows: pickerRows,
           zenActiveText: zenActiveText,
+          presetActiveText: presetActiveText,
           savedRows: document.querySelectorAll('.key-row').length
         }
       })()`

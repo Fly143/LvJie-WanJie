@@ -481,12 +481,15 @@ ok('zenConfig 形状正确', (() => {
   // 内置通道启用后被存进配置列表，但不在「已保存」里显示；面板要明确「当前在用哪个」
   ok('内置面板标出当前是否在用内置通道', declared.has('k-zen-active') && src.includes("t('zenInUse')") && src.includes("t('zenNotInUse')"))
   ok('内置 tab 在用时有 ✓ 标记', src.includes("t('zenModeFree')}${zenActive ? ' ✓' : ''}"))
+  // 预设启用后是「已保存」里的一条，面板也要说明当前在用哪个
+  ok('预设面板标出当前是否在用预设', declared.has('k-preset-active') && src.includes("t('presetInUse')") && src.includes("t('presetNotInUse')"))
+  ok('打开预设面板会定位到当前在用的那家', src.includes('activePreset') && src.includes('presetSel.value = activePreset.id'))
   ok('内置面板不硬编码模型名', !/["'][\w.-]+-free["']/.test(src))
 
   // 四种语言的额度文案都要齐（少一种就会回退中文）
   const i18nSrc = fs.readFileSync(new URL('../app/js/engine/i18n.js', import.meta.url), 'utf8')
   const countKey = (k) => (i18nSrc.match(new RegExp('\\b' + k + ':', 'g')) || []).length
-  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel', 'customFormHint', 'pickOne', 'noOptions', 'zenInUse', 'zenNotInUse']
+  const fourKeys = ['zenPerDay', 'zenResetNext', 'zenShared', 'zenQuotaTip', 'zenWelcomeLimit', 'zenWelcomeSwitch', 'zenWelcomeNoApi', 'testConn', 'zenListFail', 'providerShowSteps', 'tabPreset', 'tabSaved', 'tabCustom', 'presetPick', 'savedHint', 'edit', 'loadedToCustom', 'presetModelPh', 'presetAutoModelHint', 'presetAutoPicked', 'presetManualKept', 'fillModel', 'customFormHint', 'pickOne', 'noOptions', 'zenInUse', 'zenNotInUse', 'presetInUse', 'presetNotInUse']
   ok('额度/测试文案四种语言齐全', fourKeys.every(k => countKey(k) === 4), fourKeys.map(k => k + '=' + countKey(k)))
 
   // 欢迎页要有额度提示（用户要求的两处提示之一）

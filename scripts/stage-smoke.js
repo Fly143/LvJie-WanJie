@@ -106,6 +106,7 @@ else {
   if (!ui.nativeSelectHidden) uiErrs.push('原生 select 未隐藏 / 自绘下拉按钮缺失')
   if (!(ui.pickerRows >= 2)) uiErrs.push('自绘下拉弹窗没有列出选项: ' + ui.pickerRows)
   if (!ui.zenActiveText) uiErrs.push('内置面板缺少「当前是否在用」的说明行')
+  if (!ui.presetActiveText) uiErrs.push('预设面板缺少「当前是否在用」的说明行')
 }
 if (uiErrs.length) {
   console.error('SMOKE_UI_FAIL ' + uiErrs.join(' | '))

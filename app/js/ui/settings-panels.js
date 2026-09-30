@@ -6,7 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { formDirty, upsertKeyEntry, isZenEntry } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
-import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel } from '../engine/providers.js'
+import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel, findPreset } from '../engine/providers.js'
 import { upgradeSelect, setSelectVisible } from './picker.js'
 
 const STYLE_HELP = {
@@ -80,6 +80,8 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     : t('zenHint')
   // 当前在用的配置名（用于在面板里说明「现在用的不是内置通道」）
   const activeName = (active && (active.name || active.model)) || t('unset')
+  // 当前正在用的配置是否就是某个服务商预设
+  const activePreset = (active && findPreset(active.baseUrl)) || null
 
   /** 把一条配置写入并设为当前（独立 Key 库 / 存档内 keys 两种情况） */
   function activate(rec) {
@@ -129,6 +131,9 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
         ${PROVIDER_PRESETS.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.tag ? ' · ' + esc(p.tag) : ''}</option>`).join('')}
       </select>
       <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
+      <div id="k-preset-active" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:${activePreset ? 'var(--accent)' : 'var(--dim)'};line-height:1.6">
+        ${activePreset ? '✓ ' + t('presetInUse') + '：' + esc(activePreset.name) + (active && active.model ? ' · ' + esc(active.model) : '') : t('presetNotInUse') + esc(activeName)}
+      </div>
       <div id="k-preset-box" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('apiKey')}</label>
       <input id="k-preset-key" type="password" placeholder="sk-…" autocomplete="off" value="">
@@ -433,6 +438,8 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   }
 
   if (presetSel) presetSel.onchange = () => { lastAutoPick = ''; presetFetchedFor = ''; renderPreset({ clearKey: true }) }
+  // 打开面板时，若当前用的正是某个预设，就把下拉定位到那一家
+  if (presetSel && activePreset) presetSel.value = activePreset.id
   renderPreset({ clearKey: true })
   if (presetRefreshBtn) presetRefreshBtn.onclick = () => fetchPresetModels({ auto: false })
   if (presetKeyEl) {
