@@ -5,7 +5,7 @@ import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { normBase, sameKeyEntry, formDirty } from '../engine/keyprofile.js'
-import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_DAILY_LIMIT } from '../engine/zen.js'
+import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_PREFERRED, ZEN_KNOWN_FREE, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 import { PROVIDER_PRESETS, presetSteps } from '../engine/providers.js'
 
 const STYLE_HELP = {
@@ -60,7 +60,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   // 内置免费面板：已探测到的免费模型（含当前可用的那个）
   const _zc = readZenCache()
   const _zlist = []
-  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [], ZEN_PREFERRED)) {
+  for (const m of [].concat(_zc.working || [], _zc.free || [], cur && zenActive ? [cur.model] : [], ZEN_KNOWN_FREE, ZEN_PREFERRED)) {
     if (m && !_zlist.includes(m)) _zlist.push(m)
   }
   const zenPick = _zc.working || (zenActive ? cur.model : '') || _zlist[0] || ''
@@ -334,11 +334,14 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
             '</select></div>'
           : ''
         box.innerHTML =
-          `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}<br>` +
-          presetSteps(p).map(s => esc(s)).join('<br>') +
+          `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}` +
           modelSel +
+          // 教程默认折叠：需要时再点开，避免一屏全是步骤
+          `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent)">${t('providerShowSteps')}</summary>` +
+          `<div style="margin-top:4px">${presetSteps(p).map(s => esc(s)).join('<br>')}</div>` +
           `<div style="margin-top:6px">${t('providerGetKey')}` +
-          `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>`
+          `<input type="text" readonly value="${esc(p.keyUrl)}" style="margin-top:4px;font-size:12px"></div>` +
+          `</details>`
         box.style.display = ''
         const msel = document.getElementById('k-preset-models')
         if (msel) msel.onchange = () => { modelEl.value = msel.value; refreshPreview() }
@@ -444,6 +447,22 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     })
     refreshQuota()
     return r
+  }
+  // 打开面板时若本地还没有名单（例如启动时因为已有自定义配置而跳过了拉取），补拉一次名单
+  // —— GET /models 不消耗额度，只有需要确认可用模型时才会做连接测试
+  if (!((readZenCache().free || []).length)) {
+    ensureZenReady({ force: false, onStatus: (m) => { if (zenStatus) zenStatus.textContent = m } })
+      .then((r) => {
+        const err = r && (r.listErr || r.error)
+        if (r && r.ok && r.model) {
+          fillZenModels(readZenCache().free, r.model)
+          if (zenStatus) zenStatus.textContent = t('zenReady') + r.model
+          if (r.listErr && zenStatus) zenStatus.textContent = t('zenListFail') + r.listErr + ' · ' + t('zenReady') + r.model
+        } else if (err && zenStatus) {
+          zenStatus.textContent = t('zenListFail') + err
+        }
+      })
+      .catch(() => { /* ignore */ })
   }
   const zenBtn = document.getElementById('k-zen')
   if (zenBtn) {

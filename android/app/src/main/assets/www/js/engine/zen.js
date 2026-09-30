@@ -17,6 +17,21 @@ export const ZEN_NAME = '内置免费通道'
 
 /** 已知可用的优先顺序（其余按上游 /models 返回顺序） */
 export const ZEN_PREFERRED = ['mimo-v2.6-flash-free', 'deepseek-v4-flash-free', 'mimo-v2.5-free']
+// 已知免费模型全集（2026-09 实测上游 /models 的 -free 项）：名单拉取失败时兜底，
+// 避免只显示 ZEN_PREFERRED 那 3 个。顺序会把 ZEN_PREFERRED 提到最前。
+export const ZEN_KNOWN_FREE = [
+  'mimo-v2.6-flash-free',
+  'deepseek-v4-flash-free',
+  'mimo-v2.5-free',
+  'jev-1.13-free',
+  'muse-spark-1.3-contributor-free',
+  'muse-spark-1.2-contributor-free',
+  'space-bunny-free',
+  'longcat-2.5-preview-free',
+  'ling-3.0-flash-fin-free',
+  'nemotron-3-ultra-free',
+  'nemotron-3.5-lightning-free'
+]
 
 /** 上游免费档额度（官方说明：100 请求/天，次日重置。可能随时调整） */
 export const ZEN_DAILY_LIMIT = 100
@@ -207,7 +222,7 @@ export function zenActiveModel() {
 /** 下一个候选（失败时切换用） */
 export function zenNextModel(cur) {
   const list = orderZenModels(readZenCache().free)
-  const pool = list.length ? list : ZEN_PREFERRED
+  const pool = list.length ? list : orderZenModels(ZEN_KNOWN_FREE)
   const i = pool.indexOf(String(cur || ''))
   if (i >= 0 && i + 1 < pool.length) return pool[i + 1]
   const rest = pool.filter(m => m !== cur)
@@ -298,11 +313,13 @@ export async function ensureZenReady({ force = false, onStatus } = {}) {
   say('拉取免费模型名单…')
   const list = await fetchZenModelList()
   let free = []
+  let listErr = ''
   if (list.ok && list.free.length) {
     free = list.free
   } else {
-    if (!list.ok) say('名单拉取失败：' + (list.error || '') + '（沿用上次结果）')
-    free = (prev.free && prev.free.length) ? prev.free : orderZenModels(ZEN_PREFERRED)
+    listErr = list.error || '上游未返回免费模型'
+    say('名单拉取失败：' + listErr + '（沿用上次结果）')
+    free = (prev.free && prev.free.length) ? prev.free : orderZenModels(ZEN_KNOWN_FREE)
   }
   const listChanged = !sameZenList(prev.free, free)
   writeZenCache({ free, at: Date.now() })
@@ -310,7 +327,7 @@ export async function ensureZenReady({ force = false, onStatus } = {}) {
   // ② 名单没变、且上次可用模型仍在名单里 → 跳过连接测试（省额度）
   if (!force && !listChanged && prev.working && free.includes(prev.working)) {
     say('名单未变，沿用 ' + prev.working + '（跳过连接测试，不耗额度）')
-    return { ok: true, model: prev.working, tried: [], fromCache: true, listChanged: false, probed: 0 }
+    return { ok: true, model: prev.working, tried: [], fromCache: true, listChanged: false, probed: 0, listErr, free }
   }
 
   // ③ 需要重新确认可用模型：按顺序做连接测试（这一步消耗额度）
@@ -323,12 +340,12 @@ export async function ensureZenReady({ force = false, onStatus } = {}) {
     if (r.ok) {
       writeZenCache({ working: m, at: Date.now(), tried })
       say('可用：' + m + '（' + r.ms + 'ms）')
-      return { ok: true, model: m, tried, fromCache: false, listChanged, probed: tried.length }
+      return { ok: true, model: m, tried, fromCache: false, listChanged, probed: tried.length, listErr, free }
     }
     say('不可用：' + m + '（' + (r.error || '') + '）')
   }
   writeZenCache({ working: '', at: Date.now(), tried })
-  return { ok: false, tried, listChanged, probed: tried.length, error: '所有免费模型都不可用（上游可能已收紧校验）' }
+  return { ok: false, tried, listChanged, probed: tried.length, listErr, free, error: '所有免费模型都不可用（上游可能已收紧校验）' }
 }
 
 /** 生成一条内置通道的配置（可直接塞进 playerKeys） */
