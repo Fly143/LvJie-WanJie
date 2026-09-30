@@ -55,12 +55,14 @@
 
 ### Windows（免构建）
 
-从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-win-x64.zip`，**先完整解压**，然后双击解压目录里的 **`启动游戏.cmd`**。
+从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-win-x64.zip`，**先完整解压**，然后双击解压目录里的 **`AgentWorlds.exe`**。
 
-> 为什么不直接双击 `AgentWorlds.exe`？部分受限/远程会话里 Chromium 沙箱初始化会失败，进程在加载游戏代码之前就静默退出（表现为"双击没反应"）。启动器会先常规启动，5 秒内若退出就自动加 `--no-sandbox` 重试。
-> - 打不开时先运行 **`修复启动.cmd`**（清理上次异常退出残留的实例锁）
-> - 也可以直接用 **`启动游戏（兼容模式）.cmd`**（始终加 `--no-sandbox`）
-> - 首次运行可能弹「Windows 已保护你的电脑 / 无法验证发布者」：点「更多信息 → 仍要运行」或「运行」即可（未做代码签名）
+> 包内有两个 exe，属正常结构：
+> - `AgentWorlds.exe`（几 KB）= **启动器壳**：先按原样启动，若几秒内退出（部分受限/远程会话里 Chromium 沙箱初始化失败，进程会在加载游戏代码前静默退出）就自动带 `--no-sandbox` 重试一次 —— 因此**任何情况下双击都能启动**
+> - `AgentWorlds-core.exe`（200+ MB）= 真正的 Electron 主程序（官方发行版改名，见 `PROVENANCE.txt`）
+>
+> 其它入口：`启动游戏.cmd`（同逻辑，带控制台输出）、`启动游戏（兼容模式）.cmd`（始终加 `--no-sandbox`）、`修复启动.cmd`（清理异常退出残留的实例锁）。
+> 首次运行可能弹「Windows 已保护你的电脑 / 无法验证发布者」：点「更多信息 → 仍要运行」或「运行」即可（未做代码签名）。
 
 ### Linux / 开发机（免打包）
 

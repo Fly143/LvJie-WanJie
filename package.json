@@ -19,10 +19,11 @@
     "smoke:party": "node scripts/smoke-party.mjs",
     "smoke:zen": "node scripts/smoke-zen.mjs",
     "smoke:llm": "node scripts/llm-endpoints.mjs",
-    "smoke:stage": "node scripts/stage-smoke.js"
+    "smoke:stage": "node scripts/stage-smoke.js",
+    "build:launcher": "node scripts/build-launcher.js runtime"
   },
   "devDependencies": {
-    "electron": "33.4.11"
+    "electron": "^43.5.1"
   },
   "allowScripts": {
     "electron@33.4.11": true
