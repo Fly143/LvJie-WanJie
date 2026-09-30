@@ -160,6 +160,37 @@ ok('zenConfig 形状正确', (() => {
   delete globalThis.awHost
 }
 
+// —— 测试连接按钮 ——
+{
+  const { testConnection } = await import(base + '/engine/llm.js')
+  ok('缺 Base URL 直接报错', (await testConnection({ key: 'k', model: 'm' })).ok === false)
+  ok('缺 Key 直接报错', (await testConnection({ baseUrl: 'https://a.b/v1', model: 'm' })).ok === false)
+
+  const seenUrls = []
+  globalThis.awHost = {
+    http: {
+      request: async ({ url }) => {
+        seenUrls.push(url)
+        if (/\/models$/.test(url)) return { ok: true, status: 200, text: JSON.stringify({ data: [{ id: 'm1' }, { id: 'm2' }] }) }
+        return { ok: true, status: 200, text: JSON.stringify({ choices: [{ message: { content: '好' } }] }) }
+      }
+    }
+  }
+  const good = await testConnection({ baseUrl: 'https://api.example.com/v1', key: 'sk-x', model: 'm1' })
+  ok('成功：返回回复与耗时', good.ok === true && good.reply === '好' && typeof good.ms === 'number', good)
+  ok('成功：请求打到 chat/completions', seenUrls.some(u => u === 'https://api.example.com/v1/chat/completions'), seenUrls)
+
+  seenUrls.length = 0
+  const noModel = await testConnection({ baseUrl: 'https://api.example.com/v1', key: 'sk-x', model: '' })
+  ok('未填模型退化为拉列表', noModel.ok === true && noModel.count === 2, noModel)
+  ok('未填模型时请求打到 /models', seenUrls.some(u => /\/models$/.test(u)), seenUrls)
+
+  globalThis.awHost.http.request = async () => ({ ok: true, status: 403, text: '{"error":{"message":"invalid key"}}' })
+  const bad = await testConnection({ baseUrl: 'https://api.example.com/v1', key: 'sk-x', model: 'm1' })
+  ok('失败：带出 HTTP 状态与原因', bad.ok === false && /403/.test(bad.error || '') && /invalid key/.test(bad.error || ''), bad)
+  delete globalThis.awHost
+}
+
 // —— 静态检查：设置面板里 getElementById 的 id 必须在模板里存在（防改 UI 漏改） ——
 {
   const fs = await import('fs')
@@ -170,6 +201,9 @@ ok('zenConfig 形状正确', (() => {
   ok('设置面板引用的 id 都存在', missing.length === 0, missing)
   const modeIds = ['mode-zen', 'mode-custom', 'zen-panel', 'custom-panel', 'zen-model', 'k-zen', 'k-zen-test', 'k-zen-status']
   ok('内置/自定义两个模式的节点齐全', modeIds.every(id => declared.has(id)), modeIds.filter(id => !declared.has(id)))
+  const testIds = ['k-test', 'k-test-status']
+  ok('测试连接按钮与状态位都在', testIds.every(id => declared.has(id)), testIds.filter(id => !declared.has(id)))
+  ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
   ok('自定义模式仍然保留原有表单节点', ['k-add', 'k-base', 'k-value', 'k-model', 'k-style'].every(id => declared.has(id)))
 }
 

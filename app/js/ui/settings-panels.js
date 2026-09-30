@@ -1,6 +1,6 @@
 // 设置面板：自定义 API Key（chat / response）
 import { openModal, closeModal, toast, confirmModal } from './modals.js'
-import { normalizeApiKey, endpointOf, maskKey, listModels } from '../engine/llm.js'
+import { normalizeApiKey, endpointOf, maskKey, listModels, testConnection } from '../engine/llm.js'
 import { esc } from '../engine/util.js'
 import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
@@ -140,6 +140,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     <div class="btn-row">
       <button class="btn btn-gold" id="k-add" type="button">${t('saveUse')}</button>
       <button class="btn" data-close type="button">${t('close')}</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-sm" id="k-test" type="button">${t('testConn')}</button>
+      <span style="font-size:12px;color:var(--faint);align-self:center" id="k-test-status"></span>
     </div>
     </div>
   `)
@@ -298,6 +302,41 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     refreshAll()
     closeModal()
     toast(t('apiSaved'))
+  }
+
+  // —— 测试连接：按当前表单发一次最小请求（未填模型则退化为拉模型列表） ——
+  const testBtn = document.getElementById('k-test')
+  const testStatus = document.getElementById('k-test-status')
+  if (testBtn) {
+    testBtn.onclick = async () => {
+      const apiStyle = selStyle.value === 'response' ? 'response' : 'chat'
+      const baseUrl = baseEl.value.trim()
+      const model = modelEl.value.trim()
+      const key = currentKey()
+      if (!baseUrl) { toast(t('fillBaseUrlKey')); return }
+      if (!key) { toast(t('fillApiKey')); return }
+      const old = testBtn.textContent
+      testBtn.disabled = true
+      testBtn.textContent = t('testing')
+      if (testStatus) testStatus.textContent = ''
+      let r
+      try {
+        r = await testConnection({ baseUrl, key, model, apiStyle })
+      } catch (e) {
+        r = { ok: false, ms: 0, error: (e && e.message) || '失败' }
+      }
+      testBtn.disabled = false
+      testBtn.textContent = old
+      const ms = Math.round(Number(r.ms) || 0)
+      const detail = r.reply
+        ? ' · ' + r.reply
+        : (r.count != null ? ' · ' + r.count + t('modelsN') : '')
+      const msg = r.ok
+        ? (t('testOk') + ' · ' + ms + 'ms' + detail + (r.switched ? ' · ' + t('zenReady') + r.switched : ''))
+        : (t('testFail') + (r.error || ''))
+      if (testStatus) testStatus.textContent = msg
+      toast(msg)
+    }
   }
 
   document.querySelectorAll('[data-del]').forEach(b => {

@@ -144,8 +144,49 @@ export async function callLLM(opts = {}) {
   return last || { ok: false, error: '内置免费通道调用失败' }
 }
 
+/**
+ * 测试连接：发一次最小请求，验证 Base URL / Key / 模型是否真的能用。
+ * 没填模型时退化为拉取模型列表（`GET {Base URL}/models`）。
+ * 内置免费通道会自动走指纹注入与换模型逻辑。
+ * @returns {Promise<{ok:boolean, ms:number, reply?:string, count?:number, url?:string, switched?:string, error?:string}>}
+ */
+export async function testConnection({ baseUrl, key, model, apiStyle, timeoutMs } = {}) {
+  const started = Date.now()
+  const base = String(baseUrl || '').trim()
+  const token = String(key || '').trim()
+  const mdl = String(model || '').trim()
+  const ms = () => Date.now() - started
+  if (!base) return { ok: false, ms: ms(), error: '请先填写 Base URL' }
+  if (!token) return { ok: false, ms: ms(), error: '请先填写 API Key' }
+
+  // 没填模型：退化为模型列表探测（同样能验证地址与密钥）
+  if (!mdl) {
+    const r = await listModels({ baseUrl: base, key: token })
+    if (r && r.ok) return { ok: true, ms: ms(), count: (r.models || []).length, url: r.url }
+    return { ok: false, ms: ms(), error: (r && r.error) || '连接失败', url: r && r.url }
+  }
+
+  const k = normalizeApiKey({ baseUrl: base, key: token, model: mdl, apiStyle })
+  if (!k) return { ok: false, ms: ms(), error: '配置不完整（需要 Base URL、Key、模型）' }
+  const t = Number(timeoutMs) > 0 ? Number(timeoutMs) : 20000
+  try {
+    const r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 16, timeoutMs: t })
+    if (r && r.ok) {
+      return {
+        ok: true,
+        ms: ms(),
+        reply: String(r.text || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+        switched: r.zenSwitched || undefined
+      }
+    }
+    return { ok: false, ms: ms(), error: (r && r.error) || '连接失败' }
+  } catch (e) {
+    return { ok: false, ms: ms(), error: (e && e.message) || '连接失败' }
+  }
+}
+
 /** 单次调用（不含内置通道的换模型重试） */
-async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId, forceJson }) {
+async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta, maxTokens, prevResponseId, forceJson, timeoutMs }) {
   const k = normalizeApiKey(keyObj)
   if (!k) {
     return { ok: false, error: '未配置有效的 API（需要 Base URL、Key、模型）' }
@@ -203,13 +244,14 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
 
   // 流式：chat / response 均支持；宿主 stream + 增量回调
   const canStream = typeof onDelta === 'function' && globalThis.awHost && globalThis.awHost.http && globalThis.awHost.http.stream && globalThis.awHost.http.onChunk && globalThis.awHost.http.onEnd
+  const reqMs = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS
   // 内置通道：补齐上游要求的 tools 与 stream，并用 tool_choice:none 压住工具调用
   if (zen) body = zenPatchBody(body, !!canStream)
   if (canStream) {
     body.stream = true
     let streamed = null
     try {
-      streamed = await callLLMStream({ k, url, body, signal, onDelta, apiStyle: isChat ? 'chat' : 'response' })
+      streamed = await callLLMStream({ k, url, body, signal, onDelta, apiStyle: isChat ? 'chat' : 'response', timeoutMs: reqMs })
     } catch (e) {
       streamed = null
     }
@@ -229,7 +271,7 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
           'Authorization': 'Bearer ' + k.key
         },
     body: JSON.stringify(body),
-    timeoutMs: DEFAULT_TIMEOUT_MS,
+    timeoutMs: reqMs,
     signal
   })
   try {
@@ -286,7 +328,7 @@ function normalizeContentText(v) {
 }
 
 /** SSE 流式：chat 读 choices.delta.content；response 读 response.output_text.delta */
-async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
+async function callLLMStream({ k, url, body, signal, onDelta, apiStyle, timeoutMs }) {
   const host = globalThis.awHost.http
   // end 只认本流 id；id 未就绪时挂起，避免并发串扰
   let streamId = null
@@ -372,7 +414,7 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle }) {
           'Accept': 'text/event-stream'
         },
     body: JSON.stringify(body),
-    timeoutMs: DEFAULT_TIMEOUT_MS
+    timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS
   })
   if (!started || !started.ok || !started.id) {
     // 启动失败必须把已注册的 chunk/end 监听一并注销，否则泄漏的 onChunk 会把后续并发流的增量灌进本回调

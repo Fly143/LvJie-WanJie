@@ -85,7 +85,7 @@ API settings has two modes, switchable at the top:
 | Mode | What it does |
 | --- | --- |
 | **Built-in free** | Pick from the probed free models (defaults to the first working one); "Test channel" re-probes; one tap to enable |
-| **Custom** | Your own Base URL / API key / model; multiple saved profiles with switching |
+| **Custom** | Your own Base URL / API key / model; multiple saved profiles with switching, plus "Test connection" |
 
 > This channel works by injecting a client fingerprint and is **experimental**: upstream tightening can break it at any time — then just enter your own API key. Using your own key is recommended even when it works (more stable, more model choice).
 
