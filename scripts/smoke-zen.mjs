@@ -313,12 +313,18 @@ ok('zenConfig 形状正确', (() => {
   }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
   ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
-  // 排序：免费档靠前，星火与商汤必须排在商业 API 之前
+  // 排序：免费档靠前；商汤文本模型是付费的，必须排在免费档之后
   const idxOf = (id) => list.findIndex(p => p.id === id)
-  ok('星火排在商业 API 之前', idxOf('spark') >= 0 && idxOf('spark') < idxOf('deepseek'), { spark: idxOf('spark'), deepseek: idxOf('deepseek') })
-  ok('商汤排在商业 API 之前', idxOf('sensenova') >= 0 && idxOf('sensenova') < idxOf('deepseek'), { sensenova: idxOf('sensenova'), deepseek: idxOf('deepseek') })
-  ok('前 5 个都是免费档（带 tag）', list.slice(0, 5).every(p => !!p.tag), list.slice(0, 5).map(p => p.id + ':' + p.tag))
-  ok('免费档标签文案齐全', ['长期免费', '免费', '首月免费', '免费档', '部分免费'].every(x => list.some(p => p.tag === x)))
+  const FREE_TAGS = ['免费开放', '免费', '免费档', '部分免费']
+  ok('前 4 个都是免费档', list.slice(0, 4).every(p => FREE_TAGS.includes(p.tag)), list.slice(0, 4).map(p => p.id + ':' + p.tag))
+  ok('免费档后面全是商业 API', list.slice(4).every(p => !FREE_TAGS.includes(p.tag)), list.slice(4).map(p => p.id + ':' + p.tag))
+  ok('书生·浦语排第一', idxOf('intern') === 0)
+  ok('商汤不是免费档（文本模型付费）', list.find(p => p.id === 'sensenova').tag === '限时活动', list.find(p => p.id === 'sensenova').tag)
+  ok('商汤排在免费档之后', idxOf('sensenova') > idxOf('siliconflow'), { sensenova: idxOf('sensenova'), siliconflow: idxOf('siliconflow') })
+  ok('商汤备注写明文本付费与图片模型免费', (() => {
+    const s = list.find(p => p.id === 'sensenova')
+    return /付费/.test(s.note) && /u1\.5-lite/.test(s.note)
+  })())
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址

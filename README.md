@@ -109,19 +109,19 @@ API 设置里是两种使用方式，顶部切换：
 
 | 类别 | 服务商 | Base URL | 默认模型 | 申请 Key（点进去创建后复制） |
 | --- | --- | --- | --- | --- |
-| **免费档（排在前面，推荐先试）** | **书生·浦语（Intern-AI）** 长期免费 | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
-| | **讯飞星火** 免费（tokens 不限、QPS 2） | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
-| | **商汤日日新** 首月免费 | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
-| | 智谱 GLM 免费档 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
-| | 硅基流动 部分模型免费 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
-| **主流商业 API** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
+| **免费档（排在前面）** | **书生·浦语（Intern-AI）** 免费开放 | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
+| | **讯飞星火** lite 档免费 | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
+| | 智谱 GLM flash 档通常免费 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
+| | 硅基流动 部分小模型免费 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
+| **主流商业 API（付费）** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
 | | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
 | | 阿里通义千问（百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
 | | 字节豆包（火山方舟） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
-| | 腾讯混元（TokenHub） | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
+| | 腾讯混元（TokenHub） 有免费体验包 | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
+| | 商汤日日新 **文本模型付费**（2026-05 曾有「注册首月限时免费」活动，是否仍有效以控制台为准） | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
 
-> 预设只收录**端点已按官方文档核实**的服务商（2026-09）；各家的模型名与免费政策会变，面板里的备注会写明，最终以官方为准。填完 Key 后点「测试连接」即可验证（只发一次最小请求）。
+> 免费档的额度/政策以各家官方公告与定价页为准（面板备注里写明了依据）。**商汤长期免费的是图片模型 `sensenova-u1.5-lite`（文生图），本应用用不到**——文本模型 SenseChat-5 属付费服务，所以它排在商业区。
 
 #### 书生·浦语（Intern-AI）申请步骤
 
