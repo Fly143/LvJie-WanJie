@@ -112,8 +112,8 @@ API 设置里是两种使用方式，顶部切换：
 | **免费** | **书生·浦语（Intern-AI）** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
 | | **讯飞星火**（免费档 `lite`） | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
 | | **智谱 GLM**（免费档 `glm-4.7-flash`，**需账号有余额**） | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
-| **其他主流服务商** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
-| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
+| **其他主流服务商** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | https://platform.xiaomimimo.com/#/console/api-keys |
+| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | https://platform.deepseek.com/api_keys |
 | | 阿里通义千问（百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
 | | 字节豆包（火山方舟） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |

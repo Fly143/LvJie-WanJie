@@ -74,15 +74,15 @@ export const PROVIDER_PRESETS = [
     id: 'mimo',
     name: '小米 MiMo',
     baseUrl: 'https://api.xiaomimimo.com/v1',
-    model: 'mimo-v2.6-pro',
+    model: 'mimo-v2.6-flash',
     apiStyle: 'chat',
     keyUrl: 'https://platform.xiaomimimo.com/#/console/api-keys',
     loginUrl: 'https://platform.xiaomimimo.com/',
-    models: ['mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.6-pro-ultraspeed'],
+    models: ['mimo-v2.6-flash', 'mimo-v2.6-pro'],
     howto: [
       '① 打开 {key} 注册并登录小米 MiMo 开放平台（也可从 platform.xiaomimimo.com 进入后点左侧「API Keys」）',
       '② 在「API Keys」页创建密钥（格式 sk-xxxxx）并复制',
-      '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-pro，也可选 flash / ultraspeed',
+      '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-flash（更快更省），想用更强的可选 mimo-v2.6-pro',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -90,15 +90,15 @@ export const PROVIDER_PRESETS = [
     id: 'deepseek',
     name: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
+    model: 'deepseek-flash',
     apiStyle: 'chat',
     keyUrl: 'https://platform.deepseek.com/api_keys',
     loginUrl: 'https://platform.deepseek.com/',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
     howto: [
       '① 打开 {key} 登录 DeepSeek 开放平台（需先注册并充值）',
       '② 点「创建 API key」并复制（只显示一次）',
-      '③ 回到本页粘贴到「API Key」；模型填 deepseek-chat 或 deepseek-reasoner',
+      '③ 回到本页粘贴到「API Key」；模型默认 deepseek-flash（官方当前在售的 Flash 档），想用更强推理可选 deepseek-v4-pro —— 旧的 deepseek-chat / deepseek-reasoner 已不在官方价格表中，别再用',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },

@@ -335,7 +335,14 @@ ok('zenConfig 形状正确', (() => {
   ok('星火步骤写明免费档是 lite', /lite/.test((list.find(p => p.id === 'spark').howto || []).join(' ')))
   ok('书生步骤写明整个系列免费', /免费范围/.test((list.find(p => p.id === 'intern').howto || []).join(' ')))
   ok('商汤不带免费标记', !list.find(p => p.id === 'sensenova').tag, idxOf('sensenova'))
-  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
+  // 模型名必须跟着官方当前在售的走（旧名会调用失败或被路由到别的模型）
+  const mimoP = list.find(p => p.id === 'mimo')
+  ok('MiMo 默认用 flash 档', mimoP.model === 'mimo-v2.6-flash', mimoP.model)
+  ok('MiMo 候选里去掉 ultraspeed', !(mimoP.models || []).some(m => /ultraspeed/i.test(m)), mimoP.models)
+  const dsP = list.find(p => p.id === 'deepseek')
+  ok('DeepSeek 默认用当前在售的 deepseek-flash', dsP.model === 'deepseek-flash', dsP.model)
+  ok('DeepSeek 不再列旧模型名', !['deepseek-chat', 'deepseek-reasoner'].some(m => (dsP.models || []).includes(m)), dsP.models)
+  ok('DeepSeek 教程提醒旧名已不可用', /deepseek-chat \/ deepseek-reasoner 已不在/.test((dsP.howto || []).join(' ')))  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
   const FREE_IDS = ['intern', 'spark', 'zhipu']
   const others = list.filter(p => !FREE_IDS.includes(p.id))
   ok('其余家教程不谈免费政策', others.every(p => !/免费|白嫖|额度/.test((p.howto || []).join(' '))), others.filter(p => /免费|白嫖|额度/.test((p.howto || []).join(' '))).map(p => p.id))

@@ -112,8 +112,8 @@ The **Custom** panel starts with presets for common providers. One tap will:
 | **Free** | **Intern-AI** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
 | | **iFlytek Spark** (free `lite` tier) | `https://spark-api-open.xf-yun.com/v1` | `lite` | https://console.xfyun.cn/services/cbm |
 | | **Zhipu GLM** (free `glm-4.7-flash`, **needs a non-zero balance**) | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.7-flash` | https://open.bigmodel.cn/usercenter/apikeys |
-| **Other mainstream providers** | Xiaomi MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
-| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
+| **Other mainstream providers** | Xiaomi MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-flash` | https://platform.xiaomimimo.com/#/console/api-keys |
+| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | https://platform.deepseek.com/api_keys |
 | | Alibaba Qwen (Bailian) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
 | | Moonshot Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
 | | ByteDance Doubao (Ark) | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
