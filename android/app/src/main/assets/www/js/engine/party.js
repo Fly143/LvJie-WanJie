@@ -80,43 +80,96 @@ export function syncPartyTo(S, locId) {
   return members.length
 }
 
-/** 该 NPC 是否在当前场景（人物表里），或压根没有任何已知位置 */
+/** 该 NPC 是否在当前场景（人物表里）、在哪个地点，或压根没有任何已知位置 */
 function locationState(S, name) {
   let somewhere = false
+  let locId = null
   for (const l of S.map || []) {
     if (!Array.isArray(l.people)) continue
     if (!l.people.some(p => p && p.name === name)) continue
-    somewhere = true
-    if (l.id === S.currentLoc) return { here: true, somewhere: true }
+    if (!somewhere) { somewhere = true; locId = l.id }
+    if (l.id === S.currentLoc) return { here: true, somewhere: true, locId: l.id }
   }
-  return { here: false, somewhere }
+  return { here: false, somewhere, locId }
+}
+
+/** 邀请时的出发点（解除同行时可选择送回） */
+export function originOf(S, f) {
+  const id = f && f.partyFromLocId
+  if (!id) return null
+  const l = (S.map || []).find(x => x.id === id)
+  return l ? { id: l.id, name: l.name } : null
+}
+
+/** 把 NPC 放回指定地点（先摘干净其它地点的人物表） */
+function restoreTo(S, f, locId) {
+  const name = String(f.name || '')
+  const target = (S.map || []).find(l => l.id === locId)
+  if (!target) return false
+  for (const l of S.map || []) {
+    if (!Array.isArray(l.people)) continue
+    l.people = l.people.filter(p => !(p && p.name === name))
+  }
+  if (!Array.isArray(target.people)) target.people = []
+  target.people.push(personOf(f))
+  return true
 }
 
 /**
  * 邀请 / 结束同行。
- * @returns {{ok:boolean, name?:string, on?:boolean, changed?:boolean, reason?:string}}
+ * @param {object} [opts] 结束同行时：`{ returnTo: true }` 把 NPC 送回邀请前的地点
+ * @returns {{ok:boolean, name?:string, on?:boolean, changed?:boolean, reason?:string, returned?:boolean, to?:string}}
  *  reason: 'missing'（没有这个人）| 'nothere'（不在同一场景）
  */
-export function setParty(S, name, on) {
+export function setParty(S, name, on, opts = {}) {
   const f = findFriend(S, name)
   if (!f) return { ok: false, reason: 'missing' }
   const want = on === undefined ? !(f.party === true) : !!on
-  if (!want) {
-    if (!f.party) return { ok: true, name: f.name, on: false, changed: false }
-    f.party = false
-    delete f.partySince
-    addFriendHistory(f, '结束了与你的同行')
-    return { ok: true, name: f.name, on: false, changed: true }
-  }
+  if (!want) return dismissOne(S, f, opts)
   if (f.party) return { ok: true, name: f.name, on: true, changed: false }
   const st = locationState(S, f.name)
   // 行踪不明的人（地图上没有位置）也允许邀请；明确在别处则要求同场景
   if (!st.here && st.somewhere) return { ok: false, reason: 'nothere', name: f.name }
   f.party = true
   f.partySince = Number(S.ageDays) || 0
+  // 记住出发点：解除同行时可选择送回（行踪不明者没有出发点）
+  f.partyFromLocId = st.somewhere ? st.locId : null
   addFriendHistory(f, '开始与你同行')
   syncPartyTo(S, S.currentLoc)
   return { ok: true, name: f.name, on: true, changed: true }
+}
+
+/** 解除单个同行者；opts.returnTo 为真且记得出发点时送回原处，否则留在原地 */
+export function dismissOne(S, f, opts = {}) {
+  if (!f || !f.party) return { ok: true, name: f && f.name, on: false, changed: false }
+  const origin = originOf(S, f)
+  const back = opts.returnTo === true && !!origin
+  f.party = false
+  delete f.partySince
+  delete f.partyFromLocId
+  if (back) {
+    restoreTo(S, f, origin.id)
+    addFriendHistory(f, `结束了与你的同行，返回${origin.name}`)
+  } else {
+    addFriendHistory(f, '结束了与你的同行')
+  }
+  return { ok: true, name: f.name, on: false, changed: true, returned: back, to: back ? origin.name : '' }
+}
+
+/** 解散全队；opts.returnTo 为真时能送回的都送回原处 */
+export function dismissAll(S, opts = {}) {
+  const list = partyMembers(S)
+  const done = []
+  for (const f of list) {
+    const r = dismissOne(S, f, opts)
+    if (r.changed) done.push(r)
+  }
+  return {
+    ok: true,
+    count: done.length,
+    returned: done.filter(x => x.returned).length,
+    names: done.map(x => x.name)
+  }
 }
 
 /** 提示词用：同行者简报 */

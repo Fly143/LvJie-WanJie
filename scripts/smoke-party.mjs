@@ -20,7 +20,7 @@ const { newGame } = await import(base + '/engine/state.js')
 const { applyChanges } = await import(base + '/engine/changes.js')
 const { travel, gateReason, curLoc } = await import(base + '/engine/map.js')
 const { setParty, partyNames, partyBrief, syncPartyTo, isParty } = await import(base + '/engine/party.js')
-const { partyInteract, canInteractToday, partyDays, PARTY_DAILY_FAVOR } = await import(base + '/engine/party.js')
+const { partyInteract, canInteractToday, partyDays, PARTY_DAILY_FAVOR, dismissAll, originOf } = await import(base + '/engine/party.js')
 const { addFriendHistory, friendRecentLines, advanceFriendDays } = await import(base + '/engine/npc-memory.js')
 const { buildSystemPrompt } = await import(base + '/engine/prompt.js')
 const { totalPowerF, powerBreakdown, partyPowerF, friendPowerF } = await import(base + '/engine/power.js')
@@ -196,6 +196,70 @@ if (elsewhere) {
     const tr = travel(S, back.name)
     ok('旅行推进同伴年龄', !tr.ok || anyFriend.ageDays === before + (tr.days || 0), { before, after: anyFriend.ageDays, days: tr.days })
   }
+}
+
+// —— 解除同行：留在原地 / 返回原处 / 解散全队 ——
+{
+  // A：留在原地
+  const A = newGame('甲测试', packId)
+  const aHome = curLoc(A)
+  const aDest = A.map.find(l => l.id !== A.currentLoc && !gateReason(A, curLoc(A), l))
+  applyChanges(A, { friends: [{ name: '同伴A', rank: '凡人中期', gender: '男', power: 5 }] })
+  aHome.people = aHome.people || []
+  aHome.people.push({ name: '同伴A' })
+  setParty(A, '同伴A', true)
+  ok('A 邀请时记住出发点', (originOf(A, A.friends[0]) || {}).id === aHome.id, originOf(A, A.friends[0]))
+  if (aDest) {
+    travel(A, aDest.name)
+    const d = setParty(A, '同伴A', false)
+    ok('A 留在原地：仍在当前场景', d.returned === false && (curLoc(A).people || []).some(p => p.name === '同伴A'), d)
+    ok('A 留在原地：未回出发地', !((A.map.find(l => l.id === aHome.id).people) || []).some(p => p.name === '同伴A'))
+  }
+
+  // B：返回原处
+  const B = newGame('乙测试', packId)
+  const bHome = curLoc(B)
+  const bDest = B.map.find(l => l.id !== B.currentLoc && !gateReason(B, curLoc(B), l))
+  applyChanges(B, { friends: [{ name: '同伴B', rank: '凡人中期', gender: '男', power: 5 }] })
+  bHome.people = bHome.people || []
+  bHome.people.push({ name: '同伴B' })
+  setParty(B, '同伴B', true)
+  if (bDest) {
+    travel(B, bDest.name)
+    const d = setParty(B, '同伴B', false, { returnTo: true })
+    ok('B 返回原处：标记正确', d.returned === true && d.to === bHome.name, d)
+    ok('B 返回原处：回到出发地人物表', ((B.map.find(l => l.id === bHome.id).people) || []).some(p => p.name === '同伴B'))
+    ok('B 返回原处：已离开当前场景', !(curLoc(B).people || []).some(p => p.name === '同伴B'))
+  }
+
+  // C：解散全队（各自返回原处）
+  const C = newGame('丙测试', packId)
+  const cHome = curLoc(C)
+  applyChanges(C, {
+    friends: [
+      { name: '丙一', rank: '凡人中期', gender: '男', power: 5 },
+      { name: '丙二', rank: '凡人中期', gender: '女', power: 4 }
+    ]
+  })
+  cHome.people = cHome.people || []
+  cHome.people.push({ name: '丙一' }, { name: '丙二' })
+  setParty(C, '丙一', true)
+  setParty(C, '丙二', true)
+  ok('C 前置：两人同行', partyNames(C).length === 2, partyNames(C))
+  const cDest = C.map.find(l => l.id !== C.currentLoc && !gateReason(C, curLoc(C), l))
+  if (cDest) travel(C, cDest.name)
+  const all = dismissAll(C, { returnTo: true })
+  ok('C 解散全队：全部解除', all.count === 2 && partyNames(C).length === 0, all)
+  ok('C 解散全队：全部返回原处', all.returned === 2, all)
+  ok('C 解散全队：原处人物表恢复两人',
+    (((C.map.find(l => l.id === cHome.id) || {}).people) || []).filter(p => /丙/.test(p.name)).length === 2)
+
+  // D：行踪不明者没有出发点
+  const D = newGame('丁测试', packId)
+  applyChanges(D, { friends: [{ name: '丁某', rank: '凡人中期', gender: '男', power: 3 }] })
+  ok('D 行踪不明者邀请成功', setParty(D, '丁某', true).ok === true)
+  ok('D 行踪不明者无出发点', originOf(D, D.friends[0]) === null)
+  ok('D 无出发点时要求返回也不报错', setParty(D, '丁某', false, { returnTo: true }).returned === false)
 }
 
 console.log(`PARTY ${pass}/${pass + fail}`)

@@ -11,7 +11,7 @@ import { toggleEquip, equipSummary, ensureEquipFlags } from '../engine/equip.js'
 import { packUi, packFeatures, sceneActionsOf } from '../engine/pack-ui.js'
 import { sanitizeManualData, manualDesc, forgetOldTechniques } from '../engine/techniques.js'
 import { relationLines, addFriendHistory, friendRecentLines } from '../engine/npc-memory.js'
-import { setParty, isParty, partyMembers, partyDays, canInteractToday, partyInteract } from '../engine/party.js'
+import { setParty, isParty, partyMembers, partyDays, canInteractToday, partyInteract, dismissAll, originOf } from '../engine/party.js'
 import { questMarkers, questStatusLabel } from '../engine/quests.js'
 import { propose, divorce, canPropose, showPropose, genderMatchesPref, marriageEnabled, proposeWord, divorceWord, spouseLabel, spouseWord, marriedList, PROPOSE_MIN_FAVOR, addGrudge, removeGrudge } from '../engine/marriage.js'
 
@@ -467,6 +467,9 @@ export function renderFriends(app, api) {
       </div>
       <h3 style="margin-top:16px">⚔️ ${t('partyTitle')} <span class="ctype">${t('partyPower')} ${fmtNum(partyPowerF(S))}</span></h3>
       ${partyMembers(S).length ? `
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn btn-sm" id="party-dismiss-all" type="button">${t('partyDismissAll')}</button>
+      </div>
       <div class="grid" style="margin-top:8px">
         ${partyMembers(S).map(f => {
           const days = partyDays(S, f)
@@ -479,7 +482,7 @@ export function renderFriends(app, api) {
             <div class="cdim">${t('partyDays')} ${fmtNum(days)} ${t('dayUnit')}${recent ? ' · ' + esc(recent) : ''}</div>
             <div class="cbtn">
               <button class="btn btn-sm ${canTalk ? 'btn-gold' : ''}" data-ptalk="${esc(f.name)}" type="button" ${canTalk ? '' : 'disabled'}>${canTalk ? t('partyTalk') : t('partyTalkDone')}</button>
-              <button class="btn btn-sm" data-pleave="${esc(f.name)}" type="button">${t('partyLeave')}</button>
+              <button class="btn btn-sm" data-pdismiss="${esc(f.name)}" type="button">${t('partyLeave')}</button>
             </div>
           </div>`
         }).join('')}
@@ -685,11 +688,36 @@ export function renderFriends(app, api) {
       )
     }
   })
+  // 结束同行：可选择「留在原地」或「返回原处」（记得出发点时才给返回选项）
+  const askDismiss = (f) => {
+    const origin = originOf(S, f)
+    const canBack = !!(origin && origin.id !== S.currentLoc)
+    openModal(`
+      <h2>${t('partyLeave')}</h2>
+      <p style="color:var(--text)">${esc(f.name)}</p>
+      <div class="btn-row">
+        <button class="btn btn-gold" data-dmode="stay" type="button">${t('partyStayHere')}</button>
+        ${canBack ? `<button class="btn" data-dmode="back" type="button">${t('partyBackTo')}${esc(origin.name)}</button>` : ''}
+        <button class="btn" data-close type="button">${t('cancel')}</button>
+      </div>
+    `)
+    document.querySelectorAll('[data-dmode]').forEach(b => {
+      b.onclick = () => {
+        const r = setParty(S, f.name, false, { returnTo: b.dataset.dmode === 'back' })
+        closeModal()
+        api.toast(r.returned ? (f.name + t('partyReturned') + r.to) : (f.name + t('partyLeft')))
+        api.save()
+        api.refreshAll()
+      }
+    })
+  }
+
   main.querySelectorAll('[data-party]').forEach(b => {
     b.onclick = () => {
       const f = S.friends[Number(b.dataset.party)]
       if (!f) return
-      const r = setParty(S, f.name, !(f.party === true))
+      if (f.party === true) { askDismiss(f); return }
+      const r = setParty(S, f.name, true)
       if (!r.ok) {
         api.toast(r.reason === 'nothere' ? t('partyNeedSame') : t('partyMissing'))
         return
@@ -699,15 +727,36 @@ export function renderFriends(app, api) {
       api.refreshAll()
     }
   })
-  main.querySelectorAll('[data-pleave]').forEach(b => {
+  main.querySelectorAll('[data-pdismiss]').forEach(b => {
     b.onclick = () => {
-      const r = setParty(S, b.dataset.pleave, false)
-      if (!r.ok) { api.toast(t('partyMissing')); return }
-      api.toast(r.name + t('partyLeft'))
-      api.save()
-      api.refreshAll()
+      const f = (S.friends || []).find(x => x && x.name === b.dataset.pdismiss)
+      if (!f) { api.toast(t('partyMissing')); return }
+      askDismiss(f)
     }
   })
+  const allBtn = document.getElementById('party-dismiss-all')
+  if (allBtn) {
+    allBtn.onclick = () => {
+      openModal(`
+        <h2>${t('partyDismissAll')}</h2>
+        <p style="color:var(--text)">${t('partyDismissAllWarn')}</p>
+        <div class="btn-row">
+          <button class="btn btn-gold" data-allmode="stay" type="button">${t('partyStayHere')}</button>
+          <button class="btn" data-allmode="back" type="button">${t('partyBackOrigin')}</button>
+          <button class="btn" data-close type="button">${t('cancel')}</button>
+        </div>
+      `)
+      document.querySelectorAll('[data-allmode]').forEach(b => {
+        b.onclick = () => {
+          const r = dismissAll(S, { returnTo: b.dataset.allmode === 'back' })
+          closeModal()
+          api.toast(r.count + t('partyDismissedN'))
+          api.save()
+          api.refreshAll()
+        }
+      })
+    }
+  }
   main.querySelectorAll('[data-ptalk]').forEach(b => {
     b.onclick = () => {
       const r = partyInteract(S, b.dataset.ptalk)
