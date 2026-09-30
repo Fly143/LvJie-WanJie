@@ -299,7 +299,10 @@ ok('zenConfig 形状正确', (() => {
   ok('预设 id 唯一', new Set(list.map(p => p.id)).size === list.length)
   ok('预设 baseUrl 唯一', new Set(list.map(p => p.baseUrl)).size === list.length)
   ok('预设都是 https 的 chat 端点', list.every(p => /^https:\/\//.test(p.baseUrl) && p.apiStyle === 'chat'), list.map(p => p.baseUrl))
-  ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl && p.note), list)
+  ok('预设字段齐全', list.every(p => p.id && p.name && p.model && p.keyUrl), list)
+  // 备注只给「免费政策容易过期」的书生·浦语与讯飞星火，其他家不写备注
+  const noteIds = list.filter(p => p.note).map(p => p.id)
+  ok('只有书生与讯飞带备注', noteIds.length === 2 && noteIds.includes('intern') && noteIds.includes('spark'), noteIds)
   // 国内主流覆盖度
   const needIds = ['intern', 'mimo', 'deepseek', 'qwen', 'kimi', 'zhipu', 'doubao', 'spark', 'hunyuan', 'sensenova', 'siliconflow']
   ok('覆盖国内主流服务商', needIds.every(id => list.some(p => p.id === id)), needIds.filter(id => !list.some(p => p.id === id)))
@@ -313,18 +316,13 @@ ok('zenConfig 形状正确', (() => {
   }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
   ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
-  // 排序：免费档靠前；商汤文本模型是付费的，必须排在免费档之后
+  // 排序：真正免费的两家在最前；其余不带免费标记（GLM 免费档需账号有余额，商汤文本付费）
   const idxOf = (id) => list.findIndex(p => p.id === id)
-  const FREE_TAGS = ['免费开放', '免费', '免费档', '部分免费']
-  ok('前 4 个都是免费档', list.slice(0, 4).every(p => FREE_TAGS.includes(p.tag)), list.slice(0, 4).map(p => p.id + ':' + p.tag))
-  ok('免费档后面全是商业 API', list.slice(4).every(p => !FREE_TAGS.includes(p.tag)), list.slice(4).map(p => p.id + ':' + p.tag))
-  ok('书生·浦语排第一', idxOf('intern') === 0)
-  ok('商汤不是免费档（文本模型付费）', list.find(p => p.id === 'sensenova').tag === '限时活动', list.find(p => p.id === 'sensenova').tag)
-  ok('商汤排在免费档之后', idxOf('sensenova') > idxOf('siliconflow'), { sensenova: idxOf('sensenova'), siliconflow: idxOf('siliconflow') })
-  ok('商汤备注写明文本付费与图片模型免费', (() => {
-    const s = list.find(p => p.id === 'sensenova')
-    return /付费/.test(s.note) && /u1\.5-lite/.test(s.note)
-  })())
+  ok('前两家是书生·浦语与讯飞星火', list[0].id === 'intern' && list[1].id === 'spark', list.slice(0, 2).map(p => p.id))
+  ok('免费标记只给这两家', list.filter(p => p.tag).length === 2 && list.filter(p => p.tag).every(p => p.id === 'intern' || p.id === 'spark'), list.filter(p => p.tag).map(p => p.id))
+  ok('GLM 不在免费区（需账号余额）', idxOf('zhipu') >= 2 && !list.find(p => p.id === 'zhipu').tag, { zhipu: idxOf('zhipu'), tag: list.find(p => p.id === 'zhipu').tag })
+  ok('GLM 步骤里写明「需有余额」', /余额/.test((list.find(p => p.id === 'zhipu').howto || []).join(' ')))
+  ok('商汤不带免费标记且排在商业区', !list.find(p => p.id === 'sensenova').tag && idxOf('sensenova') >= 2, idxOf('sensenova'))
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址

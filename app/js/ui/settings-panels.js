@@ -110,7 +110,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     <div id="custom-panel" style="display:${zenMode ? 'none' : ''}">
     <h3>${t('providerPreset')}</h3>
     <div class="btn-row" style="flex-wrap:wrap;gap:6px">
-      ${PROVIDER_PRESETS.map(p => `<button class="btn btn-sm" data-preset="${esc(p.id)}" type="button" title="${esc(p.note)}">${esc(p.name)}${p.tag ? ' · ' + esc(p.tag) : ''}</button>`).join('')}
+      ${PROVIDER_PRESETS.map(p => `<button class="btn btn-sm" data-preset="${esc(p.id)}" type="button" title="${esc(p.note || p.name)}">${esc(p.name)}${p.tag ? ' · ' + esc(p.tag) : ''}</button>`).join('')}
     </div>
     <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-preset-hint">${t('providerPresetHint')}</div>
     <div id="k-preset-box" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;font-size:12px;color:var(--dim);line-height:1.7"></div>
@@ -334,7 +334,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
             '</select></div>'
           : ''
         box.innerHTML =
-          `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''} —— ${esc(p.note)}<br>` +
+          `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}<br>` +
           presetSteps(p).map(s => esc(s)).join('<br>') +
           modelSel +
           `<div style="margin-top:6px">${t('providerGetKey')}` +
