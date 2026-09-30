@@ -334,7 +334,16 @@ ok('zenConfig 形状正确', (() => {
   // 免费档教程要写明「免费的是哪个模型」
   ok('星火步骤写明免费档是 lite', /lite/.test((list.find(p => p.id === 'spark').howto || []).join(' ')))
   ok('书生步骤写明整个系列免费', /免费范围/.test((list.find(p => p.id === 'intern').howto || []).join(' ')))
-  ok('商汤不带免费标记且写明文本付费', !list.find(p => p.id === 'sensenova').tag && /付费/.test((list.find(p => p.id === 'sensenova').howto || []).join(' ')), idxOf('sensenova'))
+  ok('商汤不带免费标记', !list.find(p => p.id === 'sensenova').tag, idxOf('sensenova'))
+  // 教程详略：只有免费三家的 howto 谈免费政策；其余 8 家只写标准四步
+  const FREE_IDS = ['intern', 'spark', 'zhipu']
+  const others = list.filter(p => !FREE_IDS.includes(p.id))
+  ok('其余家教程不谈免费政策', others.every(p => !/免费|白嫖|额度/.test((p.howto || []).join(' '))), others.filter(p => /免费|白嫖|额度/.test((p.howto || []).join(' '))).map(p => p.id))
+  ok('其余家教程保持精简（≤4 步）', others.every(p => (p.howto || []).length <= 4), others.map(p => p.id + '=' + (p.howto || []).length))
+  ok('免费三家教程写细（≥5 步且含免费说明）', FREE_IDS.every(id => {
+    const p = list.find(x => x.id === id)
+    return (p.howto || []).length >= 5 && /免费/.test((p.howto || []).join(' '))
+  }), FREE_IDS.map(id => id + '=' + list.find(x => x.id === id).howto.length))
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))
   ok('含商汤日日新', list.some(p => p.id === 'sensenova' && /sensenova/.test(p.baseUrl)))
   // 申请引导：每家都要有分步说明与申请地址

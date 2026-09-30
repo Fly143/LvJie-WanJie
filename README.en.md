@@ -121,7 +121,7 @@ The **Custom** panel starts with presets for common providers. One tap will:
 | | SenseNova | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ (then "API Key" in the left menu) |
 | | Tencent Hunyuan (TokenHub) | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
 
-> Only **Intern-AI** and **iFlytek Spark** carry a free-tier note in the app (free policies expire fastest; the others deliberately have none). The common pitfalls are spelled out in each in-app walkthrough: **Zhipu's free Flash tier requires a non-zero account balance** (a zero balance returns "insufficient balance"; top up any small amount via "Finance/Recharge" — the minimum is whatever the page shows; the balance is only a gate and free models don't consume it), **iFlytek's free tier is `lite`**, **SenseNova text models are paid** (its permanently free offering is the image model `sensenova-u1.5-lite`, unusable here), and **Doubao requires enabling the model in Ark's "开通管理" first**. Quotas follow each vendor's announcements.
+> In the app, only the **three free options (Intern-AI, iFlytek Spark, Zhipu GLM)** carry a detailed free-tier walkthrough: which model is free, whether you need to top up, and how much (e.g. **Zhipu's free Flash tier requires a non-zero balance** — a zero balance returns "insufficient balance"; add any small custom amount via "Finance/Recharge", since the balance is only a gate and free models don't consume it). Every other provider keeps the four standard steps: open the key page → create and copy the key → paste into "API Key" → "Test connection". Quotas follow each vendor's announcements.
 
 #### Intern-AI: getting a key
 

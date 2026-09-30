@@ -1,11 +1,12 @@
 // 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
 // 都必须是 OpenAI 兼容的 chat/completions 端点（我们只用这一种协议接第三方）。
 //
-// 维护说明：URL、模型名与免费政策均按各家官方文档核对（2026-09）。改动时请同步更新 howto/keyUrl。
+// 维护说明：URL 与模型名按各家官方文档核对（2026-09）。改动时请同步更新 howto/keyUrl。
 // 只收录「端点已核实」的服务商；拿不准的一律不加，避免给玩家填错地址。
 //
 // 排序：能免费用的排最前（书生·浦语、讯飞星火、智谱 GLM），其余按主流程度排。
-// note 只给免费政策容易过期的两家（书生·浦语、讯飞星火）；其余家的细节写在 howto 步骤里。
+// 教程详略：只有这三家免费档写细（免费的是哪个模型、要不要充值、充多少）；
+// 其余家只写标准四步（打开申请页 → 创建并复制 Key → 粘到哪里 → 测试连接），不谈免费政策。
 
 export const PROVIDER_PRESETS = [
   {
@@ -80,8 +81,8 @@ export const PROVIDER_PRESETS = [
     models: ['mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.6-pro-ultraspeed'],
     howto: [
       '① 打开 {key} 注册并登录小米 MiMo 开放平台（也可从 platform.xiaomimimo.com 进入后点左侧「API Keys」）',
-      '② 在「API Keys」页创建密钥（格式 sk-xxxxx），复制；按量计费，需先在控制台充值（或购买 Token Plan 订阅包）',
-      '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-pro，也可选 flash（更快更省）/ ultraspeed',
+      '② 在「API Keys」页创建密钥（格式 sk-xxxxx）并复制',
+      '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-pro，也可选 flash / ultraspeed',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -95,9 +96,9 @@ export const PROVIDER_PRESETS = [
     loginUrl: 'https://platform.deepseek.com/',
     models: ['deepseek-chat', 'deepseek-reasoner'],
     howto: [
-      '① 打开 {login} 注册并登录 DeepSeek 开放平台',
-      '② 先在「充值」页充值（不支持免费额度，必须有钱才能调），再打开 {key} 点「创建 API key」并复制（只显示一次）',
-      '③ 回到本页粘贴到「API Key」；模型填 deepseek-chat（通用）或 deepseek-reasoner（推理更强、也更贵）',
+      '① 打开 {key} 登录 DeepSeek 开放平台（需先注册并充值）',
+      '② 点「创建 API key」并复制（只显示一次）',
+      '③ 回到本页粘贴到「API Key」；模型填 deepseek-chat 或 deepseek-reasoner',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -111,11 +112,10 @@ export const PROVIDER_PRESETS = [
     loginUrl: 'https://bailian.console.aliyun.com/',
     models: ['qwen-plus', 'qwen-turbo', 'qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-flash'],
     howto: [
-      '① 打开 {key} 登录阿里云百炼控制台（需阿里云账号 + 实名认证）',
-      '② 右上角头像 → 「API-KEY」→ 创建我的 API-KEY，复制',
-      '③ 说明：百炼对新用户/新模型常有免费额度（在控制台「费用与成本 / 额度」里能看到剩余量），用完后按量计费——想省钱选便宜的 qwen-turbo / qwen3.6-flash，qwen3.7-max 最贵',
-      '④ 回到本页粘贴到「API Key」；模型默认 qwen-plus',
-      '⑤ 点「测试连接」验证后「保存并选用」'
+      '① 打开 {key} 登录阿里云百炼控制台',
+      '② 右上角头像 → 「API-KEY」→ 创建我的 API-KEY 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 qwen-plus',
+      '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
   {
@@ -129,8 +129,8 @@ export const PROVIDER_PRESETS = [
     models: ['kimi-k2.6', 'kimi-k2.5', 'kimi-k2', 'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
     howto: [
       '① 打开 {key} 登录 Moonshot 开放平台（手机号注册）',
-      '② 在「API Key 管理」新建密钥并复制；新用户通常有赠送额度，用完后按量计费（需充值）',
-      '③ 回到本页粘贴到「API Key」；模型默认 kimi-k2.6，长文可用 moonshot-v1-128k',
+      '② 在「API Key 管理」新建密钥并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 kimi-k2.6',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -144,9 +144,9 @@ export const PROVIDER_PRESETS = [
     loginUrl: 'https://console.volcengine.com/ark',
     models: ['doubao-2.0-pro', 'doubao-2.0-pro-256k'],
     howto: [
-      '① 打开 {login} 用火山引擎账号登录（需实名认证），在「开通管理」里开通要用的模型（不开通会报无权限）',
+      '① 打开 {login} 登录火山引擎，在方舟「开通管理」里开通要用的模型',
       '② 打开 {key} 创建 API Key 并复制',
-      '③ 回到本页粘贴到「API Key」；模型默认 doubao-2.0-pro。若提示需要接入点，到「在线推理 → 创建推理接入点」拿 ep-… 填到模型里',
+      '③ 回到本页粘贴到「API Key」；模型默认 doubao-2.0-pro（若提示需要接入点，就把 ep-… 填到模型里）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -159,11 +159,10 @@ export const PROVIDER_PRESETS = [
     keyUrl: 'https://cloud.siliconflow.cn/account/ak',
     loginUrl: 'https://cloud.siliconflow.cn/',
     howto: [
-      '① 打开 {key} 登录（手机号注册，通常需实名认证）',
+      '① 打开 {key} 登录（手机号注册）',
       '② 在「API 密钥」页新建密钥并复制',
-      '③ 免费的是哪些：以小参数模型为主（如 Qwen3-8B）；点「刷新模型列表」能看到全部模型与命名（哪档免费以官方定价页为准）',
-      '④ 回到本页粘贴到「API Key」，模型保持默认或从列表里挑',
-      '⑤ 点「测试连接」验证后「保存并选用」'
+      '③ 回到本页粘贴到「API Key」；模型可填 Qwen/Qwen3-8B，或点「刷新模型列表」选择',
+      '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
   {
@@ -176,11 +175,10 @@ export const PROVIDER_PRESETS = [
     loginUrl: 'https://platform.sensenova.cn/',
     models: ['SenseChat-5'],
     howto: [
-      '① 打开 {key} 注册并登录商汤日日新控制台（官方文档指定的取 Key 入口）',
-      '② 登录后进入「API Key 管理 / 密钥管理」（左侧菜单），创建一个 API Key 并复制',
-      '③ 注意：**商汤的文本模型是付费的**（长期免费的是图片模型 sensenova-u1.5-lite，本应用用不到）；2026-05 曾有过「注册首月限时免费」活动，是否仍有效以控制台为准，必要时先开通/充值',
-      '④ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
-      '⑤ 点「测试连接」验证后「保存并选用」'
+      '① 打开 {key} 注册并登录商汤日日新控制台',
+      '② 登录后进入「API Key 管理 / 密钥管理」（左侧菜单），创建 API Key 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
+      '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
   {
@@ -194,8 +192,8 @@ export const PROVIDER_PRESETS = [
     models: ['hy3', 'hy4-preview', 'hy-mt2-pro', 'hunyuan-role-latest'],
     howto: [
       '① 打开 {login} 登录腾讯云（需注册 + 实名认证），按提示开通「大模型服务平台 TokenHub」',
-      '② 若控制台有「免费体验包」先领一下（可顶一阵子），再打开 {key} 创建 API Key 并复制',
-      '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等，模型清单见控制台「模型广场 / tokenhub/models」）',
+      '② 打开 {key} 创建 API Key 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   }
