@@ -107,12 +107,21 @@ The **Custom** panel starts with presets for common providers. One tap will:
 2. expand that provider's **step-by-step instructions** (which site to open, what to click, where to paste, how to choose a model)
 3. show the key page URL in a read-only field for easy copying
 
-| Kind | Providers |
-| --- | --- |
-| **Generous free tiers (try first)** | **Intern-AI** (officially free: ~30 RPM, 90M tokens/month), **iFlytek Spark `lite`** (free, unlimited tokens at QPS 2), Zhipu `glm-4.5-flash` / `glm-4-flash`, some small SiliconFlow models |
-| **Mainstream commercial APIs** | Xiaomi MiMo, DeepSeek, Alibaba Qwen (Bailian), Moonshot Kimi, Zhipu GLM, ByteDance Doubao (Ark), Tencent Hunyuan (TokenHub), SenseNova |
+| Kind | Provider | Base URL | Default model | Get a key |
+| --- | --- | --- | --- | --- |
+| **Generous free tiers (try first)** | **Intern-AI** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
+| | **iFlytek Spark** | `https://spark-api-open.xf-yun.com/v1` | `lite` (free) | https://console.xfyun.cn/services/cbm |
+| | Zhipu GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
+| | SiliconFlow | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
+| **Mainstream commercial** | Xiaomi MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
+| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
+| | Alibaba Qwen (Bailian) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
+| | Moonshot Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
+| | ByteDance Doubao (Ark) | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
+| | Tencent Hunyuan (TokenHub) | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
+| | SenseNova | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ (then "API Key" in the left menu) |
 
-> Presets only include endpoints **verified against official docs** (2026-09). Model names and free tiers change; the panel notes what we know and official docs win. After pasting your key, hit "Test connection" — it sends just one minimal request.
+> Presets only include endpoints **verified against official docs** (2026-09). Model names and free tiers change; the in-app notes say what we know and official docs win. "Test connection" sends a single minimal request.
 
 #### Intern-AI: getting a key
 

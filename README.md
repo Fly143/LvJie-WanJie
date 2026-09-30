@@ -107,12 +107,21 @@ API 设置里是两种使用方式，顶部切换：
 2. 在下方展开该家的**申请步骤**（打开哪个网址、点哪里、粘到哪里、怎么选模型）
 3. 给出申请 Key 的地址（只读输入框，方便复制）
 
-| 类别 | 服务商 |
-| --- | --- |
-| **免费额度较大（推荐先试）** | **书生·浦语（Intern-AI）**（官方长期免费：约 30 RPM、每月 9000 万 tokens）、**讯飞星火 `lite`**（免费：tokens 不限、QPS 2）、智谱 `glm-4.5-flash` / `glm-4-flash`、硅基流动部分小模型 |
-| **主流商业 API** | 小米 MiMo、DeepSeek、阿里通义千问（百炼）、月之暗面 Kimi、智谱 GLM、字节豆包（火山方舟）、腾讯混元（TokenHub）、商汤日日新 |
+| 类别 | 服务商 | Base URL | 默认模型 | 申请 Key（点进去创建后复制） |
+| --- | --- | --- | --- | --- |
+| **免费额度较大（推荐先试）** | **书生·浦语（Intern-AI）** | `https://chat.intern-ai.org.cn/api/v1` | `intern-latest` | https://internlm.intern-ai.org.cn/api/access-token |
+| | **讯飞星火** | `https://spark-api-open.xf-yun.com/v1` | `lite`（免费不限量） | https://console.xfyun.cn/services/cbm |
+| | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-flash` | https://open.bigmodel.cn/usercenter/apikeys |
+| | 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen3-8B` | https://cloud.siliconflow.cn/account/ak |
+| **主流商业 API** | 小米 MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2.6-pro` | https://platform.xiaomimimo.com/#/console/api-keys |
+| | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` | https://platform.deepseek.com/api_keys |
+| | 阿里通义千问（百炼） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | https://bailian.console.aliyun.com/?apiKey=1 |
+| | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6` | https://platform.moonshot.cn/console/api-keys |
+| | 字节豆包（火山方舟） | `https://ark.cn-beijing.volces.com/api/v3` | `doubao-2.0-pro` | https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey |
+| | 腾讯混元（TokenHub） | `https://tokenhub.tencentmaas.com/v1` | `hy3` | https://console.cloud.tencent.com/tokenhub/apikey |
+| | 商汤日日新 | `https://api.sensenova.cn/compatible-mode/v2` | `SenseChat-5` | https://platform.sensenova.cn/ （登录后左侧「API Key 管理」） |
 
-> 预设只收录**端点已按官方文档核实**的服务商（2026-09）；各家的模型名与免费政策会变，面板里的备注会写明，最终以官方为准。填完 Key 后点「测试连接」即可验证，**不会消耗你的正式对话**（就是一次最小请求）。
+> 预设只收录**端点已按官方文档核实**的服务商（2026-09）；各家的模型名与免费政策会变，面板里的备注会写明，最终以官方为准。填完 Key 后点「测试连接」即可验证（只发一次最小请求）。
 
 #### 书生·浦语（Intern-AI）申请步骤
 

@@ -304,6 +304,13 @@ ok('zenConfig 形状正确', (() => {
   const needIds = ['intern', 'mimo', 'deepseek', 'qwen', 'kimi', 'zhipu', 'doubao', 'spark', 'hunyuan', 'sensenova', 'siliconflow']
   ok('覆盖国内主流服务商', needIds.every(id => list.some(p => p.id === id)), needIds.filter(id => !list.some(p => p.id === id)))
   ok('申请地址都是 http(s)', list.every(p => /^https?:\/\//.test(p.keyUrl)))
+  // 申请地址要能直接点到「创建 Key」的页面，而不是控制台首页（商汤的 Key 页在 SPA 内，允许用控制台根地址）
+  const deepAllow = ['https://platform.sensenova.cn/']
+  ok('申请地址是具体页面而非首页', list.every(p => {
+    if (deepAllow.includes(p.keyUrl)) return true
+    const u = new URL(p.keyUrl)
+    return u.pathname !== '/' || p.keyUrl.includes('#/') || p.keyUrl.includes('?')
+  }), list.filter(p => !deepAllow.includes(p.keyUrl)).map(p => p.id + '=' + p.keyUrl))
   ok('每家都给了可选模型或默认模型', list.every(p => p.model || (p.models && p.models.length)))
   ok('只有书生·浦语标记 noJsonMode', list.filter(p => p.noJsonMode).length === 1 && list.find(p => p.noJsonMode).id === 'intern')
   ok('含书生·浦语且标记 noJsonMode', list.some(p => p.id === 'intern' && p.noJsonMode === true))

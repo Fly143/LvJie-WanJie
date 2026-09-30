@@ -33,13 +33,13 @@ export const PROVIDER_PRESETS = [
     baseUrl: 'https://api.xiaomimimo.com/v1',
     model: 'mimo-v2.6-pro',
     apiStyle: 'chat',
-    keyUrl: 'https://platform.xiaomimimo.com/',
+    keyUrl: 'https://platform.xiaomimimo.com/#/console/api-keys',
     loginUrl: 'https://platform.xiaomimimo.com/',
     models: ['mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.6-pro-ultraspeed'],
     note: '小米 MiMo 开放平台：按量计费，另有 Token Plan 订阅包（以官方定价为准）',
     howto: [
-      '① 打开 {key} 注册并登录小米 MiMo 开放平台（platform.xiaomimimo.com）',
-      '② 进入控制台创建 API Key（格式 sk-xxxxx），复制',
+      '① 打开 {key} 注册并登录小米 MiMo 开放平台（也可从 platform.xiaomimimo.com 进入后点左侧「API Keys」）',
+      '② 在「API Keys」页创建密钥（格式 sk-xxxxx），复制',
       '③ 回到本页粘到「API Key」；模型默认 mimo-v2.6-pro，也可选 flash（更快更省）/ ultraspeed',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
@@ -153,14 +153,14 @@ export const PROVIDER_PRESETS = [
     baseUrl: 'https://tokenhub.tencentmaas.com/v1',
     model: 'hy3',
     apiStyle: 'chat',
-    keyUrl: 'https://console.cloud.tencent.com/',
-    loginUrl: 'https://console.cloud.tencent.com/',
+    keyUrl: 'https://console.cloud.tencent.com/tokenhub/apikey',
+    loginUrl: 'https://console.cloud.tencent.com/tokenhub/',
     models: ['hy3', 'hy4-preview', 'hy-mt2-pro', 'hunyuan-role-latest'],
-    note: '腾讯云 TokenHub（混元老控制台已下线）：同一 Base URL 可调混元与部分原厂模型',
+    note: '腾讯云 TokenHub（混元老控制台已下线）：可先领免费体验包，同一 Base URL 也能调部分原厂模型',
     howto: [
-      '① 打开 {login} 登录腾讯云控制台',
-      '② 进入 TokenHub / 混元大模型服务，开通并创建 API Key，复制',
-      '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等）',
+      '① 打开 {login} 登录腾讯云（需注册 + 实名认证），按提示开通「大模型服务平台 TokenHub」',
+      '② 建议先在控制台「领取免费体验包」，再打开 {key} 创建 API Key 并复制',
+      '③ 回到本页粘贴到「API Key」；模型默认 hy3（也可填 hy4-preview 等，模型清单见 tokenhub/models）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
@@ -172,10 +172,11 @@ export const PROVIDER_PRESETS = [
     apiStyle: 'chat',
     keyUrl: 'https://platform.sensenova.cn/',
     loginUrl: 'https://platform.sensenova.cn/',
+    models: ['SenseChat-5'],
     note: 'Token Plan：注册后首月每 5 小时 1500 次免费，之后为付费套餐',
     howto: [
-      '① 打开 {key} 注册并登录商汤大装置',
-      '② 在控制台中找到「API Key / 密钥管理」，创建一个 API Key 并复制',
+      '① 打开 {key} 注册并登录商汤日日新控制台（官方文档指定的取 Key 入口）',
+      '② 登录后进入「API Key 管理 / 密钥管理」（左侧菜单），创建一个 API Key 并复制',
       '③ 回到本页粘贴到「API Key」；模型默认 SenseChat-5（可点「刷新模型列表」看可用模型）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
