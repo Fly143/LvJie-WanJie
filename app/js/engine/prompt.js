@@ -52,6 +52,7 @@ export function buildSystemPrompt(S, opts = {}) {
   const levelName = lex.level || '等级'
   const companionName = lex.companion || '同伴'
   const techName = lex.technique || (pack.typeNames && pack.typeNames.technique) || '秘籍'
+  const myPower = totalPowerF(S)
 
   const playerState = {
     姓名: S.name,
@@ -102,7 +103,7 @@ export function buildSystemPrompt(S, opts = {}) {
       name: x.name, desc: x.desc, price: x.price, type: x.type,
       realm_index: x.realm_index, grade: x.grade
     })),
-    beasts: loc.beasts || [],
+    beasts: enrichBeasts(loc.beasts, myPower),
     interactables: loc.interactables || []
   }
 
@@ -177,6 +178,12 @@ export function buildSystemPrompt(S, opts = {}) {
   const lang = langPack(opts.lang || S.lang || 'zh-CN')
   const L = lang.promptLang
 
+  // 挑战/讨伐类：注入明确胜负与战利品合同（提升质量，不省 token）
+  const focus = [opts.focusText, ...(opts.focusNames || [])].filter(Boolean).join(' ')
+  const challengeBlock = isChallengeText(focus)
+    ? buildChallengeContract({ S, loc, myPower, styleKey, cheatOn, powerLabel: ui.powerLabel, progName, moneyMain: moneyNames.main })
+    : ''
+
   return `你是开放世界游戏《${pack.gameTitle || '旅界'}》的叙事引擎。你只负责：写给玩家看的剧情、推进事件、用 JSON 声明数据变化。
 
 【输出合同】（最高优先级，违反即整次作废）
@@ -215,6 +222,7 @@ ${styleBlock}
 ${genderBlock}
 ${pressureBlock}
 ${partyBlock}
+${challengeBlock}
 
 【世界观】${customHint}
 ${worldviewBlock}
@@ -266,4 +274,78 @@ function friendLocOf(S, name) {
     if ((l.people || []).some(p => p.name === name)) return l
   }
   return null
+}
+
+/** 文案是否为挑战/讨伐类指令 */
+function isChallengeText(s) {
+  if (!s) return false
+  return /挑战|讨伐|除妖|狩猎|猎杀|围剿|袭击|搏杀|厮杀|开战|挑战「|发起挑战|拼了|上啊/.test(String(s))
+}
+
+/** 把 beasts 文本掉落解析成结构化数组（失败则 []） */
+function parseDropsText(raw) {
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(d => (typeof d === 'string' ? { name: d, count: 1 } : d))
+  const s = String(raw || '').trim()
+  if (!s) return []
+  const parts = s.split(/[、,，;；/]|与/).map(x => x.trim()).filter(Boolean)
+  return parts.map(p => {
+    const m = p.match(/^(.+?)\s*[x×*]\s*(\d+)$/i)
+    if (m) return { name: m[1].trim(), count: Math.max(1, Math.min(99, parseInt(m[2], 10) || 1)) }
+    return { name: p.slice(0, 24), count: 1 }
+  }).slice(0, 8)
+}
+
+/** 比值 → 局势标签（玩家战力 / 敌方战力）；UI 与挑战合同共用 */
+export function oddsLabel(ratio) {
+  if (ratio == null || !Number.isFinite(ratio)) return '未知'
+  if (ratio >= 6) return '碾压'
+  if (ratio >= 2) return '优势'
+  if (ratio >= 0.5) return '势均力敌'
+  if (ratio >= 1 / 6) return '劣势'
+  return '极度危险'
+}
+
+/** 场景 beasts：补玩家战力对比 + 结构化掉落，供叙事与奖励对照 */
+function enrichBeasts(beasts, myPower) {
+  return (Array.isArray(beasts) ? beasts : []).map(b => {
+    const power = Number(b && b.power) || 0
+    const ratio = power > 0 && myPower > 0 ? myPower / power : null
+    return {
+      name: b && b.name,
+      realm: b && b.realm,
+      power,
+      playerPower: myPower,
+      powerRatio: ratio != null ? Number(ratio.toFixed(2)) : null,
+      odds: oddsLabel(ratio),
+      dropsRaw: b && b.drops,
+      drops: parseDropsText(b && b.drops)
+    }
+  })
+}
+
+/**
+ * 挑战合同：写死胜负倾向、战利品边界与 AI 风格例外。
+ * 只影响 narrative/changes 质量，不做本地结算（仍由模型产出 JSON）。
+ */
+function buildChallengeContract({ S, loc, myPower, styleKey, cheatOn, powerLabel, progName, moneyMain }) {
+  const beasts = enrichBeasts(loc && loc.beasts, myPower)
+  const list = beasts.length
+    ? beasts.map(b => `- ${b.name}（${b.realm || '未知'}，${powerLabel} ${b.power}；相对你 ${b.powerRatio} → ${b.odds}；掉落：${JSON.stringify(b.drops)}）`).join('\n')
+    : '- （当前地点 beasts 为空，若玩家仍挑战，须自创合理对手并同步 new/mod 与叙事，不得凭空刷顶级掉落）'
+
+  const styleRule = cheatOn
+    ? '- 【开挂档例外】即便局势为「劣势/极度危险」，也按玩家意愿取胜；但奖励仍必须来自下方掉落池，不得加塞传说级物品。'
+    : '- 严格按 odds 写结果：碾压/优势 → 必胜；势均 → 可胜（约六成，视 aiStyle 收紧）；劣势 → 大概率败或惨胜（重伤+微薄收益）；极度危险 → 默认败/逃，除非剧情有正当外因。'
+
+  return `
+【挑战/讨伐合同】（本轮与对抗直接相关时必须遵守）
+目标比值 = 玩家${powerLabel} ÷ 对手${powerLabel}。参考表：≥6 碾压；2~6 优势；0.5~2 势均；1/6~0.5 劣势；<1/6 极度危险。
+当前场景可打对手（已算比值）：
+${list}
+- 若 user 点名了某个 beast，**必须打那一个**，不得张冠李戴或改名。
+- ${styleRule}
+- 战利品只允许：该 beast.drops 里列出的名称/数量（可少给、不可多给/换名）+ 与战力匹配的少量${moneyMain || '货币'}与${progName}；禁止掉落不在表内的高阶物、秘籍、装备。
+- 未打赢：changes 不得给上述战利品；最多 small_events 记一笔交手或负伤。
+- 正文与 JSON 必须一致：杀了才 remove 或 modify 该 beast；没杀不得写「尸体化作宝光」类空头支票。
+- 对手 name/realm 与【场景】中完全一致，不得改档位。`
 }

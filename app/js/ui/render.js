@@ -34,6 +34,7 @@ import { openModal, closeModal, confirmModal } from './modals.js'
 import { upgradeSelect } from './picker.js'
 import { t, uiLangName } from '../engine/i18n.js'
 import { openHelp } from './settings-panels.js'
+import { oddsLabel } from '../engine/prompt.js'
 
 export function renderScene(app, api) {
   const S = app.S
@@ -125,14 +126,19 @@ export function renderScene(app, api) {
     <div class="panel">
       <h3>${t('threats')}</h3>
       <div class="grid">
-        ${(loc.beasts || []).map(b => `
+        ${(loc.beasts || []).map(b => {
+          const myPow = totalPowerF(S)
+          const bp = Number(b.power) || 0
+          const ratio = bp > 0 ? myPow / bp : null
+          const odds = oddsLabel(ratio)
+          return `
           <div class="card">
             <div class="cname">${esc(b.name)}</div>
-            <div class="crealm">${esc(b.realm || '')} · ${esc(ui.powerLabel)} ${fmtNum(b.power || 0)}</div>
+            <div class="crealm">${esc(b.realm || '')} · ${esc(ui.powerLabel)} ${fmtNum(b.power || 0)}${odds !== '未知' ? ` · ${esc(odds)}` : ''}</div>
             <div class="cdim">${t('drops')}${esc(b.drops || t('none'))}</div>
             <div class="cbtn"><button class="btn btn-sm btn-danger" data-hunt="${esc(b.name)}" type="button">${esc(pack.ui && pack.ui.fightBtn || t('fightBtn'))}</button></div>
-          </div>
-        `).join('') || `<div class="empty">${t('noThreats')}</div>`}
+          </div>`
+        }).join('') || `<div class="empty">${t('noThreats')}</div>`}
       </div>
     </div>
     ${(loc.shop || []).length ? `
