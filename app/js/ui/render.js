@@ -1237,25 +1237,32 @@ export function renderSettings(app, api) {
         `)
         api.toast(t('exported'))
       }
-      // Electron：主进程代为写入「文档/AgentWorlds」目录，明确报告保存位置
+      // Electron / Android：写入并回报真实路径
       const host = globalThis.awHost
       if (host && host.save && typeof host.save.saveText === 'function') {
         Promise.resolve(host.save.saveText('AgentWorlds/' + fname, text)).then(res => {
-          if (res && res.ok) finish(`${t('exportedPath')}${res.path}`)
-          else finish(`${t('exportedInBrowser')}（${fname}）`)
-        }).catch(() => finish(`${t('exportedInBrowser')}（${fname}）`))
+          if (res && res.ok) finish(`${t('exportedPath')}${res.path || res}`)
+          else finish(`${t('testFail')}${(res && res.error) || 'save failed'}`)
+        }).catch(() => finish(`${t('testFail')}saveText exception`))
         return
       }
-      // 浏览器/Android：走下载，并明确告知是浏览器下载目录
+      // 浏览器：触发下载；WebView 可能被拦截，明确提示
       try {
         const blob = new Blob([text], { type: 'application/json' })
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
         a.download = fname
+        a.rel = 'noopener'
+        document.body.appendChild(a)
         a.click()
-        setTimeout(() => URL.revokeObjectURL(a.href), 3000)
-      } catch (e) { /* ignore */ }
-      finish(`${t('exportedInBrowser')}（${fname}）`)
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href)
+          a.remove()
+        }, 3000)
+        finish(`${t('exportedInBrowser')}（${fname}）。若文件管理器无此文件，请改用桌面版导出或系统分享。`)
+      } catch (e) {
+        finish(`${t('testFail')}${(e && e.message) || 'download failed'}`)
+      }
     })
   }
   document.getElementById('set-import').onclick = () => {

@@ -7,6 +7,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
@@ -75,6 +79,25 @@ class MainActivity : AppCompatActivity() {
                     postSecretsCb(cbId, JSONObject().put("ok", true).toString())
                 } catch (e: Exception) {
                     postSecretsCb(cbId, JSONObject().put("ok", false).toString())
+                }
+            }
+        }
+
+        /** 导出存档：写入系统下载目录 AgentWorlds/，回传绝对路径 */
+        @JavascriptInterface
+        fun saveText(rel: String, text: String, cbId: String) {
+            httpExecutor.execute {
+                try {
+                    val clean = (rel ?: "").replace('\\', '/').trim().trimStart('/')
+                    if (clean.isEmpty() || clean.contains("..")) {
+                        postSaveCb(cbId, JSONObject().put("ok", false).put("error", "非法路径").toString())
+                        return@execute
+                    }
+                    val fileName = clean.substringAfterLast('/').ifEmpty { "export.json" }
+                    val path = writeDownloadsFile(fileName, text ?: "")
+                    postSaveCb(cbId, JSONObject().put("ok", true).put("path", path).toString())
+                } catch (e: Exception) {
+                    postSaveCb(cbId, JSONObject().put("ok", false).put("error", e.message ?: "保存失败").toString())
                 }
             }
         }
@@ -443,6 +466,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun postSaveCb(cbId: String, payload: String) {
+        val js = "(function(){var m=window.__awHostSaveCb;if(!m)return;var f=m[" + JSONObject.quote(cbId) + "];if(f)f(" + JSONObject.quote(cbId) + "," + payload + ")})()"
+        runOnUiThread {
+            if (this::webView.isInitialized) webView.evaluateJavascript(js, null)
+        }
+    }
+
     private fun postSecretsCb(cbId: String, payload: String) {
         // payload 已是 JSON 对象/字符串字面量；回调签名 __awHostSecretsCb[id](id, data)
         val js = "(function(){var m=window.__awHostSecretsCb;if(!m)return;var f=m[" + JSONObject.quote(cbId) + "];if(f)f(" + JSONObject.quote(cbId) + "," + payload + ")})()"
@@ -500,9 +530,41 @@ class MainActivity : AppCompatActivity() {
         secretsPrefs().edit().remove("enc").apply()
     }
 
+    /** 写入下载目录：API 29+ 走 MediaStore，旧系统写公共 Downloads */
+    private fun writeDownloadsFile(fileName: String, text: String): String {
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        if (Build.VERSION.SDK_INT >= 29) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AgentWorlds")
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val resolver = contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw RuntimeException("无法创建下载条目")
+            resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: throw RuntimeException("无法写入文件")
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            return "Download/AgentWorlds/$fileName"
+        }
+        val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val folder = File(dir, "AgentWorlds")
+        if (!folder.exists() && !folder.mkdirs()) throw RuntimeException("无法创建 Download/AgentWorlds")
+        val out = File(folder, fileName)
+        out.writeBytes(bytes)
+        return out.absolutePath
+    }
+
     private fun injectBridge(view: WebView?) {
         val js = "(function(){if(window.awHost)return;var cbs={};window.__awHostStreamCbs={chunk:[],end:[],head:[]};window.__awHostStreamChunk=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var a=window.__awHostStreamCbs.chunk.slice();for(var i=0;i<a.length;i++){try{a[i](o)}catch(e){}}}catch(e){}};window.__awHostStreamEnd=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var a=window.__awHostStreamCbs.end.slice();for(var i=0;i<a.length;i++){try{a[i](o)}catch(e){}}}catch(e){}};window.__awHostStreamHead=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var a=window.__awHostStreamCbs.head.slice();for(var i=0;i<a.length;i++){try{a[i](o)}catch(e){}}}catch(e){}};window.__awHostHttpCb=function(p){try{var o=typeof p==='string'?JSON.parse(p):p;var cb=cbs[o.id];if(cb){delete cbs[o.id];cb(o)}}catch(e){}};function req(r){return new Promise(function(res){var id='r'+Math.random().toString(36).slice(2);cbs[id]=res;try{AndroidHttp.httpRequest(id,String(r.url||''),String(r.method||'GET'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||30000))}catch(e){delete cbs[id];res({ok:false,error:String(e)})}})};window.awHost={http:{request:req,stream:function(r){return new Promise(function(res){var id='s'+Math.random().toString(36).slice(2);try{AndroidHttp.httpStream(id,String(r.url||''),String(r.method||'POST'),JSON.stringify(r.headers||{}),r.body==null?null:String(r.body),Number(r.timeoutMs||180000));res({ok:true,id:id})}catch(e){res({ok:false,error:String(e)})}})},abort:function(id){try{AndroidHttp.httpAbort(String(id||''))}catch(e){};return Promise.resolve({ok:true})},onChunk:function(fn){if(typeof fn!=='function')return function(){};window.__awHostStreamCbs.chunk.push(fn);return function(){var a=window.__awHostStreamCbs.chunk;var i=a.indexOf(fn);if(i>=0)a.splice(i,1)}},onEnd:function(fn){if(typeof fn!=='function')return function(){};window.__awHostStreamCbs.end.push(fn);return function(){var a=window.__awHostStreamCbs.end;var i=a.indexOf(fn);if(i>=0)a.splice(i,1)}},onHead:function(fn){if(typeof fn!=='function')return function(){};window.__awHostStreamCbs.head.push(fn);return function(){var a=window.__awHostStreamCbs.head;var i=a.indexOf(fn);if(i>=0)a.splice(i,1)}}},asset:{read:function(){return Promise.resolve({ok:false})}},secrets:{load:function(){return new Promise(function(res){var id='k'+Math.random().toString(36).slice(2);window.__awHostSecretsCb=window.__awHostSecretsCb||{};window.__awHostSecretsCb[id]=function(_,p){delete window.__awHostSecretsCb[id];try{res(p&&p.ok===false?null:(typeof p==='string'?JSON.parse(p):p))}catch(e){res(null)}};try{AndroidHttp.secretsLoad(id)}catch(e){res(null)}})},save:function(p){return new Promise(function(res){var id='s'+Math.random().toString(36).slice(2);window.__awHostSecretsCb=window.__awHostSecretsCb||{};window.__awHostSecretsCb[id]=function(_,r){delete window.__awHostSecretsCb[id];res(r&&r.ok!==false?{ok:true}:{ok:false,error:(r&&r.error)||'保存失败'})};try{AndroidHttp.secretsSave(JSON.stringify(p||{keys:[],selected:0}),id)}catch(e){res({ok:false,error:String(e)})}})},clear:function(){return new Promise(function(res){var id='c'+Math.random().toString(36).slice(2);window.__awHostSecretsCb=window.__awHostSecretsCb||{};window.__awHostSecretsCb[id]=function(_,r){delete window.__awHostSecretsCb[id];res({ok:true})};try{AndroidHttp.secretsClear(id)}catch(e){res({ok:true})}})}}};})()"
-        view?.evaluateJavascript(js, null)
+        val js2 = js.replace(
+            "window.awHost={",
+            "window.awHost={save:{saveText:function(rel,text){return new Promise(function(res){var id='t'+Math.random().toString(36).slice(2);window.__awHostSaveCb=window.__awHostSaveCb||{};window.__awHostSaveCb[id]=function(_i,o){try{delete window.__awHostSaveCb[_i]}catch(e){}res(o)};try{AndroidHttp.saveText(String(rel||''),String(text||''),id)}catch(e){delete window.__awHostSaveCb[id];res({ok:false,error:String(e)})}})},"
+        )
+        view?.evaluateJavascript(js2, null)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
