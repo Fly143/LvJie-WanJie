@@ -513,12 +513,12 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle, timeoutM
     return true
   })
 
-  // 仅当 8 秒内完全无增量才放弃流式；一旦有字，必须等 end
+  // 首字超时：8 秒对冷启动/慢模型太短（修仙已出字、武侠要等 → 误判为空并降级整段）
+  // 25s 内完全无增量才放弃流式回退；一旦有字必须等 end
   const noChunkFail = new Promise((resolve) => {
     setTimeout(() => {
       if (!text) resolve('empty')
-      // 有字则不 resolve，交给 endPromise / waitStreamEnd
-    }, 8000)
+    }, 25000)
   })
   const raceResult = await Promise.race([
     endPromise.then(() => 'end'),
