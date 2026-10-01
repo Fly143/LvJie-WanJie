@@ -32,7 +32,7 @@ import { allBgmTracks, addLocalBgmFiles, removeLocalBgm, playBgm } from './bgm.j
 import { runEventTurn, endEvent } from '../engine/event.js'
 import { openModal, closeModal, confirmModal } from './modals.js'
 import { upgradeSelect } from './picker.js'
-import { t, uiLangName } from '../engine/i18n.js'
+import { t, uiLangName, getUiLang } from '../engine/i18n.js'
 import { openHelp } from './settings-panels.js'
 import { oddsLabel } from '../engine/prompt.js'
 
@@ -98,9 +98,13 @@ export function renderScene(app, api) {
       ${(loc.notes || []).slice(-3).map(n => `<div class="loc-note">※ ${esc(n)}</div>`).join('')}
       <div class="btn-row">
         ${actions.map(a => {
+          // 中文界面：用各世界观带皮动作（闯荡江湖/除妖…），与手机一致
+          // 英/日界面：用 act_* 译文，避免残留中文
+          const lang = (typeof getUiLang === 'function' ? getUiLang() : 'zh-CN') || 'zh-CN'
+          const zh = String(lang).indexOf('zh') === 0
           const ak = 'act_' + a.id
           const al = t(ak)
-          const label = al !== ak ? al : a.label
+          const label = zh ? a.label : (al !== ak ? al : a.label)
           return `<button class="btn" data-act="${esc(a.id)}" type="button">${esc(label)}</button>`
         }).join('')}
       </div>
