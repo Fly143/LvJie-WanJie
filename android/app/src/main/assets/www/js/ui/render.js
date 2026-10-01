@@ -97,7 +97,12 @@ export function renderScene(app, api) {
       <div class="loc-desc">${esc(loc.desc || '')}</div>
       ${(loc.notes || []).slice(-3).map(n => `<div class="loc-note">※ ${esc(n)}</div>`).join('')}
       <div class="btn-row">
-        ${actions.map(a => `<button class="btn" data-act="${esc(a.id)}" type="button">${esc(a.label)}</button>`).join('')}
+        ${actions.map(a => {
+          const ak = 'act_' + a.id
+          const al = t(ak)
+          const label = al !== ak ? al : a.label
+          return `<button class="btn" data-act="${esc(a.id)}" type="button">${esc(label)}</button>`
+        }).join('')}
       </div>
     </div>
     ${evHtml}

@@ -1,7 +1,7 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
 import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang, loadPlayerKeys } from './engine/state.js'
-import { LANGUAGE_OPTIONS, langPack, AI_STYLES, AI_STYLE_ORDER } from './engine/constants.js'
+import { LANGUAGE_OPTIONS, langPack, AI_STYLES, AI_STYLE_ORDER, PLAYER_GENDERS } from './engine/constants.js'
 import { t, setUiLang, getUiLang, uiLangName } from './engine/i18n.js'
 import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
 import {
@@ -15,7 +15,7 @@ import { renderScene, renderMap, renderProfile, renderFriends, renderBag, render
 import { openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml } from './ui/modals.js'
 import { openKeyModal, openHelp, ensureBuiltinZenDefault } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
-import { initBgm, playBgm, hydrateCustomBgm, showGamePlay } from './ui/bgm.js'
+import { initBgm, playBgm, hydrateCustomBgm, showGamePlay, allBgmTracks } from './ui/bgm.js'
 import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 import { isZenBase, zenUsageToday, ZEN_DAILY_LIMIT } from './engine/zen.js'
@@ -280,8 +280,18 @@ function startBtnLabel(pack) {
 function openWelcomeSettings() {
   const cur = getGlobalLang()
   let gp = null
-  try { gp = JSON.parse(localStorage.getItem('agentworlds_prefs_v1')) } catch (e) { gp = null }
+  try { gp = JSON.parse(localStorage.getItem('agentworlds_prefs_v1')) || null } catch (e) { gp = null }
   const curStyle = (gp && gp.aiStyle) || 'normal'
+  const curGender = (gp && gp.playerGender) || ''
+  const curLimit = gp && gp.dialogLimit != null ? !!gp.dialogLimit : true
+  const curBgm = (gp && gp.bgmTrack) || ''
+  const savePref = (patch) => {
+    try {
+      const base = JSON.parse(localStorage.getItem('agentworlds_prefs_v1') || '{}') || {}
+      Object.assign(base, patch)
+      localStorage.setItem('agentworlds_prefs_v1', JSON.stringify(base))
+    } catch (e) { /* ignore */ }
+  }
   openModal(`
     <h2>⚙️ ${t('navSettings')}</h2>
 
@@ -300,6 +310,27 @@ function openWelcomeSettings() {
       `).join('')}
     </div>
     <div style="font-size:12px;color:var(--faint)">${esc(AI_STYLES[curStyle] ? AI_STYLES[curStyle].desc : '')}</div>
+
+    <h4>${t('gender')}</h4>
+    <div class="btn-row">
+      ${PLAYER_GENDERS.map(g => `
+        <button class="btn btn-sm ${curGender === g.v ? 'btn-gold' : ''}" data-wgender="${esc(g.v)}" type="button">${esc(g.name)}</button>
+      `).join('')}
+    </div>
+
+    <h4>${t('dialogLimit')}</h4>
+    <div class="btn-row">
+      <button class="btn btn-sm ${curLimit ? 'btn-gold' : ''}" data-wlimit="1" type="button">${t('on')}</button>
+      <button class="btn btn-sm ${!curLimit ? 'btn-gold' : ''}" data-wlimit="0" type="button">${t('off')}</button>
+    </div>
+
+    <h4>${t('bgm')}</h4>
+    <div class="btn-row" style="flex-wrap:wrap">
+      <button class="btn btn-sm ${curBgm === '' ? 'btn-gold' : ''}" data-wbgm="" type="button">${t('default') || 'Default'}</button>
+      ${allBgmTracks().filter(x => !x.custom).slice(0, 6).map(x => `
+        <button class="btn btn-sm ${curBgm === x.id ? 'btn-gold' : ''}" data-wbgm="${esc(x.id)}" type="button">${esc(x.name)}</button>
+      `).join('')}
+    </div>
 
     <h4>${t('api')}</h4>
     <div class="btn-row">
@@ -326,14 +357,31 @@ function openWelcomeSettings() {
   })
   document.querySelectorAll('[data-wstyle]').forEach(b => {
     b.onclick = () => {
-      try {
-        const pref = JSON.parse(localStorage.getItem('agentworlds_prefs_v1') || '{}') || {}
-        pref.aiStyle = b.dataset.wstyle
-        localStorage.setItem('agentworlds_prefs_v1', JSON.stringify(pref))
-      } catch (e) { /* ignore */ }
+      savePref({ aiStyle: b.dataset.wstyle })
       closeModal()
       openWelcomeSettings()
       toast(t('aiStyle') + ': ' + (AI_STYLES[b.dataset.wstyle] || {}).name)
+    }
+  })
+  document.querySelectorAll('[data-wgender]').forEach(b => {
+    b.onclick = () => {
+      savePref({ playerGender: b.dataset.wgender })
+      closeModal()
+      openWelcomeSettings()
+    }
+  })
+  document.querySelectorAll('[data-wlimit]').forEach(b => {
+    b.onclick = () => {
+      savePref({ dialogLimit: b.dataset.wlimit === '1' })
+      closeModal()
+      openWelcomeSettings()
+    }
+  })
+  document.querySelectorAll('[data-wbgm]').forEach(b => {
+    b.onclick = () => {
+      savePref({ bgmTrack: b.dataset.wbgm })
+      closeModal()
+      openWelcomeSettings()
     }
   })
   const wk = document.getElementById('ws-key')
