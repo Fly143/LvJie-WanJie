@@ -456,11 +456,11 @@ ok('zenConfig 形状正确', (() => {
   ok('设置面板确实用了 testConnection', src.includes('testConnection({'))
   ok('服务商预设 UI 存在', src.includes('id="k-preset"') && src.includes('k-preset-box') && src.includes('PROVIDER_PRESETS'))
   ok('预设用下拉框而不是全部铺开', !/data-preset=/.test(src) && src.includes('<option value="${esc(p.id)}"'))
-  ok('预设展示申请步骤与模型下拉', src.includes('k-preset-box') && src.includes('k-preset-models') && src.includes('presetSteps(p)'))
+  ok('预设展示申请步骤与模型输入', src.includes('k-preset-box') && src.includes('k-preset-model') && src.includes('k-preset-model-dl') && src.includes('presetSteps(p)'))
   ok('预设下拉选项渲染免费标记', src.includes('p.tag ?'))
   // 下拉统一风格：原生 select 换成应用内自绘控件
   ok('设置面板使用自绘下拉', src.includes('upgradeSelect(') && src.includes('setSelectVisible('))
-  ok('五个下拉都升级了', ['k-style', 'k-model-list', 'zen-model', 'k-preset', 'k-preset-models'].every(id => new RegExp("upgradeSelect\\(document\\.getElementById\\('" + id + "'\\)|upgradeSelect\\([a-zA-Z]+").test(src)))
+  ok('下拉升级了（无预设模型独立 select）', ['k-style', 'k-model-list', 'zen-model', 'k-preset'].every(id => new RegExp("upgradeSelect\\(document\\.getElementById\\('" + id + "'\\)|upgradeSelect\\([a-zA-Z]+").test(src)) && !src.includes("getElementById('k-preset-models')"))
   {
     const pickerSrc = fs.readFileSync(new URL('../app/js/ui/picker.js', import.meta.url), 'utf8')
     ok('选择器弹窗用应用自己的弹窗组件', pickerSrc.includes('openModal(') && pickerSrc.includes('pick-row') && pickerSrc.includes('dispatchEvent(new Event'))
@@ -471,7 +471,8 @@ ok('zenConfig 形状正确', (() => {
     ok('其它原生 select 也升级了（恩怨类型）', renderSrc.includes("upgradeSelect(document.getElementById('gr-kind')"))
   }
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
-  ok('预设面板可刷新列表且不自动写模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('fetchPresetModels') && !src.includes('resolvePresetModel') && src.includes("presetModelEl.value = ''"))
+  ok('预设面板可刷新列表且不自动写模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-model-dl') && src.includes('fetchPresetModels') && !src.includes('resolvePresetModel') && src.includes("presetModelEl.value = ''"))
+  ok('已保存与内置有测试连接按钮', declared.has('k-saved-test') && declared.has('k-zen-test'))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
   ok('已保存只列自定义（内置不占位）', src.includes('!isZenBase(x.n.baseUrl)') && src.includes('savedCount'))
   ok('写入列表统一走 upsertKeyEntry', src.includes('upsertKeyEntry(') && !src.includes('S.playerKeys.findIndex(k => sameKeyEntry'))
