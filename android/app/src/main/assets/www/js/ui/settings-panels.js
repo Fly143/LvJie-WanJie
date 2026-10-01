@@ -6,7 +6,7 @@ import { t } from '../engine/i18n.js'
 import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { formDirty, upsertKeyEntry, isZenEntry } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
-import { PROVIDER_PRESETS, presetSteps, pickLatestModel, orderModelsForPick, resolvePresetModel, findPreset } from '../engine/providers.js'
+import { PROVIDER_PRESETS, presetSteps, findPreset } from '../engine/providers.js'
 import { upgradeSelect, setSelectVisible } from './picker.js'
 
 const STYLE_HELP = {
@@ -364,19 +364,15 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     if (!p) return
     if (presetHint) presetHint.textContent = t('providerPresetHint')
     if (clearKey && presetKeyEl) presetKeyEl.value = ''
-    // 模型：预设给了候选就先填候选；标了 autoModel 的留空，等拉列表自动挑
-    if (presetModelEl) presetModelEl.value = p.model || ''
+    // 所有服务商一律不预填模型，刷新后由玩家在下拉自选
+    if (presetModelEl) presetModelEl.value = ''
     if (presetModelsEl) {
-      if (p.models && p.models.length) {
-        presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>` +
-          p.models.map(m => `<option value="${esc(m)}" ${m === presetModelEl.value ? 'selected' : ''}>${esc(m)}</option>`).join('')
-        setSelectVisible(presetModelsEl, true)
-      } else {
-        presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>`
-        setSelectVisible(presetModelsEl, false)
-      }
+      const list = (p.models && p.models.length) ? p.models : []
+      presetModelsEl.innerHTML = `<option value="">— ${t('pickFromList')} —</option>` +
+        list.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+      setSelectVisible(presetModelsEl, list.length > 0)
     }
-    if (presetModelHint) presetModelHint.textContent = p.autoModel ? t('presetAutoModelHint') : ''
+    if (presetModelHint) presetModelHint.textContent = t('presetAutoModelHint')
     if (!presetBox) return
     presetBox.innerHTML =
       `<b>${esc(p.name)}</b>${p.tag ? ' · ' + esc(p.tag) : ''}${p.note ? ' —— ' + esc(p.note) : ''}` +
@@ -388,10 +384,8 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       `</details>`
   }
 
-  // 拉取该服务商的模型列表；autoModel 的预设会自动挑最新的（如 flash 档），
-  // 但**不会覆盖玩家手填的模型**（手填 ≠ 上次自动挑中的值 时保留手填值）
+  // 刷新模型列表：拉取**全部**模型进下拉，**不写入**模型框
   let presetFetching = false
-  let lastAutoPick = ''
   let presetFetchedFor = ''
   async function fetchPresetModels({ auto } = {}) {
     const p = currentPreset()
@@ -408,56 +402,35 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       return
     }
     const items = r.items && r.items.length ? r.items : (r.models || []).map(id => ({ id, created: 0 }))
-    const ordered = orderModelsForPick(items, p.modelHint)
+    // 全量列出，按 id 排序，不按关键字过滤、不自动选中
+    const ordered = items.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))
     presetFetchedFor = p.id
     if (presetModelsEl) {
       presetModelsEl.innerHTML = `<option value="">— ${t('modelListN')} ${ordered.length} ${t('modelListPick')} —</option>` +
         ordered.map(x => `<option value="${esc(x.id)}">${esc(x.id)}</option>`).join('')
       setSelectVisible(presetModelsEl, true)
     }
-    const manual = (presetModelEl && presetModelEl.value.trim()) || ''
-    // 显式点「刷新」且模型框已有值 → 只补列表，绝不改手填/上次选中的模型
-    // 仅在自动探测（粘 Key 后 auto）且框为空时才 autoModel 挑一个
-    const res = (manual || !auto)
-      ? { model: manual || pickLatestModel(items, p.modelHint || ''), manual: !!manual, autoPick: manual || '' }
-      : resolvePresetModel({
-        manual,
-        lastAutoPick,
-        autoModel: !!p.autoModel,
-        hint: p.modelHint || '',
-        items
-      })
-    const picked = res.model
-    if (!res.manual && picked && !manual) lastAutoPick = res.autoPick || picked
-    if (presetModelEl && picked) presetModelEl.value = picked
-    if (presetModelsEl) presetModelsEl.value = ordered.some(x => x.id === picked) ? picked : ''
     if (presetModelHint) {
-      presetModelHint.textContent = (res.manual
-        ? t('presetManualKept') + picked
-        : (picked ? t('presetAutoPicked') + picked : '')) +
-        ' · ' + `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')}`
+      presetModelHint.textContent = `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')} · ${t('pickFromList')}`
     }
     if (!auto) toast(`${t('fetchedN')} ${ordered.length}${t('modelsN')}`)
   }
 
-  if (presetSel) presetSel.onchange = () => { lastAutoPick = ''; presetFetchedFor = ''; renderPreset({ clearKey: true }) }
+  if (presetSel) presetSel.onchange = () => { presetFetchedFor = ''; renderPreset({ clearKey: true }) }
   // 打开面板时，若当前用的正是某个预设，就把下拉定位到那一家
   if (presetSel && activePreset) presetSel.value = activePreset.id
   renderPreset({ clearKey: true })
   if (presetRefreshBtn) presetRefreshBtn.onclick = () => fetchPresetModels({ auto: false })
   if (presetKeyEl) {
-    // 粘完 Key 自动取一次列表（同一个服务商只自动取一次，不会反复刷）
+    // 粘完 Key 自动拉一次列表（只填下拉，不写模型框）
     presetKeyEl.onblur = () => {
       const p = currentPreset()
-      if (p && p.autoModel && presetKeyEl.value.trim() && presetFetchedFor !== p.id) fetchPresetModels({ auto: true })
+      if (p && presetKeyEl.value.trim() && presetFetchedFor !== p.id) fetchPresetModels({ auto: true })
     }
   }
   if (presetModelsEl) presetModelsEl.onchange = () => {
-    if (presetModelEl) presetModelEl.value = presetModelsEl.value
-    // 从下拉里手动选定 → 记住这是手填，后续刷新不覆盖
-    lastAutoPick = ''
+    if (presetModelEl && presetModelsEl.value) presetModelEl.value = presetModelsEl.value
   }
-  if (presetModelEl) presetModelEl.oninput = () => { if (presetModelEl.value.trim() !== lastAutoPick) lastAutoPick = '' }
 
 
   const presetSaveBtn = document.getElementById('k-preset-save')

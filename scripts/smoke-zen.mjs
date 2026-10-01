@@ -471,7 +471,7 @@ ok('zenConfig 形状正确', (() => {
     ok('其它原生 select 也升级了（恩怨类型）', renderSrc.includes("upgradeSelect(document.getElementById('gr-kind')"))
   }
   ok('预设面板有独立 Key 输入与测试/保存按钮', ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].every(id => declared.has(id)), ['k-preset-key', 'k-preset-test', 'k-preset-save', 'k-preset-test-status'].filter(id => !declared.has(id)))
-  ok('预设面板可自动拉取并挑最新模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('resolvePresetModel'))
+  ok('预设面板可刷新列表且不自动写模型', declared.has('k-preset-model') && declared.has('k-preset-refresh') && declared.has('k-preset-models') && src.includes('fetchPresetModels') && !src.includes('resolvePresetModel') && src.includes("presetModelEl.value = ''"))
   ok('已保存配置有独立 tab', declared.has('saved-panel') && src.includes("t('savedHint')"))
   ok('已保存只列自定义（内置不占位）', src.includes('!isZenBase(x.n.baseUrl)') && src.includes('savedCount'))
   ok('写入列表统一走 upsertKeyEntry', src.includes('upsertKeyEntry(') && !src.includes('S.playerKeys.findIndex(k => sameKeyEntry'))
