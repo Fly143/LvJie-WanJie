@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10
+
+### Changed
+- **流式不再限时**：等上游主动结束；仅手动取消才中断（原先首字数秒/总时长超时会降级成整段非流式）
+- 中文界面场景按钮恢复世界观带皮文案（含表情）；随包提供 启动游戏.cmd
+- README 增加游戏截图展示
+
 ## [0.5.0] - 2026-10
 
 ### Added
@@ -193,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...v0.3.0
