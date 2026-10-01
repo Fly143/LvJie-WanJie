@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10
+
+### Added
+- **完整多语言**：英/繁缺失界面键补齐；场景行动 `act_*` 四语言；帮助文案繁/英/日
+- **欢迎页设置对齐游戏内**：性别、对话轮数、背景音乐等全局偏好
+- **已保存 / 内置测连**：真实请求测连；内置拆成「刷新模型列表」与「测试连接」
+- **Android 导出存档**：原生写入 `Download/AgentWorlds/` 并回报路径，失败不假成功
+- 模型选择服务商同款弹层；刷新不预填模型名
+
+### Fixed
+- 技艺未学不显示；修仙/玄幻先凡人再入境
+- 预设按钮与教程错位；测连空回复不再用列表接口冒充成功
+- 同伴页邀请同行 `ui` 未定义崩溃
+
 ## [0.4.0] - 2026-09
 
 ### Added
@@ -179,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.2.0...v0.2.1

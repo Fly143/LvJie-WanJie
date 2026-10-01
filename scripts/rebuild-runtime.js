@@ -113,4 +113,24 @@ readmeLines.push(
 )
 fs.writeFileSync(path.join(RUNTIME, 'README.md'), readmeLines.join('\n'))
 
+// 随包附带「启动游戏.cmd」：与 exe 同目录双击即可，不依赖 npm
+const cmdSrc = path.join(ROOT, '启动游戏.cmd')
+if (fs.existsSync(cmdSrc)) {
+  const portableCmd = [
+    '@echo off',
+    'setlocal',
+    'cd /d "%~dp0"',
+    'set ELECTRON_RUN_AS_NODE=',
+    'if not exist "%~dp0AgentWorlds.exe" (',
+    '  echo [!] AgentWorlds.exe not found next to this script',
+    '  pause',
+    '  exit /b 1',
+    ')',
+    'start "" "%~dp0AgentWorlds.exe"',
+    'endlocal',
+    ''
+  ].join('\r\n')
+  fs.writeFileSync(path.join(RUNTIME, '启动游戏.cmd'), portableCmd, 'utf8')
+}
+
 console.log('runtime rebuilt →', RUNTIME)
