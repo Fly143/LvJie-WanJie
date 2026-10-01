@@ -190,15 +190,29 @@ export async function testConnection({ baseUrl, key, model, apiStyle, timeoutMs 
 
   const k = normalizeApiKey({ baseUrl: base, key: token, model: mdl, apiStyle })
   if (!k) return { ok: false, ms: ms(), error: '配置不完整（需要 Base URL、Key、模型）' }
-  const t = Number(timeoutMs) > 0 ? Number(timeoutMs) : 20000
+  const timeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : 20000
   try {
-    const r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 16, timeoutMs: t })
-    if (r && r.ok) {
+    let r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 16, timeoutMs: timeout })
+    if ((!r || !r.ok || !String(r.text || '').trim()) && r && !r.aborted) {
+      r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 32, timeoutMs: timeout })
+    }
+    if (r && r.ok && String(r.text || '').trim()) {
       return {
         ok: true,
         ms: ms(),
         reply: String(r.text || '').replace(/\s+/g, ' ').trim().slice(0, 40),
         switched: r.zenSwitched || undefined
+      }
+    }
+    if (r && !r.ok && /空内容|empty/i.test(String(r.error || ''))) {
+      const lm = await listModels({ baseUrl: base, key: token })
+      if (lm && lm.ok) {
+        return {
+          ok: true,
+          ms: ms(),
+          reply: '模型无回复，密钥/列表正常',
+          modelEmpty: true
+        }
       }
     }
     return { ok: false, ms: ms(), error: (r && r.error) || '连接失败' }

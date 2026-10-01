@@ -7,7 +7,7 @@ import { setKeysCache, loadPlayerKeys } from '../engine/state.js'
 import { formDirty, upsertKeyEntry, isZenEntry } from '../engine/keyprofile.js'
 import { ensureZenReady, zenConfig, isZenBase, readZenCache, zenUsageToday, ZEN_BASE, ZEN_KEY, ZEN_NAME, ZEN_DAILY_LIMIT } from '../engine/zen.js'
 import { PROVIDER_PRESETS, presetSteps, findPreset } from '../engine/providers.js'
-import { upgradeSelect, setSelectVisible } from './picker.js'
+import { upgradeSelect, setSelectVisible, openPicker } from './picker.js'
 
 const STYLE_HELP = {
   chat: t('styleHelpChat'),
@@ -140,10 +140,10 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       <input id="k-preset-key" type="password" placeholder="sk-…" autocomplete="off" value="">
       <label style="color:var(--dim);font-size:12px;display:block;margin-top:12px">${t('model')}</label>
       <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-        <input id="k-preset-model" type="text" list="k-preset-model-dl" style="margin-top:0;flex:1" placeholder="${t('presetModelPh')}" value="">
+        <input id="k-preset-model" type="text" style="margin-top:0;flex:1" placeholder="${t('presetModelPh')}" value="">
+        <button class="btn btn-sm" id="k-preset-pick" type="button">${t('pickOne')}</button>
         <button class="btn btn-sm" id="k-preset-refresh" type="button" title="GET {Base URL}/models">${t('refreshModels')}</button>
       </div>
-      <datalist id="k-preset-model-dl"></datalist>
       <div id="k-preset-model-hint" style="font-size:12px;color:var(--faint);margin-top:4px"></div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-gold" id="k-preset-save" type="button">${t('saveUse')}</button>
@@ -355,7 +355,8 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const presetKeyEl = document.getElementById('k-preset-key')
   const presetHint = document.getElementById('k-preset-hint')
   const presetModelEl = document.getElementById('k-preset-model')
-  const presetModelDl = document.getElementById('k-preset-model-dl')
+  const presetPickBtn = document.getElementById('k-preset-pick')
+  let presetModelOptions = []
   const presetModelHint = document.getElementById('k-preset-model-hint')
   const presetRefreshBtn = document.getElementById('k-preset-refresh')
 
@@ -366,9 +367,9 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     if (!p) return
     if (presetHint) presetHint.textContent = t('providerPresetHint')
     if (clearKey && presetKeyEl) presetKeyEl.value = ''
-    // 所有服务商一律不预填模型，刷新后由玩家在下拉（datalist）自选
+    // 所有服务商一律不预填模型，刷新后由玩家在弹层自选
     if (presetModelEl) presetModelEl.value = ''
-    if (presetModelDl) presetModelDl.innerHTML = ''
+    presetModelOptions = (p.models || []).slice()
     if (presetModelHint) presetModelHint.textContent = t('presetAutoModelHint')
     if (!presetBox) return
     presetBox.innerHTML =
@@ -399,16 +400,42 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       return
     }
     const items = r.items && r.items.length ? r.items : (r.models || []).map(id => ({ id, created: 0 }))
-    // 全量列出，按 id 排序；写进 datalist，输入框可下拉可输入，不另开一个框
-    const ordered = items.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    // 版本号高的排前（v4.1 先于无版本别名 flash），再按 id
+    const ordered = items.slice().sort((a, b) => {
+      const va = versionRank(String(a.id))
+      const vb = versionRank(String(b.id))
+      if (va !== vb) return vb - va
+      return String(a.id).localeCompare(String(b.id))
+    })
+    presetModelOptions = ordered.map(x => String(x.id))
     presetFetchedFor = p.id
-    if (presetModelDl) {
-      presetModelDl.innerHTML = ordered.map(x => `<option value="${esc(x.id)}"></option>`).join('')
-    }
     if (presetModelHint) {
-      presetModelHint.textContent = `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')} · ${t('pickFromList')}`
+      presetModelHint.textContent = `${t('fetchedModels')} ${ordered.length} ${t('fetchedModels2')} · ${t('pickOne')}`
     }
-    if (!auto) toast(`${t('fetchedN')} ${ordered.length}${t('modelsN')}`)
+    if (!auto) {
+      toast(`${t('fetchedN')} ${ordered.length}${t('modelsN')}`)
+      openModelPicker()
+    }
+  }
+
+  function versionRank(id) {
+    const m = /(?:^|[^\d.])v?(\d+(?:\.\d+)?)/i.exec(id)
+    return m ? Number(m[1]) : 0
+  }
+
+  function openModelPicker() {
+    if (!presetModelOptions.length) {
+      fetchPresetModels({ auto: false })
+      return
+    }
+    openPicker({
+      title: t('model'),
+      options: presetModelOptions.map(id => ({ value: id, label: id })),
+      current: (presetModelEl && presetModelEl.value) || '',
+      onPick: (v) => {
+        if (presetModelEl) presetModelEl.value = v
+      }
+    })
   }
 
   // 先定位选中项并同步自绘按钮，再绑定 onchange（避免打开面板就触发清空）
@@ -422,8 +449,9 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   renderPreset({ clearKey: true })
   if (presetSel) presetSel.onchange = () => { presetFetchedFor = ''; renderPreset({ clearKey: true }) }
   if (presetRefreshBtn) presetRefreshBtn.onclick = () => fetchPresetModels({ auto: false })
+  if (presetPickBtn) presetPickBtn.onclick = () => openModelPicker()
   if (presetKeyEl) {
-    // 粘完 Key 自动拉一次列表（只补 datalist，不写模型框）
+    // 粘完 Key 自动拉一次列表（缓存选项，不写模型框）
     presetKeyEl.onblur = () => {
       const p = currentPreset()
       if (p && presetKeyEl.value.trim() && presetFetchedFor !== p.id) fetchPresetModels({ auto: true })

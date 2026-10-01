@@ -439,9 +439,13 @@ export function renderProfile(app, api) {
           : `<div class="empty">${t('noEquip')}</div>`
       })()}
       <h4>${esc(pack.lexicon.skill)}</h4>
-      ${(pack.skills || []).map(sk => `
+      ${(() => {
+        const learned = (pack.skills || []).filter(sk => (Number(S.skills[sk.id]) || 0) > 0)
+        if (!learned.length) return `<div class="empty">${t('noSkills')}</div>`
+        return learned.map(sk => `
         <div class="skill-row"><span class="k">${esc(sk.name)}</span><span class="v">${esc(skillLabel(S, sk, S.skills[sk.id] || 0))}</span></div>
-      `).join('')}
+      `).join('')
+      })()}
       <h4>${esc(pack.lexicon.technique)}</h4>
       ${(S.techniques || []).length
         ? S.techniques.map(m => `<div class="skill-row"><span class="k">${esc(m.name)}</span><span class="v">${m.level}/${m.levels} · ${esc(m.grade || '')}</span></div>`).join('')
