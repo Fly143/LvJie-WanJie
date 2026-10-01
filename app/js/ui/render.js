@@ -452,6 +452,7 @@ export function renderFriends(app, api) {
   const S = app.S
   if (!S) return
   const pack = globalThis.__AW_PACKS__[S.worldview]
+  const ui = packUi(pack)
   const main = document.getElementById('main')
   const cur = curLoc(S) || {}
   const feat = packFeatures(pack)
