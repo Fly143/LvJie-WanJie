@@ -416,16 +416,19 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       setSelectVisible(presetModelsEl, true)
     }
     const manual = (presetModelEl && presetModelEl.value.trim()) || ''
-    // 手填过（和上次自动挑的不一样）就保留手填值，刷新只补列表不覆盖
-    const res = resolvePresetModel({
-      manual,
-      lastAutoPick,
-      autoModel: !!p.autoModel,
-      hint: p.modelHint || '',
-      items
-    })
+    // 显式点「刷新」且模型框已有值 → 只补列表，绝不改手填/上次选中的模型
+    // 仅在自动探测（粘 Key 后 auto）且框为空时才 autoModel 挑一个
+    const res = (manual || !auto)
+      ? { model: manual || pickLatestModel(items, p.modelHint || ''), manual: !!manual, autoPick: manual || '' }
+      : resolvePresetModel({
+        manual,
+        lastAutoPick,
+        autoModel: !!p.autoModel,
+        hint: p.modelHint || '',
+        items
+      })
     const picked = res.model
-    if (!res.manual) lastAutoPick = res.autoPick || picked
+    if (!res.manual && picked && !manual) lastAutoPick = res.autoPick || picked
     if (presetModelEl && picked) presetModelEl.value = picked
     if (presetModelsEl) presetModelsEl.value = ordered.some(x => x.id === picked) ? picked : ''
     if (presetModelHint) {

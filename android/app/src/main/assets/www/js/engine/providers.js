@@ -1,4 +1,4 @@
-﻿// 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
+// 常用服务商预设：一键填好 Base URL / 模型 / 协议，并给出「怎么申请 Key、填哪里、怎么选模型」的分步说明。
 // 都必须是 OpenAI 兼容的 chat/completions 端点（我们只用这一种协议接第三方）。
 //
 // 维护说明：URL 与模型名按各家官方文档核对（2026-09）。改动时请同步更新 howto/keyUrl。
@@ -90,16 +90,15 @@ export const PROVIDER_PRESETS = [
     id: 'deepseek',
     name: '深度求索（DeepSeek）',
     baseUrl: 'https://api.deepseek.com/v1',
-    // 不写死模型名：粘好 Key 后自动拉官方模型列表，挑最新的 flash 档
+    // 不写死模型名：列表来自官方 /models；无 modelHint，避免误按 flash 筛选
     autoModel: true,
-    modelHint: 'flash',
     apiStyle: 'chat',
     keyUrl: 'https://platform.deepseek.com/api_keys',
     loginUrl: 'https://platform.deepseek.com/',
     howto: [
       '① 打开 {key} 登录 DeepSeek 开放平台（需先注册并充值）',
       '② 点「创建 API key」并复制（只显示一次）',
-      '③ 回到本页粘贴到「API Key」，模型会自动从官方模型列表里取最新的 flash 档（也可点「刷新模型列表」自己挑）',
+      '③ 回到本页粘贴到「API Key」，模型会从官方列表自动选一个（也可点「刷新模型列表」自己挑）',
       '④ 点「测试连接」验证后「保存并选用」'
     ]
   },
