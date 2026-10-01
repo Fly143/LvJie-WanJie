@@ -127,8 +127,15 @@ class MainActivity : AppCompatActivity() {
                         val u = URL(curUrl)
                         conn = u.openConnection() as HttpURLConnection
                         conn!!.requestMethod = curMethod
-                        conn!!.connectTimeout = timeoutMs.coerceIn(1000, 180000)
-                        conn!!.readTimeout = conn!!.connectTimeout
+                        // timeoutMs<=0：不限时，等上游结束
+                        if (timeoutMs > 0) {
+                            val t = timeoutMs.coerceIn(1000, 600000)
+                            conn!!.connectTimeout = t
+                            conn!!.readTimeout = t
+                        } else {
+                            conn!!.connectTimeout = 0
+                            conn!!.readTimeout = 0
+                        }
                         conn!!.instanceFollowRedirects = false
                         try {
                             val headers = JSONObject(headersJson ?: "{}")

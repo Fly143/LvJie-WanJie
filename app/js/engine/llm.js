@@ -6,6 +6,8 @@ import { isZenKey, isZenBase, zenPatchBody, zenHeaders, zenSseAggregate, zenNext
 import { noJsonMode } from './providers.js'
 
 const DEFAULT_TIMEOUT_MS = 120000
+/** 流式默认不设限时（0 = 等上游主动结束）；仅非流式仍用 DEFAULT_TIMEOUT_MS */
+const STREAM_TIMEOUT_MS = 0
 const MAX_TOKENS = 4000
 export const MAX_TOKENS_DRAFT = 8000
 
@@ -288,7 +290,9 @@ async function callLLMOnce({ keyObj, system, user, history = [], signal, onDelta
     body.stream = true
     let streamed = null
     try {
-      streamed = await callLLMStream({ k, url, body, signal, onDelta, apiStyle: isChat ? 'chat' : 'response', timeoutMs: reqMs })
+      // 流式默认不设超时（0）；仅当调用方显式传 timeoutMs>0 才限时
+      const streamTimeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : STREAM_TIMEOUT_MS
+      streamed = await callLLMStream({ k, url, body, signal, onDelta, apiStyle: isChat ? 'chat' : 'response', timeoutMs: streamTimeout })
     } catch (e) {
       streamed = null
     }
@@ -455,7 +459,8 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle, timeoutM
           'Accept': 'text/event-stream'
         },
     body: JSON.stringify(body),
-    timeoutMs: Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS
+    // 0 / 未传 = 不限时，由上游 stream 结束
+    timeoutMs: Number(timeoutMs) >= 0 ? Number(timeoutMs) : STREAM_TIMEOUT_MS
   })
   if (!started || !started.ok || !started.id) {
     // 启动失败必须把已注册的 chunk/end 监听一并注销，否则泄漏的 onChunk 会把后续并发流的增量灌进本回调
@@ -513,24 +518,12 @@ async function callLLMStream({ k, url, body, signal, onDelta, apiStyle, timeoutM
     return true
   })
 
-  // 首字超时：8 秒对冷启动/慢模型太短（修仙已出字、武侠要等 → 误判为空并降级整段）
-  // 25s 内完全无增量才放弃流式回退；一旦有字必须等 end
-  const noChunkFail = new Promise((resolve) => {
-    setTimeout(() => {
-      if (!text) resolve('empty')
-    }, 25000)
-  })
+  // 不设首字/总时长上限：等上游 end；仅依赖 signal 主动取消
   const raceResult = await Promise.race([
     endPromise.then(() => 'end'),
-    waitStreamEnd(host, id).then(() => 'timeout'),
-    noChunkFail
+    waitStreamEnd(host, id).then(() => 'timeout')
   ])
-  if (raceResult === 'empty' && !text) {
-    try { host.abort(id) } catch (e) { /* ignore */ }
-    cleanupStream()
-    return null
-  }
-  if (!settled.end && !text) {
+  if (raceResult === 'timeout' && !settled.end && !text) {
     cleanupStream()
     return null
   }
@@ -576,7 +569,8 @@ export function extractStreamDelta(j, apiStyle) {
   return ''
 }
 
-function waitStreamEnd(host, id, maxMs = 185000) {
+/** 等待某条流的 end；maxMs<=0 表示不设上限（由上游/取消驱动） */
+function waitStreamEnd(host, id, maxMs = 0) {
   return new Promise((resolve) => {
     const t0 = Date.now()
     let settled = false
@@ -588,7 +582,7 @@ function waitStreamEnd(host, id, maxMs = 185000) {
       resolve()
     }
     const timer = setInterval(() => {
-      if (Date.now() - t0 > maxMs) {
+      if (maxMs > 0 && Date.now() - t0 > maxMs) {
         try { host.abort(id) } catch (e) { /* ignore */ }
         done()
       }

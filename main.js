@@ -347,8 +347,11 @@ ipcMain.handle('aw:http:stream', (event, req) => {
   const id = 's' + (++streamSeq)
   const ctl = new AbortController()
   streamCtl.set(id, ctl)
-  const timeoutMs = Math.max(1000, Math.min(180000, Number(req.timeoutMs) || 180000))
-  const timer = setTimeout(() => ctl.abort(), timeoutMs)
+  // timeoutMs<=0：不设限时，等上游结束；>0 才限时（上限 10 分钟）
+  const timeoutMs = Number(req.timeoutMs)
+  const timer = (timeoutMs > 0)
+    ? setTimeout(() => ctl.abort(), Math.min(600000, timeoutMs))
+    : null
   const sender = event.sender
 
 function safeSend(channel, payload) {
@@ -395,7 +398,7 @@ function safeSend(channel, payload) {
         error: aborted ? '请求超时或已取消' : ((e && e.message) || '网络错误')
       })
     } finally {
-      clearTimeout(timer)
+      if (timer) clearTimeout(timer)
       streamCtl.delete(id)
     }
   })()

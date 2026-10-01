@@ -35,6 +35,17 @@
 - 按世界观独立存档槽，切换世界即读档
 - API Key 加密保存（桌面 safeStorage / 安卓 Android Keystore），不入存档
 
+## 截图
+
+<p align="center">
+  <img src="docs/screenshots/scene-people.jpg" width="32%" alt="场景中的人" />
+  <img src="docs/screenshots/scene-interact.jpg" width="32%" alt="场景交互" />
+  <img src="docs/screenshots/arena-fight.jpg" width="32%" alt="竞技场" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/spar-win.jpg" width="48%" alt="切磋胜利" />
+</p>
+
 ## 目录
 
 | 路径 | 说明 |

@@ -11,8 +11,8 @@ android {
         applicationId = "com.lvjie.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.5.0"
+        versionCode = 15
+        versionName = "0.5.1"
     }
 
     lint {
