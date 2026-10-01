@@ -324,28 +324,29 @@ function enrichBeasts(beasts, myPower) {
 }
 
 /**
- * 挑战合同：写死胜负倾向、战利品边界与 AI 风格例外。
- * 只影响 narrative/changes 质量，不做本地结算（仍由模型产出 JSON）。
+ * 挑战辅助上下文：点名对象、战力参考、掉落提示。
+ * 胜负与奖励尺度交给 AI 风格 + 世界观规则，不写死公式。
  */
 function buildChallengeContract({ S, loc, myPower, styleKey, cheatOn, powerLabel, progName, moneyMain }) {
   const beasts = enrichBeasts(loc && loc.beasts, myPower)
   const list = beasts.length
-    ? beasts.map(b => `- ${b.name}（${b.realm || '未知'}，${powerLabel} ${b.power}；相对你 ${b.powerRatio} → ${b.odds}；掉落：${JSON.stringify(b.drops)}）`).join('\n')
-    : '- （当前地点 beasts 为空，若玩家仍挑战，须自创合理对手并同步 new/mod 与叙事，不得凭空刷顶级掉落）'
+    ? beasts.map(b => `- ${b.name}（${b.realm || '未知'}，${powerLabel} ${b.power}；相对你 ${b.powerRatio} → ${b.odds}；常见掉落：${JSON.stringify(b.drops)}）`).join('\n')
+    : '- （当前地点 beasts 为空；若玩家仍挑战，可按世界观自创合理对手）'
 
-  const styleRule = cheatOn
-    ? '- 【开挂档例外】即便局势为「劣势/极度危险」，也按玩家意愿取胜；但奖励仍必须来自下方掉落池，不得加塞传说级物品。'
-    : '- 严格按 odds 写结果：碾压/优势 → 必胜；势均 → 可胜（约六成，视 aiStyle 收紧）；劣势 → 大概率败或惨胜（重伤+微薄收益）；极度危险 → 默认败/逃，除非剧情有正当外因。'
+  const lootRule = cheatOn
+    ? '- 【开挂档】奖励可明显超出表内掉落（读者爽感优先），但仍需题材自洽：别给世界位阶不该出现的神装，频次与强度按慷慨/开挂尺度加厚。'
+    : '- 战利品优先使用该 beast 的常见掉落；也可少量发挥，但名称/品阶须与场景位阶相符，禁止把场外顶级货塞进这场。'
 
   return `
-【挑战/讨伐合同】（本轮与对抗直接相关时必须遵守）
-目标比值 = 玩家${powerLabel} ÷ 对手${powerLabel}。参考表：≥6 碾压；2~6 优势；0.5~2 势均；1/6~0.5 劣势；<1/6 极度危险。
-当前场景可打对手（已算比值）：
+【挑战/讨伐参考】（本轮涉及对抗时使用）
+- 场景对手（含战力对比与局势参考，**仅作叙事合理性参考，不按公式判死**）：
 ${list}
-- 若 user 点名了某个 beast，**必须打那一个**，不得张冠李戴或改名。
-- ${styleRule}
-- 战利品只允许：该 beast.drops 里列出的名称/数量（可少给、不可多给/换名）+ 与战力匹配的少量${moneyMain || '货币'}与${progName}；禁止掉落不在表内的高阶物、秘籍、装备。
-- 未打赢：changes 不得给上述战利品；最多 small_events 记一笔交手或负伤。
-- 正文与 JSON 必须一致：杀了才 remove 或 modify 该 beast；没杀不得写「尸体化作宝光」类空头支票。
-- 对手 name/realm 与【场景】中完全一致，不得改档位。`
+- 若 user 点名了某个 beast，应打那一个，勿张冠李戴；name/realm 与场景一致。
+- 胜负由 AI 风格与剧情张力决定：${styleRuleSummary(cheatOn)}比值大只说明该轻松写，比值小可写险胜/苦战/周旋，不必机械对表。
+- ${lootRule}
+- 未打赢时不要白送战利品；正文出现的奖励必须同步写进 changes。`
+}
+
+function styleRuleSummary(cheatOn) {
+  return cheatOn ? '开挂档按玩家意愿取胜。' : '注意强弱悬殊时结果与叙事不要离谱。'
 }
