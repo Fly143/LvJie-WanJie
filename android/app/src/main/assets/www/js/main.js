@@ -1,7 +1,7 @@
 // 主入口：引导、欢迎页选世界观、全局状态
 import { listPacks, getPack, defaultPackId, isBuiltinPack } from './worldviews/index.js'
 import { loadSave, newGame, saveGame, resetSaveKeepMeta, hydratePlayerKeysFromHost, normalizePlayerKeys, listSlots, hasSave, getActiveWorld, setActiveWorld, deleteSave, applyGlobalPrefs, loadPackOrder, savePackOrder, movePackId, saveGlobalLang, getGlobalLang, loadPlayerKeys } from './engine/state.js'
-import { LANGUAGE_OPTIONS, langPack } from './engine/constants.js'
+import { LANGUAGE_OPTIONS, langPack, AI_STYLES, AI_STYLE_ORDER } from './engine/constants.js'
 import { t, setUiLang, getUiLang, uiLangName } from './engine/i18n.js'
 import { esc, ageLabelShort, fmtNum, cssColor } from './engine/util.js'
 import {
@@ -279,6 +279,9 @@ function startBtnLabel(pack) {
  */
 function openWelcomeSettings() {
   const cur = getGlobalLang()
+  let gp = null
+  try { gp = JSON.parse(localStorage.getItem('agentworlds_prefs_v1')) } catch (e) { gp = null }
+  const curStyle = (gp && gp.aiStyle) || 'normal'
   openModal(`
     <h2>⚙️ ${t('navSettings')}</h2>
 
@@ -289,6 +292,14 @@ function openWelcomeSettings() {
       `).join('')}
     </div>
     <div style="font-size:12px;color:var(--faint)">${t('langModalHint')}</div>
+
+    <h4>${t('aiStyle')}</h4>
+    <div class="btn-row">
+      ${AI_STYLE_ORDER.map(k => `
+        <button class="btn btn-sm ${curStyle === k ? 'btn-gold' : ''}" data-wstyle="${k}" type="button">${esc(AI_STYLES[k].name)}</button>
+      `).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--faint)">${esc(AI_STYLES[curStyle] ? AI_STYLES[curStyle].desc : '')}</div>
 
     <h4>${t('api')}</h4>
     <div class="btn-row">
@@ -311,6 +322,18 @@ function openWelcomeSettings() {
       closeModal()
       applyUiLang(id)
       toast(t('langSet') + ' ' + uiLangName(id))
+    }
+  })
+  document.querySelectorAll('[data-wstyle]').forEach(b => {
+    b.onclick = () => {
+      try {
+        const pref = JSON.parse(localStorage.getItem('agentworlds_prefs_v1') || '{}') || {}
+        pref.aiStyle = b.dataset.wstyle
+        localStorage.setItem('agentworlds_prefs_v1', JSON.stringify(pref))
+      } catch (e) { /* ignore */ }
+      closeModal()
+      openWelcomeSettings()
+      toast(t('aiStyle') + ': ' + (AI_STYLES[b.dataset.wstyle] || {}).name)
     }
   })
   const wk = document.getElementById('ws-key')

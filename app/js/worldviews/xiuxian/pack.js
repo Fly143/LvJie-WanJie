@@ -93,7 +93,8 @@ export const xiuxianPack = {
   cultYears: [2, 20, 80, 300, 900, 3000, 10000, 50000, 200000, 1000000, 5000000, 20000000, 100000000, 500000000],
   startLoc: 'l_qy',
   tiers: [
-    { name: '凡人', lifespan: 100, subNames: ['初期', '中期', '后期'] },
+    // 凡人只有一阶：先做人，炼气起才「入境」分初/中/后
+    { name: '凡人', lifespan: 100, subNames: [''] },
     { name: '炼气', lifespan: 100 },
     { name: '筑基', lifespan: 200 },
     { name: '结丹', lifespan: 500 },

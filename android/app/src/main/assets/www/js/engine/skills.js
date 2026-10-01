@@ -8,6 +8,8 @@ export function skillRank(r) {
 export function skillLabel(S, sk, r) {
   const pack = packOf(S)
   r = skillRank(r)
+  // 0 级 = 尚未习得（新开档技艺列表全是 0，不能显示成“初级XX师”）
+  if (r <= 0) return '未习'
   const tiers = pack.tiers
   const startTier = pack.skillStartTier != null ? pack.skillStartTier : 1
   const ri = startTier + Math.floor(r / 3)

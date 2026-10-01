@@ -447,10 +447,10 @@ export function newGame(name, packId, opts = {}) {
     medY: 0, medM: 0, medD: 10,
     lang: gp.lang || 'zh-CN',
     bgmTrack: (PACK_BGM && PACK_BGM[pack.id]) || BGM_DEFAULT || '',
-    aiStyle: 'normal',
-    playerGender: '',
-    marriagePref: '',
-    dialogLimit: true,
+    dialogLimit: gp.dialogLimit !== false,
+    aiStyle: gp.aiStyle || 'normal',
+    playerGender: gp.playerGender || '',
+    marriagePref: gp.marriagePref || '',
     giftChoice: null,
     _locSeq: 0
   }, init.state || {})

@@ -120,6 +120,7 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
       <div style="font-size:12px;color:var(--faint);margin-top:6px" id="k-zen-status">${zenStatusText}</div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-gold" id="k-zen" type="button">${t('zenEnable')}</button>
+        <button class="btn btn-sm" id="k-zen-refresh" type="button">${t('refreshModels')}</button>
         <button class="btn btn-sm" id="k-zen-test" type="button">${t('testConn')}</button>
         <button class="btn" data-close type="button">${t('close')}</button>
       </div>
@@ -639,8 +640,44 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
   const zenTestBtn = document.getElementById('k-zen-test')
   if (zenTestBtn) {
     zenTestBtn.onclick = async () => {
+      let model = (zenModelEl && zenModelEl.value) || ''
+      if (!model) {
+        const probed = await runZenProbe()
+        model = probed.ok ? probed.model : ''
+      }
+      if (!model) {
+        const msg = t('zenUnavailable')
+        if (zenStatus) zenStatus.textContent = msg
+        toast(msg)
+        return
+      }
+      const old = zenTestBtn.textContent
+      zenTestBtn.disabled = true
+      zenTestBtn.textContent = t('testing')
+      try {
+        const r = await testConnection({
+          baseUrl: ZEN_BASE,
+          key: ZEN_KEY,
+          model,
+          apiStyle: 'chat'
+        })
+        const msg = r.ok ? (t('testOk') + model) : (t('testFail') + (r.error || ''))
+        if (zenStatus) zenStatus.textContent = msg
+        toast(msg)
+      } catch (e) {
+        const msg = t('testFail') + ((e && e.message) || '')
+        if (zenStatus) zenStatus.textContent = msg
+        toast(msg)
+      }
+      zenTestBtn.disabled = false
+      zenTestBtn.textContent = old
+    }
+  }
+  const zenRefreshBtn = document.getElementById('k-zen-refresh')
+  if (zenRefreshBtn) {
+    zenRefreshBtn.onclick = async () => {
       const r = await runZenProbe()
-      const msg = r.ok ? (t('zenReady') + r.model) : t('zenUnavailable')
+      const msg = r.ok ? t('fetchedModels') + ' ' + (r.model || '') : t('zenUnavailable')
       if (zenStatus) zenStatus.textContent = msg
       if (r.ok) fillZenModels(readZenCache().free, r.model)
       toast(msg)

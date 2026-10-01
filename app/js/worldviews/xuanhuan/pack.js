@@ -44,7 +44,8 @@ export const xuanhuanPack = {
     { id: 'cultivate', label: '🌀 吐纳炼气', prompt: '我盘膝吐纳炼气，夯实修为。' }
   ],
   worlds: ['青石镇', '苍澜域', '天外神墟'],
-  worldMaxTier: { 青石镇: 4, 苍澜域: 7, 天外神墟: 9 },
+  // +1：最前插入凡人，境界索引整体后移
+  worldMaxTier: { 青石镇: 5, 苍澜域: 8, 天外神墟: 10 },
   subNames: ['初期', '中期', '后期'],
   subPower: [1, 1.25, 1.6],
   lexicon: {
@@ -84,9 +85,11 @@ export const xuanhuanPack = {
   artPriceK: 90,
   breakthroughPriceK: 22,
   artPower: { 凡品: 0.1, 灵品: 0.18, 玄品: 0.3, 神品: 0.5 },
-  cultYears: [2, 8, 20, 50, 120, 300, 800, 2000, 6000, 20000, 80000],
+  cultYears: [2, 2, 8, 20, 50, 120, 300, 800, 2000, 6000, 20000, 80000],
   startLoc: 'x_town',
   tiers: [
+    // 先凡人，再入境聚气（索引整体 +1，gate/worldMaxTier 已同步）
+    { name: '凡人', lifespan: 100, subNames: [''] },
     { name: '聚气境', lifespan: 100, subNames: ['初期', '中期', '后期'] },
     { name: '凝元境', lifespan: 130 },
     { name: '通玄境', lifespan: 180 },
@@ -102,8 +105,9 @@ export const xuanhuanPack = {
   buildRules: buildXuanhuanRules,
   gateRules(from, to, S) {
     if (!from || !from.world) return null
-    if (to.world === '苍澜域' && S.tierIndex < 2) return '离开青石镇需至少通玄境'
-    if (to.world === '天外神墟' && S.tierIndex < 5) return '踏入神墟需法相境以上修为'
+    // 凡人插在 0 后，通玄=3、法相=6
+    if (to.world === '苍澜域' && S.tierIndex < 3) return '离开青石镇需至少通玄境'
+    if (to.world === '天外神墟' && S.tierIndex < 6) return '踏入神墟需法相境以上修为'
     return null
   },
   createInitState() {
