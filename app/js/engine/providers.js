@@ -230,11 +230,12 @@ export function pickLatestModel(items, hint) {
       if (hit.length) pool = hit
     } catch (e) { /* hint 不是合法正则就当没有 */ }
   }
-  const timed = pool.filter(x => x.created > 0)
-  if (timed.length) {
-    return timed.slice().sort((a, b) => b.created - a.created || versionOf(b.id) - versionOf(a.id))[0].id
-  }
-  return pool.slice().sort((a, b) => versionOf(b.id) - versionOf(a.id) || a.id.localeCompare(b.id))[0].id
+  // 先比名字里的版本号（v4.1 > 无版本别名 deepseek-flash），再比 created，避免别名靠新时间戳抢过真版本号
+  const rank = (a, b) =>
+    versionOf(b.id) - versionOf(a.id) ||
+    b.created - a.created ||
+    a.id.localeCompare(b.id)
+  return pool.slice().sort(rank)[0].id
 }
 
 /** 模型列表排序：命中关键字的排前面，其余按新旧 */

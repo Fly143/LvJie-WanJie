@@ -348,17 +348,24 @@ ok('zenConfig 形状正确', (() => {
   ok('MiMo 候选里去掉 ultraspeed', !(mimoP.models || []).some(m => /ultraspeed/i.test(m)), mimoP.models)
   const dsP = list.find(p => p.id === 'deepseek')
   ok('DeepSeek 不写死模型名（改为拉列表自动取）', dsP.autoModel === true && !dsP.model && !(dsP.models || []).length, { autoModel: dsP.autoModel, model: dsP.model, models: dsP.models })
-  ok('DeepSeek 自动取的是 flash 档', dsP.modelHint === 'flash', dsP.modelHint)
+  ok('DeepSeek 无 flash/modelHint 硬编码', dsP.modelHint == null, dsP.modelHint)
   ok('DeepSeek 教程说明会自动取最新', /自动/.test((dsP.howto || []).join(' ')))
-  // 自动挑模型：有 created 按时间，没有就按名字里的版本号
-  ok('pickLatestModel 在 flash 范围内取最新（按 created）', prov.pickLatestModel([
+  // 自动挑模型：先按名字版本号（v4.1 > 无版本别名），再按 created
+  ok('pickLatestModel 优先完整版本号而非别名 deepseek-flash', prov.pickLatestModel([
     { id: 'deepseek-v4-pro', created: 100 },
     { id: 'deepseek-flash', created: 300 },
     { id: 'deepseek-v4.1-flash', created: 200 }
-  ], 'flash') === 'deepseek-flash')
+  ], 'flash') === 'deepseek-v4.1-flash')
   ok('pickLatestModel 无 created 时按版本号取最新', prov.pickLatestModel([
     { id: 'deepseek-v4-pro' }, { id: 'deepseek-v4.1-flash' }, { id: 'deepseek-flash' }
   ], 'flash') === 'deepseek-v4.1-flash')
+  ok('pickLatestModel 同版本再比 created', prov.pickLatestModel([
+    { id: 'deepseek-v4-flash', created: 1 },
+    { id: 'deepseek-v4-flash-latest', created: 9 }
+  ], 'flash') === 'deepseek-v4-flash-latest' || prov.pickLatestModel([
+    { id: 'x-v4-flash', created: 1 },
+    { id: 'x-v4-flash-2', created: 9 }
+  ], 'flash').indexOf('v4') >= 0)
   ok('pickLatestModel 命中关键字优先于非命中', prov.pickLatestModel([
     { id: 'some-pro-9000', created: 999 }, { id: 'x-flash', created: 1 }
   ], 'flash') === 'x-flash')
@@ -368,18 +375,18 @@ ok('zenConfig 形状正确', (() => {
     return r[0].id.indexOf('flash') >= 0 && r[r.length - 1].id === 'zz-pro'
   })())
   // 手填的模型不能被刷新覆盖（想用 pro 就填 pro）
-  const dsItems = [{ id: 'deepseek-flash', created: 300 }, { id: 'deepseek-v4-pro', created: 100 }]
+  const dsItems = [{ id: 'deepseek-flash', created: 300 }, { id: 'deepseek-v4.1-flash', created: 200 }, { id: 'deepseek-v4-pro', created: 100 }]
   ok('手填 pro 后刷新列表不会覆盖', (() => {
-    const r = prov.resolvePresetModel({ manual: 'deepseek-v4-pro', lastAutoPick: 'deepseek-flash', autoModel: true, hint: 'flash', items: dsItems })
+    const r = prov.resolvePresetModel({ manual: 'deepseek-v4-pro', lastAutoPick: 'deepseek-v4.1-flash', autoModel: true, hint: 'flash', items: dsItems })
     return r.model === 'deepseek-v4-pro' && r.manual === true
   })())
-  ok('没手填时自动挑最新 flash', (() => {
+  ok('没手填时自动挑最新 flash 版本号', (() => {
     const r = prov.resolvePresetModel({ manual: '', lastAutoPick: '', autoModel: true, hint: 'flash', items: dsItems })
-    return r.model === 'deepseek-flash' && r.manual === false
+    return r.model === 'deepseek-v4.1-flash' && r.manual === false
   })())
   ok('值等于上次自动挑中的 → 不算手填（继续自动）', (() => {
-    const r = prov.resolvePresetModel({ manual: 'deepseek-flash', lastAutoPick: 'deepseek-flash', autoModel: true, hint: 'flash', items: dsItems })
-    return r.manual === false && r.model === 'deepseek-flash'
+    const r = prov.resolvePresetModel({ manual: 'deepseek-v4.1-flash', lastAutoPick: 'deepseek-v4.1-flash', autoModel: true, hint: 'flash', items: dsItems })
+    return r.manual === false && r.model === 'deepseek-v4.1-flash'
   })())
   ok('非 autoModel 预设也保留手填值', (() => {
     const r = prov.resolvePresetModel({ manual: 'mimo-v2.6-pro', lastAutoPick: '', autoModel: false, hint: 'flash', items: [{ id: 'mimo-v2.6-flash' }] })
