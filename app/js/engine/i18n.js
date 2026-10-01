@@ -129,7 +129,7 @@ const S = {
     testOk: '连接成功',
     testFail: '连接失败：',
     providerPreset: '常用服务商（一键填地址与模型）',
-    providerPresetHint: '选一家 → 自动填好 Base URL 与模型 → 只需粘贴你自己的 API Key',
+    providerPresetHint: '选一家 → 自动填好 Base URL → 只需粘贴你自己的 API Key 和选择模型',
     providerGetKey: '申请 Key：',
     providerFilled: '已填入 ',
     providerShowSteps: '查看申请步骤与申请地址 ▸',

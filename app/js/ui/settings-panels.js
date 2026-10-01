@@ -154,7 +154,6 @@ export function openKeyModal(app, { save, refreshAll, mode } = {}) {
     </div>
 
     <div id="saved-panel" style="display:none">
-      <div style="font-size:12px;color:var(--faint);margin-top:10px">${t('savedHint')}</div>
       <div style="margin-top:8px">${rows || `<div class="empty">${t('noApi')}</div>`}</div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-sm" id="k-saved-test" type="button">${t('testConn')}</button>
