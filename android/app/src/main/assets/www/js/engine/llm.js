@@ -193,6 +193,7 @@ export async function testConnection({ baseUrl, key, model, apiStyle, timeoutMs 
   const timeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : 20000
   try {
     let r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 16, timeoutMs: timeout })
+    // 空回复重试一次（网关偶发截断）
     if ((!r || !r.ok || !String(r.text || '').trim()) && r && !r.aborted) {
       r = await callLLM({ keyObj: k, user: '回复一个字：好', maxTokens: 32, timeoutMs: timeout })
     }
@@ -204,15 +205,12 @@ export async function testConnection({ baseUrl, key, model, apiStyle, timeoutMs 
         switched: r.zenSwitched || undefined
       }
     }
+    // 测连以「模型是否真回话」为准：空内容 = 失败（多半是模型名无效/无权限），不做列表降级
     if (r && !r.ok && /空内容|empty/i.test(String(r.error || ''))) {
-      const lm = await listModels({ baseUrl: base, key: token })
-      if (lm && lm.ok) {
-        return {
-          ok: true,
-          ms: ms(),
-          reply: '模型无回复，密钥/列表正常',
-          modelEmpty: true
-        }
+      return {
+        ok: false,
+        ms: ms(),
+        error: `模型「${mdl}」无回复（请核对模型名是否有效，或该 Key 是否可用此模型）`
       }
     }
     return { ok: false, ms: ms(), error: (r && r.error) || '连接失败' }
