@@ -8,14 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.5.4] - 2026-10
+## [0.5.4] - 2026-10-02
 
 ### Fixed
 - **剧情生成后的「未知生物 / 未知」**：无名 beast/交互不再入库；旧档加载时自动清洗占位；场景侧再过滤一层
 - **同名地点合并**：`new_locations` 写到已有地点时合并 beasts/交互；`modify_locations` 支持补 beasts/交互
 - 提示词明确要求 beasts/交互必须有 `name`（beasts 还须 realm/power/drops）
 
-## [0.5.3] - 2026-10
+## [0.5.3] - 2026-10-02
 
 ### Changed
 - **欢迎页设置对齐场景页**：语言 / AI 风格 / 性别 / 对话轮数 / 完整背景音乐（含本地导入）/ API / 帮助；存档导入导出与重置仍只在场景页
@@ -24,19 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Docs
 - README「运行」补充 Android 安装说明；游戏画面改为桌面端三图
 
-## [0.5.2] - 2026-10
+## [0.5.2] - 2026-10-02
 
 ### Fixed
 - **打开即报 Script error**：Android 注入 `awHost.save` 时 JS 括号不配对，导致启动横幅报错（与内置模型无关）
 
-## [0.5.1] - 2026-10
+## [0.5.1] - 2026-10-01
 
 ### Changed
 - **流式不再限时**：等上游主动结束；仅手动取消才中断（原先首字数秒/总时长超时会降级成整段非流式）
 - 中文界面场景按钮恢复世界观带皮文案（含表情）；随包提供 启动游戏.cmd
 - README 增加游戏截图展示
 
-## [0.5.0] - 2026-10
+## [0.5.0] - 2026-10-01
 
 ### Added
 - **完整多语言**：英/繁缺失界面键补齐；场景行动 `act_*` 四语言；帮助文案繁/英/日
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 预设按钮与教程错位；测连空回复不再用列表接口冒充成功
 - 同伴页邀请同行 `ui` 未定义崩溃
 
-## [0.4.0] - 2026-09
+## [0.4.0] - 2026-09-30
 
 ### Added
 - **内置免费通道（开箱即用）**：没有任何 API 配置时，启动会自动拉取上游免费模型名单并逐个探测，取第一个可用的作为默认，无需自备 Key
@@ -76,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Notes
 - 内置通道通过注入客户端指纹工作，属**实验性**：上游调整校验即可能整体失效，届时会提示改用自己的 API Key
 
-## [0.3.0] - 2026-09
+## [0.3.0] - 2026-09-30
 
 ### Added
 - **同伴同行**：同伴页可「邀请同行 / 结束同行」。同行者随你移动（旅行时自动跟随并切换到新场景），始终出现在当前场景人物表里，卡片显示「同行中」；行踪不明的同伴也可邀请，明确在别处的则要求同场景
@@ -131,12 +131,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 数值通道 NaN 防御；relType 与婚姻状态解耦；toast / i18n 转义修复
 - 引擎稳定性批修：空指针防御、changes 单轮熔断、流式超时
 
-## [0.0.7.1] - 2025-09
+## [0.0.7.1] - 2026-09-28
 
 ### Fixed
 - 选项去掉重复序号，不再显示「1. 1.xxx」
 
-## [0.0.7] - 2025-09
+## [0.0.7] - 2026-09-28
 
 ### Added
 - 婚姻：末世开启；取向（不限/女/男）；求婚成功/婉拒均走 AI 剧情
@@ -150,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - MIDI 安卓播放（asset.read 回退 + 本地服 URL 解码中文文件名）
 - 生成剧情滚回整页顶部；render ageLabel 导入崩溃
 
-## [0.0.6] - 2025-09
+## [0.0.6] - 2026-09-28
 
 ### Added
 - 自定义世界生成可视化进度：步骤状态 / 计时 / 失败标红 / 长任务心跳
@@ -164,7 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 游戏事件输出改为单一 JSON 对象 + response_format 强制，杜绝漏数据块
 - 生成按钮与婚姻提示去掉 UI 历史说明，只留操作指引
 
-## [0.0.5] - 2025-07
+## [0.0.5] - 2026-09-27
 
 ### Added
 - Responses API previous_response_id 服务端对话链，断链自动回退全量历史
@@ -181,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 欢迎页与游戏界面重叠；新地图自动落位；同据点路程 1 天
 - BGM 后台暂停、回前台防叠音；对话上下文完整回放
 
-## [0.0.3] - 2025-07
+## [0.0.3] - 2026-09-27
 
 ### Added
 - 完整界面 UI 多语言：简体中文 / 繁體中文 / English / 日本語
@@ -193,14 +193,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - HTTP 桥 SSRF 防护、跨 origin 重定向剥离认证头、toast XSS 转义
 - 三审批修：Key 空写覆盖、recover 竞态、progress 白名单、流式串扰
 
-## [0.0.2.1] - 2025-06
+## [0.0.2.1] - 2026-09-26
 
 ### Fixed
 - 婚姻性别规则与场景 NPC 性别显示
 - NPC 点名档案
 - 独立审查问题批修（Key / API 保存 / MIDI / 弹窗 / 恩怨 / 任务 / 流式）
 
-## [0.0.2] - 2025-05
+## [0.0.2] - 2026-09-26
 
 ### Added
 - 恩怨手动增删；负好感自动写入恩怨 / 仇人
@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - XSS 与 Electron 安全面加固
 - 联网补充改为国内信源优先
 
-## [0.0.1] - 2025-04
+## [0.0.1] - 2026-09-26
 
 ### Added
 - 初版：六世界观、自定义模型接入、事件循环与 JSON changes 落库
