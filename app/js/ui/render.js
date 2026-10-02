@@ -110,13 +110,13 @@ export function renderScene(app, api) {
       </div>
     </div>
     ${evHtml}
-    <div class="panel" id="free-act-panel">
+    ${evHtml ? '' : `<div class="panel" id="free-act-panel">
       <div class="ev-label-row"><span style="color:var(--dim);font-size:12px">${t('freeAction')}</span></div>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="ev-input" id="scene-free" type="text" placeholder="${t('freePlaceholder')}" style="flex:1">
         <button class="btn btn-gold btn-sm" id="scene-free-send" type="button">${t('send')}</button>
       </div>
-    </div>
+    </div>`}
     <div class="panel">
       <h3>${t('peopleHere')}</h3>
       <div class="grid">
