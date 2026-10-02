@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10
+
+### Fixed
+- **打开即报 Script error**：Android 注入 `awHost.save` 时 JS 括号不配对，导致启动横幅报错（与内置模型无关）
+
 ## [0.5.1] - 2026-10
 
 ### Changed
@@ -200,7 +205,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.3.0...v0.4.0
