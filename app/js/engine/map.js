@@ -71,7 +71,32 @@ export function applyNewLocations(S, arr) {
   let n = 0
   for (const raw of arr.slice(0, 6)) {
     if (!raw || !raw.name) continue
-    if (S.map.some(l => l.name === raw.name)) continue
+    const exist = S.map.find(l => l.name === raw.name)
+    if (exist) {
+      // 同名已有地点：合并 beasts / interactables / people（剧情补当前地点时走这条）
+      if (Array.isArray(raw.beasts)) {
+        exist.beasts = exist.beasts || []
+        for (const b of raw.beasts.slice(0, 8)) {
+          const nb = normBeast(b)
+          if (!nb) continue
+          const ex = exist.beasts.find(x => x.name === nb.name)
+          if (ex) Object.assign(ex, nb)
+          else exist.beasts.push(nb)
+        }
+      }
+      if (Array.isArray(raw.interactables)) {
+        exist.interactables = exist.interactables || []
+        for (const x of raw.interactables.slice(0, 8)) {
+          const nm = String((x && x.name) || '').trim().slice(0, 24)
+          if (!nm) continue
+          const item = { name: nm, intro: String((x && x.intro) || '').slice(0, 80) }
+          const ex = exist.interactables.find(i => i.name === nm)
+          if (ex) Object.assign(ex, item)
+          else exist.interactables.push(item)
+        }
+      }
+      continue
+    }
     if (S.map.length >= 80) break
     const cur = curLoc(S) || {}
     const world = normalizeWorld(pack, raw.world, cur.world)
