@@ -211,8 +211,9 @@ export function buildSystemPrompt(S, opts = {}) {
 ${limitOn ? `接近 ${MAX_EVENT_CHOICES} 轮仅用于真正的多阶段奇遇。` : '轮数限制已关，可写长篇，但仍要讲完就收。'}
 - 外出行动尽量在 changes.new_locations 增加 1 个新地点（含 people/shop/beasts），等级匹配世界观。
 - **玩家移动到新地点时必须写 changes.move_to（地点名）**，否则地图不会更新；同名地点直接写全名。
-- **「到达新处所」vs「场景内物件」**：正文若写你进入/走到/抵达某个**可单独前往的处所**（演武场、密林、客栈、分舵等）→ 必须 `new_locations`（同名则合并）+ `move_to`，不要塞进当前地点的 interactables。`interactables` 只放**呆在原地、点了不出门**的物件/设施（石碑、告示板、机关、可旁观的角落）。
-- 判定口诀：若玩家离开当前位置才能到那里 → `new_locations`+`move_to`；若只是在镖局/城里「旁观、查看、操作」某个设施 → `interactables`。
+- **「到达新处所」vs「场景内物件」**：正文若写你进入/走到/抵达某个**可单独前往的处所**（演武场、密林、客栈、分舵、镖局总号等）→ 必须写 new_locations（同名则合并）+ move_to，不要塞进当前地点的 interactables。interactables 只放**呆在原地、点了不出门**的物件/设施（石碑、告示板、机关、可旁观的角落）。
+- 判定口诀：若玩家离开当前位置才能到那里 → new_locations + move_to；若只是在镖局/城里「旁观、查看、操作」某个设施 → interactables。
+- **城内子场所勿抄母城设施**：新建「镖局/客栈/分舵」等子地点时，interactables 默认给该场所自身的（告示、兵器架…），**不要**把母城的酒楼、渡口等整份拷进来（例如醉仙楼属于洛阳城，不属于龙门镖局）。
 - 委托用 quests 同步：接取 active / 完成 done / 搞砸 failed；奖励写入数值字段；可带 loc；不设强制时限。
 
 【数值与赠与】（正文 ↔ json 必须一致）
