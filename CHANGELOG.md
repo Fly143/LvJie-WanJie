@@ -91,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - `changes.friends` 的 `mem` 更新同时写入近况，AI 侧人物状态与「近况」栏保持一致
 
-## [0.2.1] - 2026-09
+## [0.2.1] - 2026-09-30
 
 ### Fixed
 - API 设置：切换已保存配置后点「保存并选用」会回到原来那条 —— 弹窗打开后表单没有跟着切换走，保存时按旧表单内容匹配并把选择改了回来；现在切换即同步表单，且表单未改动时只切换选用、不再重复写库
@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `smoke:keys` 回归脚本：配置切换/匹配判定 18 个用例
 - `scripts/ui-layout-check.js`：用系统 Edge 无头渲染，量化校验窄屏排版（含复刻旧样式的对照组）
 
-## [0.2.0] - 2026-09
+## [0.2.0] - 2026-09-30
 
 ### Added
 - 剧情数据补写链：LLM 回合缺少 JSON 数据块时自动恢复（AI 恢复抽取 → 正则兜底 → 仅保留正文），连续缺块上限 2 轮强制收束事件；设置中关掉轮数上限则完全不限
@@ -113,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 补写链正则兜底接入同一到手判定，杜绝「提到没给」的物品被写成奖励
 - 存档导出统一到 `文档/AgentWorlds/` 目录；轮数上限弹窗文案修正
 
-## [0.1.0] - 2026-09
+## [0.1.0] - 2026-09-29
 
 ### Added
 - 「开挂」AI 风格真实生效：移除 `cheatUnlocked` 死门槛，四档风格（开挂/慷慨/正常/艰难）全部按设置生效
