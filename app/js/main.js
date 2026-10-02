@@ -15,7 +15,7 @@ import { renderScene, renderMap, renderProfile, renderFriends, renderBag, render
 import { openModal, closeModal, toast, centerToast, toastHtml, centerToastHtml } from './ui/modals.js'
 import { openKeyModal, openHelp, ensureBuiltinZenDefault } from './ui/settings-panels.js'
 import { openWorldAuthor } from './ui/world-author.js'
-import { initBgm, playBgm, hydrateCustomBgm, showGamePlay, allBgmTracks } from './ui/bgm.js'
+import { initBgm, playBgm, hydrateCustomBgm, showGamePlay, allBgmTracks, addLocalBgmFiles } from './ui/bgm.js'
 import { BGM_MAP_TRACK, BGM_DEFAULT_TRACK, BGM_DEFAULT_TABS } from './engine/constants.js'
 import { packUi, packFeatures } from './engine/pack-ui.js'
 import { isZenBase, zenUsageToday, ZEN_DAILY_LIMIT } from './engine/zen.js'
@@ -274,8 +274,8 @@ function startBtnLabel(pack) {
 }
 
 /**
- * 欢迎页的「设置」：语言 / API / 帮助 都收在这里。
- * 与游戏内「设置」同源：语言是全局的（新开局与界面都用它），API 与帮助复用同一个弹窗。
+ * 欢迎页「设置」：结构对齐游戏内「设置」页（语言 / AI 风格 / 性别 / 对话轮数 / 背景音乐 / API / 帮助）。
+ * 存档导入导出、重置只保留在场景页设置，不进欢迎页。
  */
 function openWelcomeSettings() {
   const cur = getGlobalLang()
@@ -284,7 +284,7 @@ function openWelcomeSettings() {
   const curStyle = (gp && gp.aiStyle) || 'normal'
   const curGender = (gp && gp.playerGender) || ''
   const curLimit = gp && gp.dialogLimit != null ? !!gp.dialogLimit : true
-  const curBgm = (gp && gp.bgmTrack) || ''
+  const curBgm = (gp && gp.bgmTrack != null) ? gp.bgmTrack : ''
   const savePref = (patch) => {
     try {
       const base = JSON.parse(localStorage.getItem('agentworlds_prefs_v1') || '{}') || {}
@@ -292,6 +292,8 @@ function openWelcomeSettings() {
       localStorage.setItem('agentworlds_prefs_v1', JSON.stringify(base))
     } catch (e) { /* ignore */ }
   }
+  const builtin = allBgmTracks().filter(x => !x.custom)
+  const customs = allBgmTracks().filter(x => x.custom)
   openModal(`
     <h2>⚙️ ${t('navSettings')}</h2>
 
@@ -301,7 +303,7 @@ function openWelcomeSettings() {
         <button class="btn btn-sm ${cur === l.id ? 'btn-gold' : ''}" data-wlang="${l.id}" type="button">${esc(uiLangName(l.id))}</button>
       `).join('')}
     </div>
-    <div style="font-size:12px;color:var(--faint)">${t('langModalHint')}</div>
+    <div style="font-size:12px;color:var(--faint);margin-bottom:6px">${t('langModalHint')}</div>
 
     <h4>${t('aiStyle')}</h4>
     <div class="btn-row">
@@ -309,7 +311,7 @@ function openWelcomeSettings() {
         <button class="btn btn-sm ${curStyle === k ? 'btn-gold' : ''}" data-wstyle="${k}" type="button">${esc(AI_STYLES[k].name)}</button>
       `).join('')}
     </div>
-    <div style="font-size:12px;color:var(--faint)">${esc(AI_STYLES[curStyle] ? AI_STYLES[curStyle].desc : '')}</div>
+    <div style="font-size:12px;color:var(--faint);margin-top:6px">${esc(AI_STYLES[curStyle] ? AI_STYLES[curStyle].desc : '')}</div>
 
     <h4>${t('gender')}</h4>
     <div class="btn-row">
@@ -319,26 +321,35 @@ function openWelcomeSettings() {
     </div>
 
     <h4>${t('dialogLimit')}</h4>
+    <div style="font-size:12px;color:var(--faint);margin-bottom:4px">${t('dialogLimitOn')}</div>
     <div class="btn-row">
       <button class="btn btn-sm ${curLimit ? 'btn-gold' : ''}" data-wlimit="1" type="button">${t('on')}</button>
       <button class="btn btn-sm ${!curLimit ? 'btn-gold' : ''}" data-wlimit="0" type="button">${t('off')}</button>
     </div>
 
     <h4>${t('bgm')}</h4>
+    <div class="bgm-group-label">${t('builtin')}</div>
     <div class="btn-row" style="flex-wrap:wrap">
-      <button class="btn btn-sm ${curBgm === '' ? 'btn-gold' : ''}" data-wbgm="" type="button">${t('default') || 'Default'}</button>
-      ${allBgmTracks().filter(x => !x.custom).slice(0, 6).map(x => `
-        <button class="btn btn-sm ${curBgm === x.id ? 'btn-gold' : ''}" data-wbgm="${esc(x.id)}" type="button">${esc(x.name)}</button>
+      ${builtin.map(x => `
+        <button class="btn btn-sm ${curBgm === x.id ? 'btn-gold' : ''}" data-wbgm="${esc(x.id)}" type="button">${esc(x.name)}${curBgm === x.id ? ' ●' : ''}</button>
       `).join('')}
     </div>
+    ${customs.length ? `
+    <div class="bgm-group-label" style="margin-top:8px">${t('custom')}</div>
+    <div class="btn-row" style="flex-wrap:wrap">
+      ${customs.map(x => `
+        <button class="btn btn-sm ${curBgm === x.id ? 'btn-gold' : ''}" data-wbgm="${esc(x.id)}" type="button">${esc(x.name)}${curBgm === x.id ? ' ●' : ''}</button>
+      `).join('')}
+    </div>` : ''}
+    <div class="btn-row" style="margin-top:6px">
+      <button class="btn btn-sm" id="ws-bgm-add" type="button">➕ ${t('localMusic')}</button>
+      <input id="ws-bgm-file" type="file" accept=".mp3,.wav,.ogg,.m4a,.mid,.midi" multiple hidden>
+    </div>
+    <div style="font-size:12px;color:var(--faint);margin-top:4px">${t('localMusicHint')}</div>
 
-    <h4>${t('api')}</h4>
+    <h4>API</h4>
     <div class="btn-row">
       <button class="btn" id="ws-key" type="button">🔑 ${t('switchApiKey')}</button>
-    </div>
-
-    <h4>${t('help')}</h4>
-    <div class="btn-row">
       <button class="btn" id="ws-help" type="button">📖 ${t('help')}</button>
     </div>
 
@@ -382,8 +393,30 @@ function openWelcomeSettings() {
       savePref({ bgmTrack: b.dataset.wbgm })
       closeModal()
       openWelcomeSettings()
+      try { playBgm(b.dataset.wbgm) } catch (e) { /* music optional */ }
     }
   })
+  const bgmAdd = document.getElementById('ws-bgm-add')
+  const bgmFile = document.getElementById('ws-bgm-file')
+  if (bgmAdd && bgmFile) {
+    bgmAdd.onclick = () => bgmFile.click()
+    bgmFile.onchange = async (e) => {
+      try {
+        const n = await addLocalBgmFiles(e.target.files)
+        if (n > 0) {
+          const list = allBgmTracks().filter(x => x.custom)
+          const last = list[list.length - 1]
+          if (last) savePref({ bgmTrack: last.id })
+          closeModal()
+          openWelcomeSettings()
+          toast(t('addedMusic') + n)
+        }
+      } catch (err) {
+        toast(String((err && err.message) || err))
+      }
+      e.target.value = ''
+    }
+  }
   const wk = document.getElementById('ws-key')
   if (wk) wk.onclick = () => { closeModal(); openKeyModal(app, { save, refreshAll }) }
   const wh = document.getElementById('ws-help')
