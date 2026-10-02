@@ -70,6 +70,12 @@
 >
 > 首次运行可能弹「Windows 已保护你的电脑 / 无法验证发布者」：点「更多信息 → 仍要运行」或「运行」即可（未做代码签名）。
 
+### Android（免构建）
+
+从 [Releases](https://github.com/Fly143/LvJie-WanJie/releases) 下载 `LvJie-*-android.apk`，安装后打开「旅界」。
+
+> 若与已安装的同包名版本签名不一致，需先卸载旧包再装（卸载会丢应用内存档，建议先在设置里导出）。
+
 ### Linux / 开发机（免打包）
 
 ```bash

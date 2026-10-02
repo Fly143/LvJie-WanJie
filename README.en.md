@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # LvJie (旅界)
 
@@ -56,6 +56,12 @@ Pick a world — Xianxia / Xuanhuan / Wuxia / Workplace / Apocalypse / Western F
 ### Windows (no build)
 
 Download `LvJie-*-win-x64.zip` from [Releases](https://github.com/Fly143/LvJie-WanJie/releases), unzip, and double-click **`AgentWorlds.exe`**.
+
+### Android (no build)
+
+Download `LvJie-*-android.apk` from [Releases](https://github.com/Fly143/LvJie-WanJie/releases) and install it, then open **旅界**.
+
+> If signatures differ from an already-installed build, uninstall the old app first (in-app saves are removed — export first from Settings if you need them).
 
 ### Linux / dev machine (no packaging)
 
