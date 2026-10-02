@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-02
+
+### Fixed
+- **到达新处所**（如演武场）必须写 `new_locations` + `move_to`，不得塞进当前地点 interactables
+- **城内子地点**（镖局等）勿拷贝母城 interactables（如洛阳城的醉仙楼）
+- 修提示词反引号破坏模板导致的语法错误
+
 ## [0.5.4] - 2026-10-02
 
 ### Fixed
@@ -221,7 +228,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...v0.5.2
