@@ -196,6 +196,7 @@ export function buildSystemPrompt(S, opts = {}) {
 4. thought：可选，仅思考，玩家界面不显示。
 5. narrative 禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」/ 任何语言的规划旁白。
 6. 整个输出必须是可直接 JSON.parse 的单个对象。
+7. 地点里的 beasts / interactables：每条必须有非空 name；beasts 还须有 realm、power（数字）、drops。缺 name 不要写进 JSON（否则会落成「未知生物/未知」）。
 
 【叙事】
 - 用${lang.storyHint}写约 100 字；对话可稍长。幽默可有，勿嘲讽玩家。
@@ -252,10 +253,10 @@ ${worldviewBlock}
     "skills": {},
     "friends": [{"name": "…", "favor": 3, "rank": "${tierLabel(S)}", "gender": "男", "age_days": 3650, "power": 10, "intro": "…", "mem": "…", "married":"wife|husband|null", "relType": "熟人|伙伴|恩师|弟子|仇人|挚友", "relations": [{"to": "某人", "rel": "师徒|仇敌|旧友", "note": "一句"}], "grudges": [{"to": "某人", "kind": "恩|怨|仇|债", "note": "一句"}]}],
     "remove_friends": ["解除关系的名字"],
-    "new_locations": [{"name": "…", "world": "${(pack.worlds && pack.worlds[0]) || '主世界'}", "continent": "…", "type": "…", "desc": "…", "people": [], "shop": [], "beasts": [], "interactables": []}],
+    "new_locations": [{"name": "…", "world": "${(pack.worlds && pack.worlds[0]) || '主世界'}", "continent": "…", "type": "…", "desc": "…", "people": [], "shop": [], "beasts": [{"name": "敌名", "realm": "等级", "power": 10, "drops": "掉落"}], "interactables": [{"name": "物名", "intro": "…"}]}],
     "quests": [{"title": "…", "from": "…", "loc": "…", "status": "active", "objectives": ["…"], "reward": "…", "notes": "…"}],
+    "modify_locations": [{"name": "…", "change": "…", "beasts": [{"name": "敌名", "realm": "…", "power": 10, "drops": "…"}], "interactables": [{"name": "物名", "intro": "…"}]}],
     "remove_locations": ["…"],
-    "modify_locations": [{"name": "…", "change": "…"}],
     "move_to": "…"
   }
 }

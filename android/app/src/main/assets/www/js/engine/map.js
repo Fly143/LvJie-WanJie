@@ -85,11 +85,15 @@ export function applyNewLocations(S, arr) {
       desc: String(raw.desc || ''),
       people: Array.isArray(raw.people) ? raw.people.map(normPerson) : [],
       shop: Array.isArray(raw.shop) ? raw.shop.map(x => normShop(S, pack, x)) : [],
-      beasts: Array.isArray(raw.beasts) ? raw.beasts.map(normBeast) : [],
-      interactables: Array.isArray(raw.interactables) ? raw.interactables.map(x => ({
-        name: String(x.name || '未知'),
-        intro: String(x.intro || '')
-      })) : [],
+      beasts: (Array.isArray(raw.beasts) ? raw.beasts.map(normBeast) : []).filter(Boolean),
+      interactables: (Array.isArray(raw.interactables)
+        ? raw.interactables
+            .map(x => ({
+              name: String((x && x.name) || '').trim().slice(0, 24),
+              intro: String((x && x.intro) || '').slice(0, 80)
+            }))
+            .filter(x => x.name)
+        : []),
       notes: []
     }
     // 物品境界上限
@@ -139,10 +143,13 @@ function normShop(S, pack, x) {
 }
 
 function normBeast(b) {
+  if (!b) return null
+  const name = String(b.name || '').trim().slice(0, 24)
+  if (!name || name === '未知生物') return null
   return {
-    name: String(b.name || '未知生物').slice(0, 24),
+    name,
     realm: String(b.realm || '').slice(0, 24),
-    power: Number(b.power) || 0,
+    power: Math.max(0, Number(b.power) || 0),
     drops: String(b.drops || '').slice(0, 80)
   }
 }
@@ -188,6 +195,28 @@ export function applyModifyLocations(S, arr) {
         const ex = loc.shop.find(x => x.name === s.name)
         if (ex) Object.assign(ex, it)
         else loc.shop.push(it)
+      }
+    }
+    // LLM 可对当前地点补 beasts / interactables（带 name 才收）
+    if (Array.isArray(raw.beasts)) {
+      loc.beasts = loc.beasts || []
+      for (const b of raw.beasts.slice(0, 8)) {
+        const nb = normBeast(b)
+        if (!nb) continue
+        const ex = loc.beasts.find(x => x.name === nb.name)
+        if (ex) Object.assign(ex, nb)
+        else loc.beasts.push(nb)
+      }
+    }
+    if (Array.isArray(raw.interactables)) {
+      loc.interactables = loc.interactables || []
+      for (const x of raw.interactables.slice(0, 8)) {
+        const name = String((x && x.name) || '').trim().slice(0, 24)
+        if (!name) continue
+        const item = { name, intro: String((x && x.intro) || '').slice(0, 80) }
+        const ex = loc.interactables.find(i => i.name === name)
+        if (ex) Object.assign(ex, item)
+        else loc.interactables.push(item)
       }
     }
   }

@@ -340,6 +340,13 @@ function migrateSave(s) {
       if (Array.isArray(l.shop)) l.shop.forEach(it => {
         if (it && LEGACY[it.type]) it.type = LEGACY[it.type]
       })
+      // 清掉历史剧情写入的占位生物/交互（缺 name 时曾被规范成未知生物/未知）
+      if (Array.isArray(l.beasts)) {
+        l.beasts = l.beasts.filter(b => b && b.name && b.name !== '未知生物')
+      }
+      if (Array.isArray(l.interactables)) {
+        l.interactables = l.interactables.filter(x => x && x.name && x.name !== '未知')
+      }
     })
   }
   // 旧档内嵌 Key → 迁入独立密钥仓，并从存档剥离

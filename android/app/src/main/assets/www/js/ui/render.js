@@ -135,7 +135,7 @@ export function renderScene(app, api) {
     <div class="panel">
       <h3>${t('threats')}</h3>
       <div class="grid">
-        ${(loc.beasts || []).map(b => {
+        ${(loc.beasts || []).filter(b => b && b.name && b.name !== '未知生物').map(b => {
           const myPow = totalPowerF(S)
           const bp = Number(b.power) || 0
           const ratio = bp > 0 ? myPow / bp : null
@@ -163,17 +163,21 @@ export function renderScene(app, api) {
         </div>
       `).join('')}
     </div>` : ''}
-    ${(loc.interactables || []).length ? `
+    ${(() => {
+      const inters = (loc.interactables || []).filter(x => x && x.name && x.name !== '未知')
+      if (!inters.length) return ''
+      return `
     <div class="panel">
       <h3>${t('interact')}</h3>
-      ${(loc.interactables || []).map((x, i) => `
+      ${inters.map((x, i) => `
         <div class="shop-row">
           <span class="sname">${esc(x.name)}</span>
           <span class="sdesc">${esc(x.intro || '')}</span>
           <button class="btn btn-sm" data-inter="${i}" type="button">${t('view')}</button>
         </div>
       `).join('')}
-    </div>` : ''}
+    </div>`
+    })()}
   `
 
   const ACT_PROMPTS = {}
@@ -190,7 +194,9 @@ export function renderScene(app, api) {
   })
   main.querySelectorAll('[data-inter]').forEach(b => {
     b.onclick = async () => {
-      const x = loc.interactables[Number(b.dataset.inter)]
+      const inters = (loc.interactables || []).filter(x => x && x.name && x.name !== '未知')
+      const x = inters[Number(b.dataset.inter)]
+      if (!x) return
       contEvent(app, api, t('youView') + x.name + t('youView2') + (x.intro || ''))
     }
   })
