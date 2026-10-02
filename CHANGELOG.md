@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-10-02
+
+### Changed
+- **启动提示更短**：「欢迎来到《…》」与「已启用内置免费通道」由 6s / 3.8s 统一缩短为 2.5s
+
 ## [0.5.5] - 2026-10-02
 
 ### Fixed
@@ -228,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.6...HEAD
+[0.5.6]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...v0.5.3
