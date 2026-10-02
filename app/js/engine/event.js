@@ -56,9 +56,9 @@ export async function runEventTurn(S, EV, userContent, hooks = {}) {
 
 async function runEventTurnInner(S, EV, userContent, hooks = {}) {
   let userText = String(userContent == null ? '' : userContent).slice(0, MAX_USER_LEN)
-  // 扩图提示：外出类行动在用户侧提醒模型补 new_locations
-  if (/外出|游历|出发|赶路|探索新地|去.{0,6}(林|山|镇|城|谷|海|岛)/.test(userText) && !/new_locations/.test(userText)) {
-    userText += '\n（本轮为外出行动，请尽量在 json.changes.new_locations 添加 1 个新地点及 people/shop）'
+  // 扩图提示：外出/到达新处所 → 补 new_locations（勿写成 interactables）
+  if (/外出|游历|出发|赶路|探索新地|来到|抵达|走进|走入|进入|前往|去.{0,6}(林|山|镇|城|谷|海|岛|场|楼|院|庄)/.test(userText) && !/new_locations/.test(userText)) {
+    userText += '\n（本轮若玩家到达新的处所，请在 changes.new_locations 写入该地点并用 move_to 移动；场景内固定设施才写 interactables）'
   }
   // 连续回合 / 强制 JSON：用户侧再钉合同，避免历史纯正文把模型带偏
   if (forceJsonHintNeeded(EV) && !/只输出一个 JSON|\{"narrative"/.test(userText)) {

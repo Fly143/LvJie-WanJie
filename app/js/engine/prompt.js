@@ -197,6 +197,7 @@ export function buildSystemPrompt(S, opts = {}) {
 5. narrative 禁止：Let me / Actually / desc: / 我写 / 等等 / 规则复述 / 导演旁白 / 「已为你添加」/ 任何语言的规划旁白。
 6. 整个输出必须是可直接 JSON.parse 的单个对象。
 7. 地点里的 beasts / interactables：每条必须有非空 name；beasts 还须有 realm、power（数字）、drops。缺 name 不要写进 JSON（否则会落成「未知生物/未知」）。
+8. 玩家若「来到/进入/抵达」新处所（如演武场、客栈、分舵），必须 new_locations（可同名合并）+ move_to，禁止只写进当前地点 interactables；interactables 仅限原地设施（告示、机关、旁观处）。
 
 【叙事】
 - 用${lang.storyHint}写约 100 字；对话可稍长。幽默可有，勿嘲讽玩家。
@@ -210,6 +211,8 @@ export function buildSystemPrompt(S, opts = {}) {
 ${limitOn ? `接近 ${MAX_EVENT_CHOICES} 轮仅用于真正的多阶段奇遇。` : '轮数限制已关，可写长篇，但仍要讲完就收。'}
 - 外出行动尽量在 changes.new_locations 增加 1 个新地点（含 people/shop/beasts），等级匹配世界观。
 - **玩家移动到新地点时必须写 changes.move_to（地点名）**，否则地图不会更新；同名地点直接写全名。
+- **「到达新处所」vs「场景内物件」**：正文若写你进入/走到/抵达某个**可单独前往的处所**（演武场、密林、客栈、分舵等）→ 必须 `new_locations`（同名则合并）+ `move_to`，不要塞进当前地点的 interactables。`interactables` 只放**呆在原地、点了不出门**的物件/设施（石碑、告示板、机关、可旁观的角落）。
+- 判定口诀：若玩家离开当前位置才能到那里 → `new_locations`+`move_to`；若只是在镖局/城里「旁观、查看、操作」某个设施 → `interactables`。
 - 委托用 quests 同步：接取 active / 完成 done / 搞砸 failed；奖励写入数值字段；可带 loc；不设强制时限。
 
 【数值与赠与】（正文 ↔ json 必须一致）
