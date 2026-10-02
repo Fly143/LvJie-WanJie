@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10
+
+### Changed
+- **欢迎页设置对齐场景页**：语言 / AI 风格 / 性别 / 对话轮数 / 完整背景音乐（含本地导入）/ API / 帮助；存档导入导出与重置仍只在场景页
+- **有剧情事件时只保留一个「自由行动」输入框**（隐藏场景侧重复框）
+
+### Docs
+- README「运行」补充 Android 安装说明；游戏画面改为桌面端三图
+
 ## [0.5.2] - 2026-10
 
 ### Fixed
@@ -205,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Fly143/LvJie-WanJie/compare/v0.4.0...v0.5.0
