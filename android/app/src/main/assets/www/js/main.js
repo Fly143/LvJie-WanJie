@@ -701,7 +701,7 @@ function showGame(S) {
 
 function firstGuide(S) {
   if (S.guideDone) return
-  toast(`${t('welcomeToast')}《${getPack(S.worldview).name}》${t('welcomeToast2')}`, 6000)
+  toast(`${t('welcomeToast')}《${getPack(S.worldview).name}》${t('welcomeToast2')}`, 2500)
   S.guideDone = true
   save()
 }
@@ -805,7 +805,7 @@ async function autoZenDefault() {
   } catch (e) { /* ignore */ }
   try { refreshAll() } catch (e) { /* ignore */ }
   if (!app.S) { try { renderWelcome() } catch (e) { /* ignore */ } }  // 欢迎页刷新额度提示
-  toast(t('zenEnabled') + r.model)
+  toast(t('zenEnabled') + r.model, 2500)
 }
 
 window.addEventListener('beforeunload', () => {
