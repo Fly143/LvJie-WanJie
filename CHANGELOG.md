@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10
+
+### Fixed
+- **剧情生成后的「未知生物 / 未知」**：无名 beast/交互不再入库；旧档加载时自动清洗占位；场景侧再过滤一层
+- **同名地点合并**：`new_locations` 写到已有地点时合并 beasts/交互；`modify_locations` 支持补 beasts/交互
+- 提示词明确要求 beasts/交互必须有 `name`（beasts 还须 realm/power/drops）
+
 ## [0.5.3] - 2026-10
 
 ### Changed
@@ -214,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 委托任务、背景音乐（mp3 / MIDI）、人物记忆
 - Windows 便携包与 Android APK 发布
 
-[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Fly143/LvJie-WanJie/compare/v0.5.0...v0.5.1

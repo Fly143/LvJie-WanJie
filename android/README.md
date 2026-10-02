@@ -6,7 +6,7 @@
 1. 内嵌一个 **本地静态服务器**（`ServerSocket`，`127.0.0.1`），从 APK assets 里出 `www/` 静态资源；
 2. 向页面注入 **`window.awHost` 桥**，LLM 请求与 API Key 存取都走该桥（与桌面 Electron 端口径一致）。
 
-当前版本：**versionCode 17 / versionName 0.5.3**（与根 `package.json` 的 `version` 一致）。
+当前版本：**versionCode 18 / versionName 0.5.4**（与根 `package.json` 的 `version` 一致）。
 
 ## 环境要求
 
